@@ -1,0 +1,19 @@
+# Integración continua: todo lo que NO es producción solo se verifica, nunca se publica.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches-ignore: [main, gh-pages]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    uses: ./.github/workflows/verificar.yml

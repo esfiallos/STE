@@ -1,0 +1,30 @@
+# Verificación reutilizable: tipos + pruebas. La llaman ci.yml (ramas y PR) y deploy.yml (antes de publicar).
+name: Verificar
+
+on:
+  workflow_call:
+
+jobs:
+  verificar:
+    name: Tipos y pruebas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Instalar dependencias
+        run: bun install --frozen-lockfile
+
+      - name: Revisar tipos
+        run: bun run check
+
+      # "test" compila el sitio y luego ejecuta las pruebas (dominio, interfaz con Supabase simulado y SQL).
+      - name: Ejecutar pruebas
+        run: bun run test

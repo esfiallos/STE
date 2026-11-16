@@ -1,0 +1,30 @@
+---
+const esDesarrollo = import.meta.env.PUBLIC_APP_ENV === 'development';
+---
+
+<header class="topbar">
+  <div class="topbar__brand">
+    <span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-tower-broadcast"></i></span>
+    <div>
+      <h1>
+        Panel de Traspasos & Turnos NOC
+        {esDesarrollo && <span class="env-badge">DESARROLLO</span>}
+      </h1>
+      <p>
+        Sincronización en tiempo real
+        <span class="live-status" id="liveStatus" data-estado="conectando">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span id="liveStatusText">Conectando…</span>
+        </span>
+      </p>
+    </div>
+  </div>
+
+  <div class="user-box">
+    <i class="fa-regular fa-circle-user" aria-hidden="true"></i>
+    <span class="user-email" id="userEmail"></span>
+    <button id="btnLogout" type="button" class="btn-topbar" title="Cerrar sesión" aria-label="Cerrar sesión">
+      <i class="fa-solid fa-right-from-bracket"></i>
+    </button>
+  </div>
+</header>
