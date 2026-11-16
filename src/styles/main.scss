@@ -1,0 +1,16 @@
+// Punto de entrada de estilos. Un parcial por responsabilidad.
+@use 'base/base';
+
+@use 'layout/layout';
+@use 'layout/header';
+
+@use 'components/buttons';
+@use 'components/forms';
+@use 'components/metrics';
+@use 'components/accordion';
+@use 'components/tech-card';
+@use 'components/incident';
+@use 'components/lunch';
+@use 'components/modal';
+@use 'components/toast';
+@use 'components/login';

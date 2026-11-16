@@ -1,0 +1,88 @@
+@use '../abstracts/variables' as *;
+
+.noc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: $color-overlay;
+}
+
+.noc-modal-card {
+  width: 100%;
+  max-width: 460px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: $radio-md;
+  background-color: $color-superficie;
+  border: 1px solid $color-borde-fuerte;
+  box-shadow: $sombra-modal;
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid $color-borde;
+
+    h3 {
+      font-size: 1.05rem;
+    }
+  }
+
+  .modal-body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+
+  .modal-subtitle {
+    font-size: 0.9rem;
+    color: $color-texto-suave;
+
+    strong {
+      color: $color-texto;
+    }
+  }
+}
+
+// Lista del modal "Gestionar técnicos"
+.tech-manager-list {
+  max-height: 16rem;
+  overflow-y: auto;
+
+  .tech-group-title {
+    padding: 0.5rem 0;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: $color-acento;
+    border-bottom: 1px solid $color-borde;
+  }
+
+  .tech-item-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    font-size: 0.9rem;
+  }
+
+  .tech-item-name {
+    flex: 1;
+  }
+
+  .tech-item-meta {
+    font-size: 0.75rem;
+    color: $color-texto-suave;
+  }
+}

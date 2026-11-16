@@ -1,0 +1,21 @@
+---
+// Plantilla de un turno (acordeón). Los textos y datos los completa scripts/board/shiftView.ts
+---
+
+<template id="tpl-turno">
+  <section class="noc-accordion-card" data-ref="turno">
+    <button type="button" class="accordion-header" data-action="alternar-turno" data-ref="encabezado" aria-expanded="true">
+      <span class="header-info">
+        <i class="fa-solid fa-chevron-down icon-blue" data-ref="chevron" aria-hidden="true"></i>
+        <h2 class="shift-title" data-ref="titulo"></h2>
+        <span class="badge-count" data-ref="badgeTecnicos"></span>
+        <span class="badge-live hidden" data-ref="badgeEnTurno">En turno</span>
+      </span>
+      <span class="header-stats font-mono">
+        <i class="fa-solid fa-ticket icon-blue" aria-hidden="true"></i>
+        <span data-ref="casos"></span>
+      </span>
+    </button>
+    <div class="accordion-body-grid" data-ref="cuerpo"></div>
+  </section>
+</template>

@@ -1,0 +1,115 @@
+@use '../abstracts/variables' as *;
+
+.noc-header {
+  width: 100%;
+  padding: 1rem 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background-color: $color-superficie;
+  border-bottom: 1px solid $color-borde;
+
+  .header-left {
+    h1 {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    p {
+      display: flex;
+      align-items: center;
+      font-size: 0.8rem;
+      color: $color-texto-suave;
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+
+    input {
+      min-width: 14rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: $radio-sm;
+      border: 1px solid $color-borde-fuerte;
+      background-color: $color-superficie-alta;
+      font-size: 0.85rem;
+    }
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: $radio-sm;
+      border: 1px solid $color-borde-fuerte;
+      background-color: $color-superficie-alta;
+      font-size: 0.85rem;
+
+      &:hover {
+        background-color: $color-borde-fuerte;
+      }
+
+      &[aria-pressed='true'] {
+        background-color: $color-aviso-suave;
+        border-color: $color-aviso;
+      }
+    }
+  }
+
+  .user-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-left: 0.75rem;
+    border-left: 1px solid $color-borde-fuerte;
+  }
+
+  .user-email {
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    color: $color-texto-suave;
+  }
+}
+
+// En Modo Consulta la cabecera cambia de color para que sea evidente que la edición está bloqueada.
+.modo-consulta .noc-header {
+  border-bottom-color: $color-aviso;
+}
+
+.live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.75rem;
+
+  .live-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background-color: $color-texto-suave;
+  }
+
+  &[data-estado='conectado'] .live-dot {
+    background-color: $color-exito;
+    box-shadow: 0 0 0 3px $color-exito-suave;
+  }
+
+  &[data-estado='desconectado'] .live-dot {
+    background-color: $color-peligro;
+  }
+}
+
+@media (max-width: 900px) {
+  .noc-header {
+    padding: 1rem;
+  }
+}

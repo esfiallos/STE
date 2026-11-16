@@ -1,0 +1,40 @@
+@use '../abstracts/variables' as *;
+
+.metrics-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+
+  .metric-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: $radio-md;
+    background-color: $color-superficie;
+    border: 1px solid $color-borde;
+
+    .metric-icon {
+      padding: 0.75rem;
+      border-radius: $radio-sm;
+      font-size: 1.5rem;
+      color: $color-acento;
+      background-color: $color-acento-suave;
+    }
+
+    .metric-info {
+      span {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: $color-texto-suave;
+        text-transform: uppercase;
+      }
+
+      h3 {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #fff;
+      }
+    }
+  }
+}

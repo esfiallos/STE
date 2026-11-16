@@ -1,0 +1,35 @@
+@use '../abstracts/variables' as *;
+
+.lunch-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: $radio-sm;
+  background-color: $color-superficie;
+  border: 1px solid transparent;
+
+  .lunch-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .lunch-label {
+    font-size: 0.7rem;
+    color: $color-texto-suave;
+  }
+
+  .lunch-time {
+    font-size: 0.85rem;
+  }
+
+  &.lunch-active {
+    background-color: $color-aviso-suave;
+    border-color: $color-aviso;
+
+    .lunch-label {
+      color: $color-aviso;
+      font-weight: 600;
+    }
+  }
+}

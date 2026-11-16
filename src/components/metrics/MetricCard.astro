@@ -1,0 +1,19 @@
+---
+interface Props {
+  id: string;
+  etiqueta: string;
+  icono: string;
+}
+
+const { id, etiqueta, icono } = Astro.props;
+---
+
+<div class="metric-card">
+  <div class="metric-icon">
+    <i class={`fa-solid ${icono}`}></i>
+  </div>
+  <div class="metric-info">
+    <span>{etiqueta}</span>
+    <h3 id={id}>0</h3>
+  </div>
+</div>

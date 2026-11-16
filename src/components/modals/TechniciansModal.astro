@@ -1,0 +1,46 @@
+---
+import Modal from './Modal.astro';
+import { TURNOS } from '../../domain/shifts';
+---
+
+<Modal id="modalTechnicians" titulo="Gestionar técnicos">
+  <form id="formAddTech" class="noc-form">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="newTechName">Nombre del técnico</label>
+        <input type="text" id="newTechName" placeholder="Ej: Ana Pérez" autocomplete="off" required />
+      </div>
+      <div class="form-group">
+        <label for="newTechShift">Turno</label>
+        <select id="newTechShift" required>
+          {TURNOS.map((turno) => <option value={turno.id}>{turno.nombre}</option>)}
+        </select>
+      </div>
+    </div>
+
+    <p id="techError" class="form-error hidden" role="alert"></p>
+
+    <div class="modal-actions">
+      <button type="submit" class="btn-primary">Agregar técnico</button>
+    </div>
+  </form>
+
+  <div id="techManagerList" class="tech-manager-list"></div>
+
+  <!-- Plantilla de una fila de la lista (la completa scripts/modals/techniciansModal.ts) -->
+  <template id="tpl-tecnico-fila">
+    <div class="tech-item-row" data-ref="fila">
+      <span class="tech-item-name" data-ref="nombre"></span>
+      <span class="tech-item-meta" data-ref="casos"></span>
+      <button
+        type="button"
+        class="btn-remove-tech"
+        data-action="quitar-tecnico"
+        title="Eliminar técnico"
+        aria-label="Eliminar técnico"
+      >
+        <i class="fa-solid fa-trash-can"></i>
+      </button>
+    </div>
+  </template>
+</Modal>

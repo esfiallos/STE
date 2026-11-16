@@ -1,0 +1,46 @@
+---
+// Plantilla de la tarjeta de un técnico. La completa scripts/board/technicianView.ts
+---
+
+<template id="tpl-tecnico">
+  <article class="tech-column-card" data-ref="tecnico">
+    <div class="tech-card-header">
+      <div class="tech-user-info">
+        <div class="avatar" data-ref="avatar" aria-hidden="true"></div>
+        <div>
+          <h3 class="tech-name" data-ref="nombre"></h3>
+          <span class="tech-case-count" data-ref="conteo"></span>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="btn-quick-add"
+        data-action="asignar"
+        data-edit-only
+        title="Asignar incidente"
+        aria-label="Asignar incidente"
+      >
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    </div>
+
+    <div class="incidents-stack" data-ref="incidentes"></div>
+
+    <div class="lunch-footer" data-ref="almuerzo">
+      <div class="lunch-info">
+        <span class="lunch-label" data-ref="almuerzoEtiqueta"></span>
+        <span class="lunch-time font-mono" data-ref="almuerzoHorario"></span>
+      </div>
+      <button
+        type="button"
+        class="btn-edit-lunch"
+        data-action="editar-almuerzo"
+        data-edit-only
+        title="Editar horario de comida"
+        aria-label="Editar horario de comida"
+      >
+        <i class="fa-solid fa-utensils"></i>
+      </button>
+    </div>
+  </article>
+</template>

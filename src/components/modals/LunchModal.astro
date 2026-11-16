@@ -1,0 +1,28 @@
+---
+import Modal from './Modal.astro';
+---
+
+<Modal id="modalLunch" titulo="Horario de comida">
+  <form id="formLunch" class="noc-form">
+    <input type="hidden" id="lunchTechId" />
+    <p class="modal-subtitle">Establecer horario para: <strong id="lunchTechName">--</strong></p>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="lunchStart">Hora inicio</label>
+        <input type="time" id="lunchStart" required />
+      </div>
+      <div class="form-group">
+        <label for="lunchEnd">Hora fin</label>
+        <input type="time" id="lunchEnd" required />
+      </div>
+    </div>
+
+    <p id="lunchError" class="form-error hidden" role="alert"></p>
+
+    <div class="modal-actions">
+      <button type="button" id="btnClearLunch" class="btn-secondary">Limpiar horario</button>
+      <button type="submit" class="btn-primary">Guardar horario</button>
+    </div>
+  </form>
+</Modal>

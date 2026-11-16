@@ -1,0 +1,34 @@
+---
+import Modal from './Modal.astro';
+import { TURNOS } from '../../domain/shifts';
+---
+
+<Modal id="modalNewIncident" titulo="Asignar incidente">
+  <form id="formNewIncident" class="noc-form">
+    <div class="form-group">
+      <label for="inputIncNumber">Número de incidente / caso</label>
+      <input type="text" id="inputIncNumber" placeholder="Ej: INC009842" autocomplete="off" required />
+    </div>
+    <div class="form-group">
+      <label for="selectShift">Turno destino</label>
+      <select id="selectShift" required>
+        {TURNOS.map((turno) => <option value={turno.id}>{turno.nombre}</option>)}
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="selectTechnician">Técnico asignado</label>
+      <select id="selectTechnician" required></select>
+    </div>
+    <div class="form-group">
+      <label for="inputIncNote">Detalle rápido / nota (opcional)</label>
+      <input type="text" id="inputIncNote" placeholder="Ej: P2 - Monitoreo enlace fibra" autocomplete="off" />
+    </div>
+
+    <p id="incidentError" class="form-error hidden" role="alert"></p>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" data-close-modal>Cancelar</button>
+      <button type="submit" id="btnSubmitIncident" class="btn-primary">Guardar</button>
+    </div>
+  </form>
+</Modal>

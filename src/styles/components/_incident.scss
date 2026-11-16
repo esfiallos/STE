@@ -1,0 +1,64 @@
+@use '../abstracts/variables' as *;
+
+.incident-item-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: $radio-sm;
+  cursor: grab;
+  background-color: $color-superficie;
+  border: 1px solid $color-borde-fuerte;
+
+  &:hover {
+    border-color: $color-acento;
+  }
+
+  &.is-dragging {
+    opacity: 0.4;
+  }
+
+  // Coincide con el texto del buscador
+  &.is-match {
+    border-color: $color-acento;
+    box-shadow: 0 0 0 2px $color-acento-brillo;
+  }
+
+  .inc-left {
+    display: flex;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+
+  .inc-index {
+    flex-shrink: 0;
+    width: 1.4rem;
+    height: 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    color: $color-texto-suave;
+    background-color: $color-superficie-alta;
+  }
+
+  .inc-code {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .inc-note {
+    margin-top: 0.15rem;
+    font-size: 0.75rem;
+    color: $color-texto-suave;
+    overflow-wrap: anywhere;
+  }
+}
+
+// Sin edición: las tarjetas solo se copian, no se arrastran.
+.modo-consulta .incident-item-card {
+  cursor: pointer;
+}

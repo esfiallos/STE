@@ -1,0 +1,14 @@
+---
+import Layout from '../layouts/Layout.astro';
+import LoginForm from '../components/auth/LoginForm.astro';
+---
+
+<Layout title="Iniciar sesión · Panel NOC">
+  <main class="login-page">
+    <LoginForm />
+  </main>
+</Layout>
+
+<script>
+  import '../scripts/auth/loginPage';
+</script>

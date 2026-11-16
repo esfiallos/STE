@@ -1,0 +1,85 @@
+@use '../abstracts/variables' as *;
+
+@mixin boton-icono($color) {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: $radio-sm;
+  background: transparent;
+  color: $color;
+
+  &:hover {
+    background-color: $color-borde-fuerte;
+    color: $color-texto;
+  }
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  border-radius: $radio-sm;
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background-color: $color-acento;
+  color: #fff;
+
+  &:hover {
+    background-color: $color-acento-hover;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-secondary {
+  background-color: transparent;
+  border-color: $color-borde-fuerte;
+  color: $color-texto;
+
+  &:hover {
+    background-color: $color-borde-fuerte;
+  }
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-icon-close {
+  @include boton-icono($color-texto-suave);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.btn-quick-add {
+  @include boton-icono($color-acento);
+  background-color: $color-acento-suave;
+}
+
+.btn-edit-lunch {
+  @include boton-icono($color-texto-suave);
+}
+
+.btn-delete-inc,
+.btn-remove-tech {
+  @include boton-icono($color-texto-suave);
+
+  &:hover {
+    color: $color-peligro;
+  }
+}
+
+// Sin permiso de edición se ocultan los controles que modifican datos.
+.modo-consulta [data-edit-only] {
+  display: none !important;
+}

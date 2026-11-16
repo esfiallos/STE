@@ -1,0 +1,32 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/layout/Header.astro';
+import MetricBar from '../components/metrics/MetricBar.astro';
+import IncidentBoard from '../components/board/IncidentBoard.astro';
+import AssignIncidentModal from '../components/modals/AssignIncidentModal.astro';
+import LunchModal from '../components/modals/LunchModal.astro';
+import TechniciansModal from '../components/modals/TechniciansModal.astro';
+import ToastHost from '../components/ui/ToastHost.astro';
+---
+
+<Layout title="Panel de Traspasos & Turnos NOC">
+  <!-- Oculto hasta que main.ts confirma que hay sesión iniciada -->
+  <div id="appRoot" class="noc-app hidden">
+    <Header />
+
+    <main class="noc-main-content">
+      <MetricBar />
+      <IncidentBoard />
+    </main>
+
+    <AssignIncidentModal />
+    <LunchModal />
+    <TechniciansModal />
+  </div>
+
+  <ToastHost />
+</Layout>
+
+<script>
+  import '../scripts/main';
+</script>

@@ -1,0 +1,33 @@
+@use '../abstracts/variables' as *;
+
+.noc-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.noc-main-content {
+  flex: 1;
+  width: 100%;
+  max-width: $ancho-maximo;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.board-status {
+  padding: 0.75rem 1rem;
+  border-radius: $radio-sm;
+  background-color: $color-superficie;
+  border: 1px solid $color-borde-fuerte;
+  color: $color-texto-suave;
+  font-size: 0.9rem;
+
+  &--error {
+    background-color: $color-peligro-suave;
+    border-color: $color-peligro;
+    color: $color-texto;
+  }
+}

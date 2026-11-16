@@ -1,0 +1,20 @@
+---
+interface Props {
+  id: string;
+  titulo: string;
+}
+
+const { id, titulo } = Astro.props;
+---
+
+<div id={id} class="noc-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby={`${id}-titulo`}>
+  <div class="noc-modal-card">
+    <div class="modal-header">
+      <h3 id={`${id}-titulo`}>{titulo}</h3>
+      <button type="button" class="btn-icon-close" data-close-modal aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-body">
+      <slot />
+    </div>
+  </div>
+</div>

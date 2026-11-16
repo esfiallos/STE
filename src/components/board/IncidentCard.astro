@@ -1,0 +1,25 @@
+---
+// Plantilla de un incidente. La completa scripts/board/incidentView.ts
+---
+
+<template id="tpl-incidente">
+  <div class="incident-item-card" draggable="true" data-ref="incidente" title="Clic para copiar el número">
+    <div class="inc-left">
+      <span class="inc-index" data-ref="indice"></span>
+      <div>
+        <div class="inc-code font-mono" data-ref="codigo"></div>
+        <p class="inc-note" data-ref="nota"></p>
+      </div>
+    </div>
+    <button
+      type="button"
+      class="btn-delete-inc"
+      data-action="quitar-incidente"
+      data-edit-only
+      title="Eliminar incidente"
+      aria-label="Eliminar incidente"
+    >
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+</template>

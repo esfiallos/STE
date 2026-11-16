@@ -1,0 +1,16 @@
+---
+import ShiftAccordion from './ShiftAccordion.astro';
+import TechColumn from './TechColumn.astro';
+import IncidentCard from './IncidentCard.astro';
+---
+
+<section class="board-wrapper" aria-label="Tablero de turnos">
+  <p id="boardStatus" class="board-status hidden" role="status"></p>
+
+  <!-- scripts/board/renderBoard.ts dibuja aquí los turnos a partir de las plantillas -->
+  <div id="shiftsAccordionContainer"></div>
+
+  <ShiftAccordion />
+  <TechColumn />
+  <IncidentCard />
+</section>
