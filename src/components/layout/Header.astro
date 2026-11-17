@@ -7,11 +7,10 @@ const esDesarrollo = import.meta.env.PUBLIC_APP_ENV === 'development';
     <span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-tower-broadcast"></i></span>
     <div>
       <h1>
-        Panel de Traspasos & Turnos NOC
+        Panel de Traspasos & Turnos
         {esDesarrollo && <span class="env-badge">DESARROLLO</span>}
       </h1>
       <p>
-        Sincronización en tiempo real
         <span class="live-status" id="liveStatus" data-estado="conectando">
           <span class="live-dot" aria-hidden="true"></span>
           <span id="liveStatusText">Conectando…</span>

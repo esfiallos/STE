@@ -14,9 +14,9 @@ export interface Turno {
  * Ajusta aquí los horarios reales del NOC: de ellos depende cuándo un técnico recibe casos.
  */
 export const TURNOS: readonly Turno[] = [
-  { id: 'turnoA', nombre: 'Turno A (Mañana)', inicio: '06:00', fin: '14:00' },
-  { id: 'turnoB', nombre: 'Turno B (Tarde)', inicio: '14:00', fin: '22:00' },
-  { id: 'turnoC', nombre: 'Turno C (Nocturno)', inicio: '22:00', fin: '06:00' }
+  { id: 'turnoA', nombre: 'Turno A', inicio: '06:00', fin: '14:00' },
+  { id: 'turnoB', nombre: 'Turno B', inicio: '14:00', fin: '22:00' },
+  { id: 'turnoC', nombre: 'Turno C', inicio: '22:00', fin: '06:00' }
 ];
 
 export const ETIQUETA_COMODIN = 'Comodín';

@@ -1,22 +1,11 @@
 # Panel NOC · Traspasos y Turnos
 
-Panel en tiempo real para un Network Operations Center: incidentes B2B asignados a técnicos por turno
+Panel en tiempo real para sistemas de asignacion de tickets: incidentes asignados a técnicos por turno
 (A mañana, B tarde, C nocturno y comodín), almuerzos, búsqueda con copia rápida, Modo Consulta,
 historial diario y bitácora de cambios por usuario.
 
 **Stack:** Astro · SCSS · Supabase (Auth, Postgres, Realtime, pg_cron) · Bun · TypeScript.
 
-## Puesta en marcha
-
-1. Crea la base de **desarrollo** y configura GitHub siguiendo `docs/ENTORNOS_Y_DESPLIEGUE.md`
-   (dos entornos: desarrollo solo local, producción en GitHub Pages).
-2. Scripts de `sql/`, en este orden: `01_schema_inicial.sql`, `02_migracion_v3.sql` y, solo en desarrollo,
-   `03_datos_demo_dev.sql`. Si la base ya tenía el esquema inicial con datos, solo `02_migracion_v3.sql`.
-3. Copia `.env.example` como `.env.development` con las claves del proyecto Supabase **DEV**.
-4. `bun install` y `bun run dev` (http://localhost:4321). Verás la insignia naranja DESARROLLO.
-
-Otros comandos: `bun run check` (tipos), `bun run test` (compila y ejecuta las pruebas), `bun run build` (sitio estático en `dist/`), `bun run preview`.
-Astro corre sobre Node ≥ 22; para forzar Bun usa `bun --bun run dev`.
 
 ## Cómo funciona
 
@@ -72,13 +61,5 @@ src/
 - Los componentes `.astro` solo tienen marcado; la lógica vive en `scripts/`, un archivo por responsabilidad.
 - Los textos de usuarios (código, comentario, nombre) se asignan con `textContent`: no se interpreta HTML.
 - Una acción de datos = repositorio → recarga → el store notifica → se redibuja.
-- Los colores y el tema se cambian en `src/styles/abstracts/_variables.scss` (paleta aproximada tipo Tigo).
+- Los colores y el tema se cambian en `src/styles/abstracts/_variables.scss`
 
-## Seguridad
-
-- La clave `PUBLISHABLE` va en el navegador por diseño; la protección real son las políticas RLS: solo usuarios
-  autenticados leen y escriben, y la bitácora y los snapshots no se pueden escribir desde la app.
-- Mantén desactivado el registro libre de usuarios en Supabase.
-- Las reglas de disponibilidad (almuerzo, horario) se aplican en la interfaz, no en la base de datos.
-- El Modo Consulta es un seguro de interfaz contra clics accidentales, no un permiso de solo lectura.
-.

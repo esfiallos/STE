@@ -5,55 +5,29 @@ Hay dos entornos completos (app **y** base de datos). Solo producción se public
 | | Desarrollo | Producción |
 |---|---|---|
 | Dónde corre | Solo en tu computador (`bun run dev`) | GitHub Pages, rama `gh-pages` |
-| Base de datos | Proyecto Supabase **DEV** | Proyecto Supabase **PROD** (el que ya tienes) |
-| Configuración | Archivo `.env.development` (no se sube a git) | Secretos de GitHub, entorno `production` |
+| Base de datos | Proyecto Supabase **DEV** | Proyecto Supabase **PROD**  |
+| Configuración | Archivo `.env.development` | Secretos de GitHub, entorno `production` |
 | `PUBLIC_APP_ENV` | `development` | `production` |
 | Se reconoce porque | Insignia naranja **DESARROLLO** y título `[DEV]` | Sin insignia |
-| Rama de código | `dev` y ramas de trabajo (solo se verifican) | `main` (verifica, compila y publica) |
+| Rama de código | `dev` y ramas de trabajo  | `main` (verifica, compila y publica) |
 
 La app se niega a arrancar si el entorno no coincide con el modo (por ejemplo, un `.env` de producción en
 `bun run dev`), para que nunca pruebes sobre la base real creyendo que es la de desarrollo.
 
-## 1. Crear la base de desarrollo (una sola vez)
 
-1. En Supabase crea un **segundo proyecto** (por ejemplo `panel-noc-dev`).
-2. En su SQL Editor ejecuta, en este orden: `sql/01_schema_inicial.sql` y `sql/02_migracion_v3.sql`
-   (si el último bloque, pg_cron, falla: habilita pg_cron en Database → Extensions y repite solo ese bloque).
-3. Marca esa base como **desarrollo** (esto protege a producción de los datos de prueba):
-   ```sql
-   create table public.entorno_dev (id int);
-   ```
-4. Carga datos de demostración con `sql/03_datos_demo_dev.sql`. Borra y reemplaza los datos, y se niega a
-   ejecutarse en cualquier base que no tenga la marca del paso 3.
-5. Crea un usuario en Authentication → Users (*Add user*, con confirmación automática) y desactiva el registro libre.
-
-Cada cambio de esquema futuro se prueba **primero en DEV** y después se ejecuta a mano en PROD.
-Las migraciones no se automatizan a propósito: nada toca la base de producción sin que tú lo ejecutes.
-
-## 2. Trabajar en local
-
-1. Borra el `.env` antiguo (tenía las claves de producción).
-2. Copia `.env.example` como `.env.development` y completa la URL y la clave publicable del proyecto **DEV**.
-3. `bun install` y `bun run dev`.
-
-Las claves de producción ya no viven en tu computador: solo en GitHub.
-
-## 3. Configurar GitHub (una sola vez)
+## 1. Configurar GitHub
 
 1. **Secretos de producción:** Settings → Environments → *New environment* → `production` → *Add secret*:
    - `PUBLIC_SUPABASE_URL` (URL del proyecto PROD)
-   - `PUBLIC_SUPABASE_PUBLISHABLE_KEY` (clave **publishable** de PROD, nunca la secret)
+   - `PUBLIC_SUPABASE_PUBLISHABLE_KEY` 
 
-   Opcional: en ese entorno puedes exigir aprobación manual antes de cada despliegue (*Required reviewers*).
 2. **Ruta base:** el workflow usa `/<nombre-del-repositorio>`. Si usas dominio propio o un repositorio llamado
    `usuario.github.io`, crea la variable `BASE_PATH` con el valor `/` (Settings → Secrets and variables → Actions → Variables).
 3. **Hacer commit de `bun.lock`:** ejecuta `bun install` y sube el `bun.lock` actualizado. El CI usa
    `--frozen-lockfile` y falla si el lockfile no coincide con `package.json`.
-4. Haz el primer push a `main`. El workflow crea la rama `gh-pages`.
+4. Haz el push a `main`. El workflow crea y trabaja la rama `gh-pages`.
 5. **Activar Pages:** Settings → Pages → *Deploy from a branch* → rama `gh-pages`, carpeta `/ (root)`.
 6. En Supabase PROD: Authentication → URL Configuration → *Site URL* = la dirección de tu GitHub Pages.
-
-El sitio de GitHub Pages es público; lo que protege los datos es el login y las políticas RLS de Supabase.
 
 ## 4. Flujo de trabajo
 

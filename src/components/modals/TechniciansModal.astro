@@ -14,7 +14,7 @@ import { TURNOS } from '../../domain/shifts';
         <label for="newTechShift">Turno</label>
         <select id="newTechShift" required>
           {TURNOS.map((turno) => <option value={turno.id}>{turno.nombre}</option>)}
-          <option value="comodin">Comodín (horario propio)</option>
+          <option value="comodin">Comodín</option>
         </select>
       </div>
     </div>
