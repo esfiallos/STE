@@ -1,25 +1,40 @@
 ---
 // Plantilla de un incidente. La completa scripts/board/incidentView.ts
+// Copiar y ver el comentario son botones distintos y explícitos.
 ---
 
 <template id="tpl-incidente">
-  <div class="incident-item-card" draggable="true" data-ref="incidente" title="Clic para copiar el número">
-    <div class="inc-left">
-      <span class="inc-index" data-ref="indice"></span>
-      <div>
-        <div class="inc-code font-mono" data-ref="codigo"></div>
-        <p class="inc-note" data-ref="nota"></p>
-      </div>
+  <div class="incident-item-card" draggable="true" data-ref="incidente">
+    <span class="inc-index" data-ref="indice"></span>
+    <span class="inc-code font-mono" data-ref="codigo"></span>
+
+    <div class="inc-actions">
+      <button type="button" class="btn-inc-action" data-action="copiar-codigo" title="Copiar número" aria-label="Copiar número">
+        <i class="fa-regular fa-copy"></i>
+      </button>
+      <button
+        type="button"
+        class="btn-inc-action btn-note"
+        data-ref="botonNota"
+        data-action="ver-nota"
+        title="Ver comentario"
+        aria-label="Ver comentario"
+        aria-expanded="false"
+      >
+        <i class="fa-regular fa-comment-dots"></i>
+      </button>
+      <button
+        type="button"
+        class="btn-inc-action btn-danger"
+        data-action="quitar-incidente"
+        data-edit-only
+        title="Eliminar incidente"
+        aria-label="Eliminar incidente"
+      >
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
-    <button
-      type="button"
-      class="btn-delete-inc"
-      data-action="quitar-incidente"
-      data-edit-only
-      title="Eliminar incidente"
-      aria-label="Eliminar incidente"
-    >
-      <i class="fa-solid fa-xmark"></i>
-    </button>
+
+    <p class="inc-note" data-ref="nota"></p>
   </div>
 </template>

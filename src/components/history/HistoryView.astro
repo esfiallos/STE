@@ -1,0 +1,45 @@
+---
+---
+
+<div class="history-layout">
+  <section class="panel-card">
+    <header class="panel-card__head">
+      <h2>Buscar en días anteriores</h2>
+      <p>Encuentra un caso, un comentario o un técnico y consulta quién lo tuvo y cuándo.</p>
+    </header>
+
+    <form id="historySearchForm" class="search-form">
+      <input
+        type="search"
+        id="historySearchInput"
+        placeholder="Ej: INC009842, nombre del técnico o texto del comentario"
+        aria-label="Buscar en el historial"
+        autocomplete="off"
+        required
+      />
+      <button type="submit" class="btn btn-primary">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <span>Buscar</span>
+      </button>
+    </form>
+
+    <div id="historyResults"></div>
+  </section>
+
+  <section class="panel-card">
+    <header class="panel-card__head">
+      <h2>Consultar un día</h2>
+      <p>Foto del tablero al cierre de cada día. Se genera sola a las 23:59.</p>
+    </header>
+
+    <p id="historyEmpty" class="table-empty hidden">Aún no hay snapshots. El primero se creará esta noche a las 23:59.</p>
+
+    <div id="historyBoardArea">
+      <div class="form-group history-date">
+        <label for="historyDate">Día</label>
+        <select id="historyDate"></select>
+      </div>
+      <div id="historyBoard" class="board--historico"></div>
+    </div>
+  </section>
+</div>

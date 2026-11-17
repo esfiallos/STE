@@ -34,3 +34,30 @@ export function formatearFechaLocal(fecha: Date): string {
   const dia = String(fecha.getDate()).padStart(2, '0');
   return `${anio}-${mes}-${dia}`;
 }
+
+function segmentos(desde: number, hasta: number): Array<[number, number]> {
+  return desde < hasta
+    ? [[desde, hasta]]
+    : [
+        [desde, 1440],
+        [0, hasta]
+      ];
+}
+
+/** ¿Dos rangos horarios comparten algún momento? Soporta rangos que cruzan la medianoche. */
+export function rangosSeSolapan(inicioA: string, finA: string, inicioB: string, finB: string): boolean {
+  const a1 = aMinutos(inicioA);
+  const a2 = aMinutos(finA);
+  const b1 = aMinutos(inicioB);
+  const b2 = aMinutos(finB);
+  if (a1 === null || a2 === null || b1 === null || b2 === null || a1 === a2 || b1 === b2) return false;
+
+  return segmentos(a1, a2).some(([x1, x2]) => segmentos(b1, b2).some(([y1, y2]) => x1 < y2 && y1 < x2));
+}
+
+/** Un rango es válido si ambas horas existen y no son iguales (puede cruzar la medianoche). */
+export function esRangoValido(inicio: string, fin: string): boolean {
+  const desde = aMinutos(inicio);
+  const hasta = aMinutos(fin);
+  return desde !== null && hasta !== null && desde !== hasta;
+}

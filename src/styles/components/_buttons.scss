@@ -1,6 +1,59 @@
 @use '../abstracts/variables' as *;
 
-@mixin boton-icono($color) {
+.btn,
+.btn-primary,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: $radio-sm;
+  border: 1px solid $color-borde-fuerte;
+  background-color: $color-superficie;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $color-texto;
+
+  &:hover {
+    background-color: $color-superficie-alta;
+    border-color: $color-texto-suave;
+  }
+
+  &[aria-pressed='true'] {
+    background-color: $color-almuerzo-fondo;
+    border-color: $color-almuerzo-borde;
+    color: $color-almuerzo-texto;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.btn-primary {
+  background-color: $color-acento;
+  border-color: $color-acento;
+  color: #fff;
+
+  &:hover {
+    background-color: $color-acento-hover;
+    border-color: $color-acento-hover;
+  }
+}
+
+.btn-sm {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+// Botones de icono (cerrar modal, +, acciones de un incidente...)
+@mixin boton-icono($color: $color-texto-suave) {
   width: 1.75rem;
   height: 1.75rem;
   flex-shrink: 0;
@@ -11,75 +64,59 @@
   border-radius: $radio-sm;
   background: transparent;
   color: $color;
+  font-size: 0.85rem;
 
-  &:hover {
-    background-color: $color-borde-fuerte;
-    color: $color-texto;
+  &:hover:not(:disabled) {
+    background-color: $color-acento-suave;
+    color: $color-acento;
   }
-}
-
-.btn-primary,
-.btn-secondary {
-  padding: 0.5rem 1rem;
-  border-radius: $radio-sm;
-  border: 1px solid transparent;
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.btn-primary {
-  background-color: $color-acento;
-  color: #fff;
-
-  &:hover {
-    background-color: $color-acento-hover;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.btn-secondary {
-  background-color: transparent;
-  border-color: $color-borde-fuerte;
-  color: $color-texto;
-
-  &:hover {
-    background-color: $color-borde-fuerte;
-  }
-}
-
-.btn-block {
-  width: 100%;
 }
 
 .btn-icon-close {
-  @include boton-icono($color-texto-suave);
+  @include boton-icono;
   font-size: 1.5rem;
   line-height: 1;
+}
+
+.btn-inc-action {
+  @include boton-icono;
+  width: 1.55rem;
+  height: 1.55rem;
+
+  &.is-active {
+    background-color: $color-acento-suave;
+    color: $color-acento;
+  }
+
+  &.btn-danger:hover {
+    background-color: $color-peligro-suave;
+    color: $color-peligro;
+  }
 }
 
 .btn-quick-add {
   @include boton-icono($color-acento);
   background-color: $color-acento-suave;
+
+  &:disabled {
+    background-color: transparent;
+    color: $color-borde-fuerte;
+    cursor: not-allowed;
+  }
 }
 
-.btn-edit-lunch {
-  @include boton-icono($color-texto-suave);
-}
-
-.btn-delete-inc,
 .btn-remove-tech {
-  @include boton-icono($color-texto-suave);
+  @include boton-icono;
 
-  &:hover {
+  &:hover:not(:disabled) {
+    background-color: $color-peligro-suave;
     color: $color-peligro;
   }
 }
 
-// Sin permiso de edición se ocultan los controles que modifican datos.
-.modo-consulta [data-edit-only] {
+// Sin permiso de edición se ocultan los controles que modifican datos
+// (y en la foto histórica, que es de solo lectura).
+.modo-consulta [data-edit-only],
+.board--historico [data-edit-only] {
   display: none !important;
 }

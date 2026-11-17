@@ -13,10 +13,16 @@ function columnaBajoElCursor(evento: Event): HTMLElement | null {
 }
 
 function limpiarResaltados(): void {
-  document.querySelectorAll('.drag-over, .is-dragging').forEach((el) => el.classList.remove('drag-over', 'is-dragging'));
+  document
+    .querySelectorAll('.drag-over, .drag-blocked, .is-dragging')
+    .forEach((el) => el.classList.remove('drag-over', 'drag-blocked', 'is-dragging'));
 }
 
-/** Reasignar un incidente arrastrándolo a la columna de otro técnico. `alTerminar` se llama al soltar o cancelar. */
+/**
+ * Reasignar un incidente arrastrándolo a la columna de otro técnico.
+ * Las columnas de técnicos no disponibles (almuerzo / fuera de horario) no aceptan casos.
+ * `alTerminar` se llama al soltar o cancelar el arrastre.
+ */
 export function iniciarDragAndDrop(alTerminar: () => void): void {
   const tablero = byId('shiftsAccordionContainer');
 
@@ -39,6 +45,11 @@ export function iniciarDragAndDrop(alTerminar: () => void): void {
     const columna = columnaBajoElCursor(evento);
     if (!estaArrastrando() || !columna) return;
 
+    if (columna.dataset.disponible !== 'true') {
+      columna.classList.add('drag-blocked'); // sin preventDefault: el navegador muestra "no permitido"
+      return;
+    }
+
     evento.preventDefault(); // habilita soltar aquí
     columna.classList.add('drag-over');
   });
@@ -46,7 +57,9 @@ export function iniciarDragAndDrop(alTerminar: () => void): void {
   tablero.addEventListener('dragleave', (evento) => {
     const columna = columnaBajoElCursor(evento);
     const destino = evento.relatedTarget;
-    if (columna && !(destino instanceof Node && columna.contains(destino))) columna.classList.remove('drag-over');
+    if (columna && !(destino instanceof Node && columna.contains(destino))) {
+      columna.classList.remove('drag-over', 'drag-blocked');
+    }
   });
 
   tablero.addEventListener('drop', (evento) => {

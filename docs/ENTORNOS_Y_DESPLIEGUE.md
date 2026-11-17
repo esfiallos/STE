@@ -99,6 +99,7 @@ Ninguna prueba toca una base real.
 
 | Síntoma | Causa |
 |---|---|
+| El CI falla con `Cannot find module '../../src/...'` o `ENOENT ... sql/...` | El repositorio está incompleto o mezcla versiones: reemplaza `src/`, `tests/` y `sql/` con los del paquete completo. Antes de subir, ejecuta `bun run check` y `bun run test` en tu computador: fallan igual que en el CI |
 | El CI falla en "Instalar dependencias" | `bun.lock` desactualizado: ejecuta `bun install` y súbelo |
 | El sitio publicado carga sin estilos o da 404 | `BASE_PATH` no coincide con la dirección de Pages |
 | Pantalla en blanco al abrir; consola: "PUBLIC_APP_ENV vale…" | Falta `.env.development` (en local) o `PUBLIC_APP_ENV` en la compilación |

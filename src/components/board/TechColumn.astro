@@ -1,5 +1,6 @@
 ---
-// Plantilla de la tarjeta de un técnico. La completa scripts/board/technicianView.ts
+// Plantillas de la columna de un técnico y de su elemento de almuerzo.
+// Las completan scripts/board/technicianView.ts y scripts/board/lunchView.ts
 ---
 
 <template id="tpl-tecnico">
@@ -15,6 +16,7 @@
       <button
         type="button"
         class="btn-quick-add"
+        data-ref="botonAsignar"
         data-action="asignar"
         data-edit-only
         title="Asignar incidente"
@@ -24,23 +26,31 @@
       </button>
     </div>
 
-    <div class="incidents-stack" data-ref="incidentes"></div>
-
-    <div class="lunch-footer" data-ref="almuerzo">
-      <div class="lunch-info">
-        <span class="lunch-label" data-ref="almuerzoEtiqueta"></span>
-        <span class="lunch-time font-mono" data-ref="almuerzoHorario"></span>
-      </div>
-      <button
-        type="button"
-        class="btn-edit-lunch"
-        data-action="editar-almuerzo"
-        data-edit-only
-        title="Editar horario de comida"
-        aria-label="Editar horario de comida"
-      >
-        <i class="fa-solid fa-utensils"></i>
-      </button>
+    <div class="tech-tags">
+      <span class="status-chip" data-ref="estado"></span>
+      <span class="schedule-chip" data-ref="horario"></span>
     </div>
+
+    <!-- Asignación rápida: el técnico y el turno ya se conocen, solo falta el número -->
+    <form class="inline-add" data-form="asignar" data-ref="formAsignar" data-edit-only autocomplete="off">
+      <input type="text" name="codigo" placeholder="Número de INC" aria-label="Número de incidente" required />
+      <input type="text" name="nota" placeholder="Comentario (opcional)" aria-label="Comentario (opcional)" />
+      <div class="inline-add__actions">
+        <button type="submit" class="btn btn-primary btn-sm">Asignar</button>
+        <button type="button" class="btn btn-sm" data-action="cancelar-asignar">Cancelar</button>
+      </div>
+    </form>
+
+    <div class="incidents-stack" data-ref="incidentes"></div>
   </article>
+</template>
+
+<template id="tpl-almuerzo">
+  <div class="lunch-item" data-ref="almuerzo">
+    <i class="fa-solid fa-utensils" aria-hidden="true"></i>
+    <span class="lunch-text" data-ref="texto"></span>
+    <button type="button" class="btn-inc-action" data-ref="botonEditar" data-action="editar-almuerzo" data-edit-only>
+      <i class="fa-solid fa-pen"></i>
+    </button>
+  </div>
 </template>

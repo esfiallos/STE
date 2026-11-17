@@ -1,12 +1,12 @@
-import { actualizarAlmuerzo, borrarTecnico, crearTecnico } from '../../services/tecnicosRepo';
+import { actualizarAlmuerzo, borrarTecnico, crearTecnico, type HorarioLaboral } from '../../services/tecnicosRepo';
 import { cargarDatos } from '../../state/sync';
-import type { Hora, TurnoId } from '../../types/noc';
+import type { Hora, TurnoTecnico } from '../../types/noc';
 import type { Resultado } from '../../types/result';
 import { reproducirSonido } from '../ui/sound';
 import { avisarSiFalla, mostrarAviso } from '../ui/toast';
 
-export async function agregarTecnico(nombre: string, turno: TurnoId): Promise<Resultado> {
-  const resultado = await crearTecnico(nombre, turno);
+export async function agregarTecnico(nombre: string, turno: TurnoTecnico, horario?: HorarioLaboral): Promise<Resultado> {
+  const resultado = await crearTecnico(nombre, turno, horario);
   if (resultado.ok) await cargarDatos();
   return resultado;
 }

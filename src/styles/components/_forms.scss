@@ -28,7 +28,7 @@
     padding: 0.5rem 0.75rem;
     border-radius: $radio-sm;
     border: 1px solid $color-borde-fuerte;
-    background-color: $color-superficie-alta;
+    background-color: $color-superficie;
     font-size: 0.9rem;
 
     &:focus {
@@ -36,9 +36,15 @@
     }
 
     &:disabled {
-      opacity: 0.6;
+      background-color: $color-superficie-alta;
+      color: $color-texto-suave;
     }
   }
+}
+
+.form-hint {
+  font-size: 0.75rem;
+  color: $color-texto-suave;
 }
 
 .form-error {

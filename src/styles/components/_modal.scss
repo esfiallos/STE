@@ -13,23 +13,32 @@
 
 .noc-modal-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
   border-radius: $radio-md;
   background-color: $color-superficie;
-  border: 1px solid $color-borde-fuerte;
   box-shadow: $sombra-modal;
 
   .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid $color-borde;
+    padding: 0.9rem 1.25rem;
+    color: $color-texto-sobre-marca;
+    background-color: $color-marca;
 
     h3 {
-      font-size: 1.05rem;
+      font-size: 1rem;
+    }
+
+    .btn-icon-close {
+      color: rgba(255, 255, 255, 0.8);
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+        color: #fff;
+      }
     }
   }
 
@@ -43,7 +52,7 @@
   .modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 0.75rem;
+    gap: 0.6rem;
   }
 
   .modal-subtitle {
@@ -62,9 +71,10 @@
   overflow-y: auto;
 
   .tech-group-title {
-    padding: 0.5rem 0;
     margin-top: 0.5rem;
-    font-size: 0.75rem;
+    padding: 0.4rem 0;
+    font-size: 0.78rem;
+    font-weight: 700;
     color: $color-acento;
     border-bottom: 1px solid $color-borde;
   }
@@ -72,8 +82,8 @@
   .tech-item-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0;
+    gap: 0.6rem;
+    padding: 0.35rem 0;
     font-size: 0.9rem;
   }
 

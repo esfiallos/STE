@@ -1,0 +1,132 @@
+@use '../abstracts/variables' as *;
+
+// Tarjetas de las pestañas Historial y Bitácora
+.panel-card {
+  padding: 1.25rem;
+  border-radius: $radio-md;
+  background-color: $color-superficie;
+  border: 1px solid $color-borde;
+  box-shadow: $sombra-tarjeta;
+}
+
+.panel-card__head {
+  margin-bottom: 1rem;
+
+  h2 {
+    font-size: 1.05rem;
+  }
+
+  p {
+    margin-top: 0.2rem;
+    font-size: 0.85rem;
+    color: $color-texto-suave;
+  }
+
+  &--row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+}
+
+.history-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.search-form {
+  display: flex;
+  gap: 0.5rem;
+
+  input {
+    flex: 1;
+    padding: 0.55rem 0.8rem;
+    border-radius: $radio-sm;
+    border: 1px solid $color-borde-fuerte;
+    font-size: 0.9rem;
+  }
+}
+
+.history-date {
+  max-width: 22rem;
+  margin-bottom: 1rem;
+}
+
+.results-block {
+  margin-top: 1.25rem;
+
+  h3 {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: $color-texto-suave;
+  }
+}
+
+.audit-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+
+  input {
+    flex: 1;
+    max-width: 28rem;
+    padding: 0.5rem 0.8rem;
+    border-radius: $radio-sm;
+    border: 1px solid $color-borde-fuerte;
+    font-size: 0.9rem;
+  }
+}
+
+.audit-count {
+  font-size: 0.8rem;
+  color: $color-texto-suave;
+}
+
+// Tablas estilo lista
+.data-table-wrap {
+  overflow-x: auto;
+  border: 1px solid $color-borde;
+  border-radius: $radio-sm;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th {
+    padding: 0.55rem 0.75rem;
+    text-align: left;
+    white-space: nowrap;
+    font-size: 0.78rem;
+    color: $color-texto-suave;
+    background-color: $color-superficie-alta;
+    border-bottom: 1px solid $color-borde-fuerte;
+  }
+
+  td {
+    padding: 0.5rem 0.75rem;
+    vertical-align: top;
+    border-bottom: 1px solid $color-borde;
+  }
+
+  tbody tr:hover {
+    background-color: $color-acento-suave;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
+.table-empty {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: $color-texto-suave;
+}

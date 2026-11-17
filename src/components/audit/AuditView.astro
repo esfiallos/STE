@@ -1,0 +1,28 @@
+---
+---
+
+<section class="panel-card">
+  <header class="panel-card__head panel-card__head--row">
+    <div>
+      <h2>Bitácora de cambios</h2>
+      <p>Quién modificó el tablero y cuándo. Se registra sola y no se puede editar ni borrar.</p>
+    </div>
+    <button type="button" id="btnAuditRefresh" class="btn">
+      <i class="fa-solid fa-rotate"></i>
+      <span>Actualizar</span>
+    </button>
+  </header>
+
+  <div class="audit-toolbar">
+    <input
+      type="search"
+      id="auditFilter"
+      placeholder="Filtrar por usuario, INC, técnico o detalle..."
+      aria-label="Filtrar la bitácora"
+      autocomplete="off"
+    />
+    <span class="audit-count" id="auditCount"></span>
+  </div>
+
+  <div id="auditTable"></div>
+</section>

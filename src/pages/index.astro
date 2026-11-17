@@ -1,8 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/layout/Header.astro';
+import TabNav from '../components/layout/TabNav.astro';
+import BoardToolbar from '../components/board/BoardToolbar.astro';
 import MetricBar from '../components/metrics/MetricBar.astro';
 import IncidentBoard from '../components/board/IncidentBoard.astro';
+import HistoryView from '../components/history/HistoryView.astro';
+import AuditView from '../components/audit/AuditView.astro';
 import AssignIncidentModal from '../components/modals/AssignIncidentModal.astro';
 import LunchModal from '../components/modals/LunchModal.astro';
 import TechniciansModal from '../components/modals/TechniciansModal.astro';
@@ -13,10 +17,22 @@ import ToastHost from '../components/ui/ToastHost.astro';
   <!-- Oculto hasta que main.ts confirma que hay sesión iniciada -->
   <div id="appRoot" class="noc-app hidden">
     <Header />
+    <TabNav />
 
     <main class="noc-main-content">
-      <MetricBar />
-      <IncidentBoard />
+      <section data-vista="tablero" class="view">
+        <BoardToolbar />
+        <MetricBar />
+        <IncidentBoard />
+      </section>
+
+      <section data-vista="historial" class="view hidden">
+        <HistoryView />
+      </section>
+
+      <section data-vista="bitacora" class="view hidden">
+        <AuditView />
+      </section>
     </main>
 
     <AssignIncidentModal />

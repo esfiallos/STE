@@ -6,6 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  background: linear-gradient(180deg, $color-marca 0 38%, $color-fondo 38% 100%);
 }
 
 .login-card {
@@ -14,12 +15,11 @@
   padding: 2rem;
   border-radius: $radio-md;
   background-color: $color-superficie;
-  border: 1px solid $color-borde-fuerte;
+  border-top: 3px solid $color-cian;
   box-shadow: $sombra-modal;
 
   h1 {
     font-size: 1.15rem;
-    color: #fff;
   }
 
   .login-subtitle {

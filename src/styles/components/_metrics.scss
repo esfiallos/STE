@@ -13,11 +13,16 @@
     border-radius: $radio-md;
     background-color: $color-superficie;
     border: 1px solid $color-borde;
+    box-shadow: $sombra-tarjeta;
 
     .metric-icon {
-      padding: 0.75rem;
-      border-radius: $radio-sm;
-      font-size: 1.5rem;
+      width: 2.75rem;
+      height: 2.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: $radio-md;
+      font-size: 1.2rem;
       color: $color-acento;
       background-color: $color-acento-suave;
     }
@@ -31,9 +36,9 @@
       }
 
       h3 {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #fff;
+        font-size: 1.6rem;
+        font-weight: 700;
+        line-height: 1.1;
       }
     }
   }

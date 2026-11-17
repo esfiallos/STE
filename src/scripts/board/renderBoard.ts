@@ -1,9 +1,23 @@
 import { unirTecnicosConIncidentes } from '../../domain/assignments';
 import { normalizarBusqueda } from '../../domain/search';
-import { turnoActivo, TURNOS } from '../../domain/shifts';
+import { tecnicosDelTurno, TURNOS } from '../../domain/shifts';
 import { appStore } from '../../state/appStore';
 import { byId } from '../dom';
+import type { ContextoTablero } from './boardContext';
 import { crearVistaTurno } from './shiftView';
+
+let claveAEnfocar: string | null = null;
+
+/** Pide que, en el próximo dibujo, se enfoque el campo del formulario de esa tarjeta (solo al abrirlo). */
+export function solicitarEnfoqueDeFormulario(clave: string): void {
+  claveAEnfocar = clave;
+}
+
+function enfocarFormularioPendiente(contenedor: HTMLElement): void {
+  if (!claveAEnfocar) return;
+  contenedor.querySelector<HTMLInputElement>(`[data-clave="${claveAEnfocar}"] input[name="codigo"]`)?.focus();
+  claveAEnfocar = null;
+}
 
 /** Dibuja el acordeón de turnos completo a partir del estado actual. */
 export function renderizarTablero(): void {
@@ -21,21 +35,20 @@ export function renderizarTablero(): void {
     return;
   }
 
-  const ahora = new Date();
-  const termino = normalizarBusqueda(estado.busqueda);
+  const contexto: ContextoTablero = {
+    modo: 'vivo',
+    ahora: new Date(),
+    termino: normalizarBusqueda(estado.busqueda),
+    notasAbiertas: new Set(estado.notasAbiertas),
+    claveFormulario: estado.claveFormulario,
+    borrador: estado.borrador
+  };
   const tecnicos = unirTecnicosConIncidentes(estado.tecnicos, estado.incidentes);
-  const turnoEnCurso = turnoActivo(ahora);
 
   const turnos = TURNOS.map((turno) =>
-    crearVistaTurno({
-      turno,
-      tecnicos: tecnicos.filter((t) => t.turno === turno.id),
-      termino,
-      colapsadoPorUsuario: estado.turnosColapsados.includes(turno.id),
-      enCurso: turno.id === turnoEnCurso,
-      ahora
-    })
+    crearVistaTurno(turno, tecnicosDelTurno(tecnicos, turno.id), contexto, estado.turnosColapsados.includes(turno.id))
   );
 
   contenedor.replaceChildren(...turnos);
+  enfocarFormularioPendiente(contenedor);
 }

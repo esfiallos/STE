@@ -1,4 +1,4 @@
-import type { Hora, Tecnico, TurnoId } from '../types/noc';
+import type { Hora, Tecnico, TurnoTecnico } from '../types/noc';
 import { exito, type Resultado } from '../types/result';
 import { errorDeBaseDeDatos } from './dbErrors';
 import { supabase } from './supabaseClient';
@@ -6,7 +6,9 @@ import { supabase } from './supabaseClient';
 interface FilaTecnico {
   id: string;
   nombre: string;
-  turno: TurnoId;
+  turno: TurnoTecnico;
+  horario_inicio: string | null;
+  horario_fin: string | null;
   almuerzo_inicio: string | null;
   almuerzo_fin: string | null;
 }
@@ -19,6 +21,8 @@ function aTecnico(fila: FilaTecnico): Tecnico {
     id: fila.id,
     nombre: fila.nombre,
     turno: fila.turno,
+    horarioInicio: recortarHora(fila.horario_inicio),
+    horarioFin: recortarHora(fila.horario_fin),
     almuerzoInicio: recortarHora(fila.almuerzo_inicio),
     almuerzoFin: recortarHora(fila.almuerzo_fin)
   };
@@ -30,8 +34,19 @@ export async function listarTecnicos(): Promise<Resultado<Tecnico[]>> {
   return exito((data as FilaTecnico[]).map(aTecnico));
 }
 
-export async function crearTecnico(nombre: string, turno: TurnoId): Promise<Resultado> {
-  const { error } = await supabase.from('tecnicos').insert({ nombre: nombre.trim(), turno });
+export interface HorarioLaboral {
+  inicio: Hora;
+  fin: Hora;
+}
+
+/** El horario laboral solo aplica al turno "comodin". */
+export async function crearTecnico(nombre: string, turno: TurnoTecnico, horario?: HorarioLaboral): Promise<Resultado> {
+  const { error } = await supabase.from('tecnicos').insert({
+    nombre: nombre.trim(),
+    turno,
+    horario_inicio: turno === 'comodin' ? (horario?.inicio ?? null) : null,
+    horario_fin: turno === 'comodin' ? (horario?.fin ?? null) : null
+  });
   if (error) {
     return errorDeBaseDeDatos(error, 'No se pudo agregar el técnico', 'Ya existe un técnico con ese nombre en el turno.');
   }

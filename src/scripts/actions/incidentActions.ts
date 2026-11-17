@@ -1,3 +1,4 @@
+import { describirNoDisponibilidad, estadoDelTecnico } from '../../domain/availability';
 import {
   actualizarTecnicoDeIncidente,
   borrarIncidente,
@@ -28,10 +29,18 @@ export async function reasignarIncidente(incidenteId: string, tecnicoId: string)
   return resultado;
 }
 
-/** Reasignación por arrastre: sin formulario, así que los errores se avisan aquí. */
+/** Reasignación por arrastre: sin formulario, así que los avisos se muestran aquí. */
 export async function moverIncidente(incidenteId: string, tecnicoDestinoId: string): Promise<void> {
-  const incidente = appStore.get().incidentes.find((i) => i.id === incidenteId);
-  if (!incidente || incidente.tecnicoId === tecnicoDestinoId) return;
+  const { incidentes, tecnicos } = appStore.get();
+  const incidente = incidentes.find((i) => i.id === incidenteId);
+  const destino = tecnicos.find((t) => t.id === tecnicoDestinoId);
+  if (!incidente || !destino || incidente.tecnicoId === tecnicoDestinoId) return;
+
+  const estado = estadoDelTecnico(destino, new Date());
+  if (estado !== 'disponible') {
+    mostrarAviso(describirNoDisponibilidad(destino, estado), 'error');
+    return;
+  }
 
   avisarSiFalla(await reasignarIncidente(incidenteId, tecnicoDestinoId));
 }
@@ -39,8 +48,7 @@ export async function moverIncidente(incidenteId: string, tecnicoDestinoId: stri
 export async function quitarIncidente(incidenteId: string): Promise<void> {
   const incidente = appStore.get().incidentes.find((i) => i.id === incidenteId);
 
-  const resultado = await borrarIncidente(incidenteId);
-  if (!avisarSiFalla(resultado)) return;
+  if (!avisarSiFalla(await borrarIncidente(incidenteId))) return;
 
   await cargarDatos();
   mostrarAviso(`${incidente?.codigo ?? 'Incidente'} eliminado.`);

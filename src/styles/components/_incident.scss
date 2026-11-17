@@ -1,15 +1,15 @@
 @use '../abstracts/variables' as *;
 
 .incident-item-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 0.6rem;
+  padding: 0.45rem 0.5rem 0.45rem 0.6rem;
   border-radius: $radio-sm;
   cursor: grab;
-  background-color: $color-superficie;
-  border: 1px solid $color-borde-fuerte;
+  background-color: $color-superficie-alta;
+  border: 1px solid $color-borde;
 
   &:hover {
     border-color: $color-acento;
@@ -22,43 +22,90 @@
   // Coincide con el texto del buscador
   &.is-match {
     border-color: $color-acento;
-    box-shadow: 0 0 0 2px $color-acento-brillo;
-  }
-
-  .inc-left {
-    display: flex;
-    gap: 0.6rem;
-    min-width: 0;
+    background-color: $color-acento-suave;
+    box-shadow: 0 0 0 2px rgba(11, 95, 209, 0.25);
   }
 
   .inc-index {
-    flex-shrink: 0;
-    width: 1.4rem;
-    height: 1.4rem;
+    width: 1.35rem;
+    height: 1.35rem;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
     font-size: 0.7rem;
+    font-weight: 600;
     color: $color-texto-suave;
-    background-color: $color-superficie-alta;
+    background-color: $color-borde;
   }
 
   .inc-code {
     font-size: 0.9rem;
-    font-weight: 600;
-    color: #fff;
+    font-weight: 700;
+    user-select: text;
   }
 
+  .inc-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+  }
+
+  // El comentario ocupa su propia fila al desplegarse
   .inc-note {
-    margin-top: 0.15rem;
-    font-size: 0.75rem;
-    color: $color-texto-suave;
+    grid-column: 1 / -1;
+    margin-top: 0.4rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: $radio-sm;
+    border-left: 3px solid $color-cian;
+    background-color: $color-superficie;
+    font-size: 0.8rem;
+    color: $color-texto;
     overflow-wrap: anywhere;
   }
 }
 
-// Sin edición: las tarjetas solo se copian, no se arrastran.
-.modo-consulta .incident-item-card {
-  cursor: pointer;
+// Sin edición no se arrastra
+.modo-consulta .incident-item-card,
+.board--historico .incident-item-card {
+  cursor: default;
+}
+
+// Almuerzo: un elemento más de la columna, amarillo y no transferible
+.lunch-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.5rem 0.4rem 0.7rem;
+  border-radius: $radio-sm;
+  background-color: $color-almuerzo-fondo;
+  border: 1px solid $color-almuerzo-borde;
+  color: $color-almuerzo-texto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: default;
+
+  .lunch-text {
+    flex: 1;
+  }
+
+  .btn-inc-action {
+    color: $color-almuerzo-texto;
+
+    &:hover {
+      background-color: $color-almuerzo-activo;
+      color: $color-almuerzo-texto;
+    }
+  }
+
+  &.is-empty {
+    background-color: transparent;
+    border-style: dashed;
+    font-weight: 500;
+  }
+
+  &.is-active {
+    background-color: $color-almuerzo-activo;
+    border-color: #e0a800;
+  }
 }

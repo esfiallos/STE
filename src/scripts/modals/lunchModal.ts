@@ -1,4 +1,5 @@
-import { esRangoDeAlmuerzoValido, HORARIO_ALMUERZO_PREDETERMINADO } from '../../domain/lunch';
+import { HORARIO_ALMUERZO_PREDETERMINADO } from '../../domain/lunch';
+import { esRangoValido } from '../../domain/time';
 import { appStore } from '../../state/appStore';
 import { guardarHorarioDeAlmuerzo, limpiarHorarioDeAlmuerzo } from '../actions/technicianActions';
 import { byId } from '../dom';
@@ -38,7 +39,7 @@ export function iniciarModalAlmuerzo(): void {
   formulario.addEventListener('submit', async (evento) => {
     evento.preventDefault();
 
-    if (!esRangoDeAlmuerzoValido(inicio.value, fin.value)) {
+    if (!esRangoValido(inicio.value, fin.value)) {
       establecerError(ID_ERROR, 'La hora de fin debe ser distinta de la de inicio.');
       return;
     }

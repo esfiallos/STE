@@ -8,10 +8,6 @@
   padding: 0;
 }
 
-html {
-  color-scheme: dark;
-}
-
 body {
   font-family: $fuente-base;
   background-color: $color-fondo;
@@ -43,10 +39,6 @@ button {
 
 .font-mono {
   font-family: $fuente-mono;
-}
-
-.icon-blue {
-  color: $color-acento;
 }
 
 .text-muted {

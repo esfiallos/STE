@@ -14,9 +14,9 @@
 .toast {
   padding: 0.7rem 1rem;
   border-radius: $radio-sm;
-  border: 1px solid $color-borde-fuerte;
-  border-left-width: 4px;
-  background-color: $color-superficie-alta;
+  border-left: 4px solid $color-acento;
+  background-color: $color-marca;
+  color: $color-texto-sobre-marca;
   box-shadow: $sombra-modal;
   font-size: 0.875rem;
 
@@ -26,9 +26,5 @@
 
   &--error {
     border-left-color: $color-peligro;
-  }
-
-  &--info {
-    border-left-color: $color-acento;
   }
 }

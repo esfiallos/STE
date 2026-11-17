@@ -14,14 +14,27 @@ import { TURNOS } from '../../domain/shifts';
         <label for="newTechShift">Turno</label>
         <select id="newTechShift" required>
           {TURNOS.map((turno) => <option value={turno.id}>{turno.nombre}</option>)}
+          <option value="comodin">Comodín (horario propio)</option>
         </select>
+      </div>
+    </div>
+
+    <!-- Solo para comodín: su horario abarca varios turnos y aparece en todos ellos -->
+    <div id="comodinHorario" class="form-row hidden">
+      <div class="form-group">
+        <label for="comodinStart">Entrada</label>
+        <input type="time" id="comodinStart" />
+      </div>
+      <div class="form-group">
+        <label for="comodinEnd">Salida</label>
+        <input type="time" id="comodinEnd" />
       </div>
     </div>
 
     <p id="techError" class="form-error hidden" role="alert"></p>
 
     <div class="modal-actions">
-      <button type="submit" class="btn-primary">Agregar técnico</button>
+      <button type="submit" class="btn btn-primary">Agregar técnico</button>
     </div>
   </form>
 
@@ -31,6 +44,7 @@ import { TURNOS } from '../../domain/shifts';
   <template id="tpl-tecnico-fila">
     <div class="tech-item-row" data-ref="fila">
       <span class="tech-item-name" data-ref="nombre"></span>
+      <span class="tech-item-meta" data-ref="horario"></span>
       <span class="tech-item-meta" data-ref="casos"></span>
       <button
         type="button"

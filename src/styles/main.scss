@@ -2,7 +2,7 @@
 @use 'base/base';
 
 @use 'layout/layout';
-@use 'layout/header';
+@use 'layout/topbar';
 
 @use 'components/buttons';
 @use 'components/forms';
@@ -10,7 +10,7 @@
 @use 'components/accordion';
 @use 'components/tech-card';
 @use 'components/incident';
-@use 'components/lunch';
 @use 'components/modal';
+@use 'components/panels';
 @use 'components/toast';
 @use 'components/login';

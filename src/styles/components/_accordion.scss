@@ -6,10 +6,15 @@
   overflow: hidden;
   background-color: $color-superficie;
   border: 1px solid $color-borde;
+  box-shadow: $sombra-tarjeta;
+
+  .accordion-heading {
+    font-size: inherit;
+  }
 
   .accordion-header {
     width: 100%;
-    padding: 1rem;
+    padding: 0.85rem 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -19,7 +24,7 @@
     background-color: $color-superficie-alta;
 
     &:hover {
-      background-color: $color-borde-fuerte;
+      background-color: $color-acento-suave;
     }
   }
 
@@ -27,37 +32,62 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-
-    .shift-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #fff;
-    }
   }
 
-  .badge-count,
-  .badge-live {
-    padding: 0.15rem 0.5rem;
-    border-radius: $radio-pildora;
-    font-size: 0.85rem;
+  .chevron {
+    width: 0.9rem;
+    color: $color-acento;
+    transition: transform 0.15s;
   }
 
-  .badge-count {
-    background-color: $color-superficie;
+  .shift-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  .shift-hours {
+    font-size: 0.8rem;
     color: $color-texto-suave;
   }
 
-  .badge-live {
-    background-color: $color-exito-suave;
-    color: $color-exito;
+  .badge-count {
+    padding: 0.1rem 0.6rem;
+    border-radius: $radio-pildora;
+    font-size: 0.8rem;
+    color: $color-texto-suave;
+    background-color: $color-superficie;
+    border: 1px solid $color-borde;
+  }
+
+  .header-stats {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem; // separa el icono del texto
+    font-size: 0.9rem;
     font-weight: 600;
+
+    i {
+      color: $color-acento;
+    }
   }
 
   .accordion-body-grid {
     padding: 1rem;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    align-items: start;
     gap: 1rem;
+  }
+
+  // Plegado en la foto histórica
+  &.is-collapsed {
+    .accordion-body-grid {
+      display: none;
+    }
+
+    .chevron {
+      transform: rotate(-90deg);
+    }
   }
 }
 
