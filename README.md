@@ -81,3 +81,4 @@ src/
 - Mantén desactivado el registro libre de usuarios en Supabase.
 - Las reglas de disponibilidad (almuerzo, horario) se aplican en la interfaz, no en la base de datos.
 - El Modo Consulta es un seguro de interfaz contra clics accidentales, no un permiso de solo lectura.
+.
