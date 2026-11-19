@@ -1,0 +1,20 @@
+# Archivos que Claude no necesita leer (ruido, generados o secretos)
+
+# Secretos: nunca leer
+.env
+.env.*
+!.env.example
+
+# Dependencias y lockfile (enorme, sin valor para razonar)
+node_modules/
+bun.lock
+
+# Generados por Astro / build
+dist/
+.astro/
+
+# Logs y SO
+*.log
+.DS_Store
+Thumbs.db
+.idea/
