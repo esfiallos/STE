@@ -18,11 +18,11 @@ describe('entorno', () => {
 
 describe('rutas con ruta base (GitHub Pages)', () => {
   it('en la raíz', () => {
-    expect(construirRutas('/')).toEqual({ inicio: '/', login: '/login/' });
+    expect(construirRutas('/')).toEqual({ inicio: '/', login: '/login/', restablecer: '/restablecer/' });
   });
 
   it('en un repositorio de proyecto, con o sin barra final', () => {
-    expect(construirRutas('/panel-noc')).toEqual({ inicio: '/panel-noc/', login: '/panel-noc/login/' });
-    expect(construirRutas('/panel-noc/')).toEqual({ inicio: '/panel-noc/', login: '/panel-noc/login/' });
+    expect(construirRutas('/panel-noc')).toEqual({ inicio: '/panel-noc/', login: '/panel-noc/login/', restablecer: '/panel-noc/restablecer/' });
+    expect(construirRutas('/panel-noc/')).toEqual({ inicio: '/panel-noc/', login: '/panel-noc/login/', restablecer: '/panel-noc/restablecer/' });
   });
 });

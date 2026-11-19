@@ -6,8 +6,8 @@ Roles: **dispatch** (edita todo) y **técnico** (hoy: tablero en solo lectura). 
 mensajes están **en español**; mantén ese idioma.
 
 > **En curso: v2.** Rama de trabajo **`desarrollo`**, nunca `main`. Diseño, modelo, fases y estado en
-> `docs/DISENO_V2.md`: léelo antes de tocar BD, tablero o módulos nuevos. Fases 1 (BD) y 2 (dispatch + corte)
-> hechas; siguen login (3), técnico (4), traspasos (5), búsqueda global (6), animaciones (7).
+> `docs/DISENO_V2.md`: léelo antes de tocar BD, tablero o módulos nuevos. Fases 1 (BD), 2 (dispatch + corte)
+> y 3 (login + recuperar contraseña) hechas; siguen técnico (4), traspasos (5), búsqueda global (6), animaciones (7).
 > Referencia para traspasos/exportación: `C:\Users\Eme\Downloads\traspasos-noc` (JS sobre Excel; se portan
 > `report.js`, `sorting.js`, `balancer.js`, no los parsers).
 
@@ -30,6 +30,7 @@ pages/ + components/   Marcado Astro sin lógica. Lo dinámico son <template> qu
         │
 scripts/               Comportamiento en el navegador
   main.ts              Arranque: sesión → perfil/rol → iniciar módulos → store.subscribe(render) → sync
+  auth/                /login/ (entrar + recuperar), /restablecer/ (contraseña nueva), authUi (campos, carga)
   board/               Vistas del tablero (+ franja "por reasignar"), eventos, drag & drop, renderScheduler
   planning/            Planificación semanal (grilla técnico × día), solo dispatch
   modals/              Un controlador por modal + assignFlow (reglas de asignación compartidas)
@@ -101,7 +102,8 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - `PUBLIC_APP_ENV` debe ser `development` en `astro dev` y `production` en `astro build`;
   `services/environment.ts` aborta si no coincide. DEV muestra insignia y título `[DEV]`.
 - Variables: `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY` (solo la clave publicable, nunca service_role).
-- Rutas siempre vía `RUTAS` (`scripts/routes.ts`), que respeta `BASE_PATH` de GitHub Pages.
+- Rutas siempre vía `RUTAS` (`scripts/routes.ts`), que respeta `BASE_PATH` de GitHub Pages; navegar con `irA()`
+  (las pruebas lo sustituyen). `/restablecer/` debe estar en las *Redirect URLs* de Supabase de cada entorno.
 - CI: `ci.yml` (ramas/PR, solo verifica) y `deploy.yml` (push a `main` → verifica, compila, publica `gh-pages`).
   Detalle en `docs/ENTORNOS_Y_DESPLIEGUE.md`.
 

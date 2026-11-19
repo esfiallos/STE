@@ -68,7 +68,7 @@ jobs:
 
       - name: Comprobar el resultado de la compilación
         run: |
-          test -f dist/index.html && test -f dist/login/index.html
+          test -f dist/index.html && test -f dist/login/index.html && test -f dist/restablecer/index.html
           if [ "$BASE_PATH" != "/" ]; then grep -q "$BASE_PATH/_astro" dist/index.html || { echo "::error::Las rutas del sitio no respetan BASE_PATH ($BASE_PATH)"; exit 1; }; fi
           # Un sitio publicado nunca debe llevar la marca visual de desarrollo (insignia o título [DEV])
           if grep -rqE 'class="env-badge"|<title>\[DEV\]' --include='*.html' dist; then

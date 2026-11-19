@@ -154,11 +154,16 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 
 ## 5. Módulos
 
-### 5.1 Login
+### 5.1 Login — ✅ Fase 3
 - "¿Olvidaste tu contraseña?" → `supabase.auth.resetPasswordForEmail(correo, { redirectTo: <base>/restablecer/ })`.
 - `/restablecer/` → `supabase.auth.updateUser({ password })`.
 - Requiere en Supabase (DEV y PROD): *Authentication → URL Configuration → Redirect URLs* con esa ruta.
 - Mejoras visuales: estados de carga, errores en línea, transición de entrada.
+- Hecho: panel "¿Olvidaste tu contraseña?" dentro del login (no revela si el correo existe; avisa si se pide
+  otro enlace demasiado pronto), página `/restablecer/` (detecta enlace vencido o abierto sin enlace, valida
+  8+ caracteres con letras y números, quita el token de la dirección y entra al panel), mostrar/ocultar
+  contraseña, aviso de Bloq Mayús, botón con indicador de carga, sacudida al fallar, animación de entrada
+  (se apaga con "reducir movimiento"). Configuración de Supabase: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1, pasos 7 y 8.
 
 ### 5.2 Técnico
 - **Mi día**: versión de solo lectura del tablero del día, con mis casos resaltados y copiar código en 1 clic.
@@ -203,7 +208,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 |---|---|---|
 | **1. Base de datos v2** ✅ | `perfiles`, `jornadas`, `casos`, `caso_responsables`, RLS por rol, día operativo, migración de datos, snapshot, pruebas SQL | — |
 | **2. Dispatch v2** ✅ | Planificación semanal + revisión del día, tablero por fecha operativa, filtro por técnico, quitar Modo Consulta, enrutamiento por rol, corte (`05`) | 1 |
-| **3. Login** | Recuperar/restablecer contraseña, pulido visual | — (paralelo) |
+| **3. Login** ✅ | Recuperar/restablecer contraseña, pulido visual | — (paralelo) |
 | **4. Técnico** | Mi día, Seguimiento, última actualización, notificaciones + alertas | 1, 2 |
 | **5. Traspasos** | Armado, balanceo, etiquetas, export Outlook/TSV, envío transaccional | 4 |
 | **6. Búsqueda global** | Casos + historial de responsables | 1 |

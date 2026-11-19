@@ -28,6 +28,16 @@ La app se niega a arrancar si el entorno no coincide con el modo (por ejemplo, u
 4. Haz el push a `main`. El workflow crea y trabaja la rama `gh-pages`.
 5. **Activar Pages:** Settings → Pages → *Deploy from a branch* → rama `gh-pages`, carpeta `/ (root)`.
 6. En Supabase PROD: Authentication → URL Configuration → *Site URL* = la dirección de tu GitHub Pages.
+7. **Recuperar contraseña** (en DEV y en PROD): Authentication → URL Configuration → *Redirect URLs*, agrega la
+   página `/restablecer/` de cada entorno:
+   - DEV: `http://localhost:4321/restablecer/`
+   - PROD: `https://<usuario>.github.io/<repositorio>/restablecer/`
+
+   Si falta, el correo de recuperación llega pero el enlace abre la *Site URL* en vez de `/restablecer/`.
+8. **Correos:** el servidor de correo incluido en Supabase solo envía a los miembros del equipo del proyecto y con
+   un límite bajo por hora. Para que les llegue a todos los técnicos, configura un SMTP propio en
+   Authentication → Emails → *SMTP Settings*. Ahí mismo (Templates → *Reset Password*) puedes poner el texto del
+   correo en español.
 
 ## 4. Flujo de trabajo
 
