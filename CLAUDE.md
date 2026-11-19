@@ -4,6 +4,12 @@ Panel web en tiempo real para un NOC: incidentes (INC) asignados a técnicos por
 búsqueda, Modo Consulta (solo lectura), historial diario (snapshots) y bitácora de cambios.
 Todo el código, nombres y mensajes están **en español**; mantén ese idioma.
 
+> **En curso: v2** (roles dispatch/técnico, turno por día, casos persistentes, traspasos, notificaciones).
+> Se trabaja en la rama **`desarrollo`**, nunca en `main`. Diseño, modelo de datos y fases en
+> `docs/DISENO_V2.md`: léelo antes de tocar BD, tablero o módulos nuevos. Proyecto de referencia para
+> traspasos/exportación: `C:\Users\Eme\Downloads\traspasos-noc` (JS, basado en Excel; se portan
+> `report.js`, `sorting.js`, `balancer.js`, no los parsers).
+
 **Stack:** Astro 7 (sitio estático, sin SSR) · TypeScript estricto · SCSS · Supabase (Auth, Postgres, RLS,
 Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub Pages (rama `gh-pages`).
 
@@ -72,6 +78,12 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - `01_schema_inicial.sql`: `tecnicos`, `incidentes`, `historial_snapshots`, RLS (usuarios autenticados), Realtime.
 - `02_migracion_v3.sql`: comodín (`horario_inicio/fin`), `bitacora` (la escriben **triggers**, la app solo lee),
   `generar_snapshot_diario()`, `buscar_en_historial()`, `buscar_en_bitacora()`, pg_cron 23:59 Honduras (05:59 UTC).
+- `04_v2_modelo_base.sql` (v2, fase 1, **aditiva**): día operativo, `perfiles` + roles (`es_dispatch()`,
+  `mi_tecnico_id()`), `jornadas`, `casos` + `caso_responsables`, `notificaciones`, `traspasos` +
+  `enviar_traspaso()`, `generar_snapshot_operativo()`. Aún convive con `incidentes`/`tecnicos.turno`;
+  el corte (borrarlos, endurecer RLS de `tecnicos`, cron 05:59) es parte de la fase 2.
+  Regla de traspaso duplicada a propósito: `desfase_traspaso()` (SQL) = `domain/handover.ts`; una prueba
+  verifica que coincidan.
 - `03_datos_demo_dev.sql`: solo DEV; se niega a correr si no existe la tabla marcadora `public.entorno_dev`.
 - Cambios de esquema → nuevo archivo `sql/0N_*.sql` idempotente + actualizar `tests/sql/`.
 

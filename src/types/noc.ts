@@ -3,6 +3,9 @@ export type TurnoId = 'turnoA' | 'turnoB' | 'turnoC';
 /** Un técnico pertenece a un turno fijo o es "comodín": horario propio que abarca varios turnos. */
 export type TurnoTecnico = TurnoId | 'comodin';
 
+/** Estado de un caso. Solo "cerrado" lo saca del flujo: todo lo demás se traspasa al cerrar turno. */
+export type EstadoCaso = 'en_curso' | 'pausado' | 'resuelto' | 'cerrado';
+
 /** Hora en formato 24 h "HH:MM". */
 export type Hora = string;
 

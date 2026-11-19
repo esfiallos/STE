@@ -61,3 +61,24 @@ export function esRangoValido(inicio: string, fin: string): boolean {
   const hasta = aMinutos(fin);
   return desde !== null && hasta !== null && desde !== hasta;
 }
+
+/** Hora (local, Honduras) en que empieza el día operativo. */
+export const INICIO_DIA_OPERATIVO = '06:00';
+
+/**
+ * Fecha operativa (YYYY-MM-DD) de un momento: el día operativo va de 06:00 a 06:00,
+ * así que entre 00:00 y 05:59 sigue siendo el día anterior (turno C).
+ * Misma regla que `public.fecha_operativa()` en la base de datos.
+ */
+export function fechaOperativa(ahora: Date): string {
+  const inicio = aMinutos(INICIO_DIA_OPERATIVO) ?? 0;
+  const fecha = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+  if (minutosDelDia(ahora) < inicio) fecha.setDate(fecha.getDate() - 1);
+  return formatearFechaLocal(fecha);
+}
+
+/** Suma días a una fecha "YYYY-MM-DD" sin pasar por UTC. */
+export function sumarDias(fecha: string, dias: number): string {
+  const [anio, mes, dia] = fecha.split('-').map(Number);
+  return formatearFechaLocal(new Date(anio!, mes! - 1, dia! + dias));
+}
