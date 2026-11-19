@@ -28,16 +28,16 @@ export function fijarHora(hora: number, minutos = 0): void {
 export const esperar = (ms = 40) => new Promise((resolver) => setTimeout(resolver, ms));
 
 /**
- * Arranca la app como lo hace main.ts (sin login), contra un Supabase simulado.
+ * Arranca la app como lo hace main.ts (sin login), contra un Supabase simulado, con el rol indicado.
  * Cada llamada empieza de cero: módulos, estado, DOM y base de datos.
  */
-export async function iniciarApp(datos: Datos = datosBase()) {
+export async function iniciarApp(datos: Datos = datosBase(), { rol = 'dispatch' }: { rol?: 'dispatch' | 'tecnico' } = {}) {
   vi.resetModules();
   cargarPaginaCompilada();
   const backend = crearBackendSimulado(datos);
 
   vi.doMock('../../src/scripts/ui/sound', () => ({ reproducirSonido: () => undefined }));
-  const confirmar = vi.fn(() => true);
+  const confirmar = vi.fn((_mensaje?: string) => true);
   window.confirm = confirmar;
   document.execCommand = vi.fn(() => true);
 
@@ -47,11 +47,14 @@ export async function iniciarApp(datos: Datos = datosBase()) {
   const { iniciarEventosDelTablero } = await import('../../src/scripts/board/boardEvents');
   const { iniciarDragAndDrop } = await import('../../src/scripts/board/dragAndDrop');
   const { iniciarModalAsignar, abrirModalAsignar } = await import('../../src/scripts/modals/assignIncidentModal');
-  const { iniciarModoConsulta } = await import('../../src/scripts/features/readOnlyMode');
+  const { iniciarFiltroPorTecnico } = await import('../../src/scripts/features/techFilter');
   const { solicitarAsignacion } = await import('../../src/scripts/modals/assignFlow');
 
+  appStore.set({ perfil: { nombre: 'Prueba', rol, tecnicoId: null }, soloLectura: rol !== 'dispatch' });
+  document.body.classList.toggle('solo-lectura', rol !== 'dispatch');
+
   iniciarModalAsignar();
-  iniciarModoConsulta();
+  iniciarFiltroPorTecnico();
   iniciarEventosDelTablero();
   iniciarDragAndDrop(aplicarRenderPendiente);
   appStore.subscribe(solicitarRender);

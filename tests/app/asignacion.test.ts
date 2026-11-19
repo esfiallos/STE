@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { esperar, fijarHora, iniciarApp } from '../helpers/app';
+import { datosBase } from '../helpers/backendSimulado';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -11,8 +12,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const codigos = (db: { incidentes?: Record<string, unknown>[] }, tecnico: string) =>
-  db.incidentes!.filter((i) => i.tecnico_id === tecnico).map((i) => i.codigo);
+const codigos = (db: { casos?: Record<string, unknown>[] }, tecnico: string) =>
+  db.casos!.filter((c) => c.tecnico_actual_id === tecnico && c.estado !== 'cerrado').map((c) => c.codigo);
 
 describe('asignación rápida desde la tarjeta', () => {
   it('abre el formulario con el foco en el número, no pierde lo escrito si llegan cambios y asigna al enviar', async () => {
@@ -48,7 +49,7 @@ describe('reglas de asignación', () => {
 
     expect(app.confirmar).toHaveBeenCalledTimes(1);
     expect(resultado?.ok).toBe(true);
-    expect(app.db.incidentes!.filter((i) => i.codigo === 'INC1')).toHaveLength(1);
+    expect(app.db.casos!.filter((c) => c.codigo === 'INC1')).toHaveLength(1);
     expect(codigos(app.db, 'marta')).toEqual(['INC1']);
   });
 
@@ -72,7 +73,7 @@ describe('reglas de asignación', () => {
     const resultado = await app.solicitarAsignacion('INC9', '', 'luis');
 
     expect(resultado && !resultado.ok && resultado.error).toContain('fuera de su horario (14:00 - 22:00)');
-    expect(app.db.incidentes!.some((i) => i.codigo === 'INC9')).toBe(false);
+    expect(app.db.casos!.some((c) => c.codigo === 'INC9')).toBe(false);
   });
 
   it('un técnico en almuerzo no recibe casos', async () => {
@@ -98,6 +99,34 @@ describe('reglas de asignación', () => {
   });
 });
 
+describe('casos que ya existen fuera del tablero de hoy', () => {
+  const conCerrado = () => {
+    const datos = datosBase();
+    datos.casos.push({ id: 'i5', codigo: 'INC5', nota: null, estado: 'cerrado', tecnico_actual_id: 'luis', creado_en: '', _fecha: '2026-11-01' });
+    return datos;
+  };
+
+  it('un caso cerrado se reabre al asignarlo de nuevo (con confirmación)', async () => {
+    const app = await iniciarApp(conCerrado());
+
+    const resultado = await app.solicitarAsignacion(' inc5 ', '', 'marta');
+    await esperar();
+
+    expect(String(app.confirmar.mock.calls[0]![0])).toContain('está cerrado (último responsable: Luis Mora)');
+    expect(resultado?.ok).toBe(true);
+    expect(app.db.casos!.find((c) => c.codigo === 'INC5')).toMatchObject({ estado: 'en_curso', tecnico_actual_id: 'marta' });
+    expect(app.tarjeta('turnoA', 'marta').textContent).toContain('INC5');
+  });
+
+  it('si no se confirma, el caso cerrado sigue cerrado', async () => {
+    const app = await iniciarApp(conCerrado());
+    app.confirmar.mockReturnValue(false);
+
+    expect(await app.solicitarAsignacion('INC5', '', 'marta')).toBeNull();
+    expect(app.db.casos!.find((c) => c.codigo === 'INC5')).toMatchObject({ estado: 'cerrado' });
+  });
+});
+
 describe('arrastrar y soltar', () => {
   it('no acepta soltar sobre un técnico no disponible, y sí sobre uno disponible', async () => {
     const app = await iniciarApp();
@@ -120,11 +149,12 @@ describe('arrastrar y soltar', () => {
     expect(codigos(app.db, 'marta')).toEqual(['INC1']);
   });
 
-  it('quitar un incidente lo elimina', async () => {
+  it('cerrar un caso lo saca del tablero pero no lo borra', async () => {
     const app = await iniciarApp();
     app.click(app.tarjeta('turnoA', 'ana').querySelector('[data-action="quitar-incidente"]')!);
     await esperar(80);
 
-    expect(app.db.incidentes).toHaveLength(0);
+    expect(app.db.casos).toMatchObject([{ codigo: 'INC1', estado: 'cerrado' }]);
+    expect(app.tarjeta('turnoA', 'ana').querySelectorAll('.incident-item-card')).toHaveLength(0);
   });
 });

@@ -1,28 +1,34 @@
 # Panel NOC · Traspasos y Turnos
 
-Panel en tiempo real para sistemas de asignacion de tickets: incidentes asignados a técnicos por turno
-(A mañana, B tarde, C nocturno y comodín), almuerzos, búsqueda con copia rápida, Modo Consulta,
-historial diario y bitácora de cambios por usuario.
+Panel en tiempo real para sistemas de asignación de tickets: casos asignados a técnicos según su turno del día
+(A mañana, B tarde, C nocturno y comodín), planificación semanal, almuerzos, búsqueda con copia rápida,
+roles dispatch / técnico, historial diario y bitácora de cambios por usuario.
 
-**Stack:** Astro · SCSS · Supabase (Auth, Postgres, Realtime, pg_cron) · Bun · TypeScript.
+**Stack:** Astro · SCSS · Supabase (Auth, Postgres, RLS, Realtime, pg_cron) · Bun · TypeScript.
 
+Diseño de la v2 (roles, traspasos, notificaciones) y su avance: [`docs/DISENO_V2.md`](docs/DISENO_V2.md).
 
 ## Cómo funciona
 
-- **Tablero:** turnos → técnicos → incidentes, en tiempo real. Los horarios de los turnos están en `src/domain/shifts.ts`.
+- **Roles:** el *dispatch* asigna y planifica; el *técnico* ve el tablero en solo lectura. El rol se asigna por SQL
+  (tabla `perfiles`) y lo hace cumplir la base de datos.
+- **Día operativo:** va de 06:00 a 06:00 (hora de Honduras). A las 06:00 el tablero empieza limpio sin borrar nada;
+  los casos abiertos cuyo responsable no trabaja hoy aparecen en **Por reasignar**.
+- **Planificación:** el turno no es fijo: el dispatch arma la semana (técnico × día) y cada mañana revisa el día.
+  Los horarios de los turnos y del comodín están en `src/domain/shifts.ts`.
+- **Tablero:** turnos → técnicos → casos, en tiempo real, con filtro por técnico.
 - **Disponibilidad:** un técnico recibe casos solo si está en su horario y fuera de su almuerzo. Si no, su columna se
   atenúa (amarillo en almuerzo, gris fuera de horario), el botón «+» se deshabilita y no acepta casos arrastrados.
-- **Comodín:** técnico con horario propio (ej. 07:00 - 17:00). Aparece en todos los turnos que su horario toca y recibe
-  casos solo mientras esté en su horario.
-- **Almuerzo:** es un elemento más de la columna (amarillo, no transferible). Se edita con el lápiz.
-- **Incidentes:** un INC solo puede estar con un técnico. Reasignar = arrastrarlo o volver a asignarlo y confirmar.
-  Copiar el número y ver el comentario son botones distintos.
-- **Historial:** foto del tablero al cierre de cada día (la genera la base de datos a las 23:59, hora de Honduras) y
-  búsqueda de casos en días anteriores (snapshots + bitácora, para incluir los casos que se cerraron durante el día).
-- **Bitácora:** quién asignó, reasignó o eliminó qué y cuándo. La escriben triggers de la base de datos: no se puede
-  omitir, editar ni borrar desde la app.
+- **Comodín:** horario fijo 06–16, 07–17 u 08–18. Aparece en todos los turnos que su horario toca.
+- **Almuerzo:** es un elemento más de la columna (amarillo, no transferible). Se edita con el lápiz o en la planificación.
+- **Casos:** un código existe una sola vez en todo el historial y solo lo tiene un técnico. Reasignar = arrastrarlo o
+  volver a asignarlo y confirmar. Los casos no se borran: se **cierran** (y se pueden reabrir).
+- **Historial:** foto del tablero al cierre de cada día operativo (la genera la base de datos a las 05:59) y
+  búsqueda de casos en días anteriores (snapshots + bitácora).
+- **Bitácora:** quién asignó, reasignó, cerró o planificó qué y cuándo. La escriben triggers de la base de datos: no se
+  puede omitir, editar ni borrar desde la app.
 
-Probar el snapshot sin esperar a la noche: `select public.generar_snapshot_diario();` en el SQL Editor.
+Probar el snapshot sin esperar: `select public.generar_snapshot_operativo();` en el SQL Editor.
 
 ## Arquitectura
 
@@ -44,7 +50,8 @@ src/
 │   ├── modals/     Un controlador por modal + assignFlow (reglas de asignación compartidas)
 │   ├── history/    Historial: foto de un día y búsqueda
 │   ├── audit/      Bitácora
-│   ├── features/   Pestañas, buscador, Modo Consulta, sesión, estado de conexión
+│   ├── planning/   Planificación semanal (solo dispatch)
+│   ├── features/   Pestañas, buscador, filtro por técnico, sesión, estado de conexión
 │   ├── actions/    Casos de uso: llaman a services, avisan al usuario, recargan datos
 │   └── ui/         Toast, sonido, portapapeles, tablas, formato de fechas
 ├── state/          Store único, sincronización con Supabase (Realtime + respaldo)

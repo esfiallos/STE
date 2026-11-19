@@ -1,44 +1,49 @@
-import { unirTecnicosConIncidentes } from '../../domain/assignments';
-import { ETIQUETA_COMODIN, esTurnoTecnico, TURNOS } from '../../domain/shifts';
-import { esRangoValido } from '../../domain/time';
+import { abreviaturaDeJornada } from '../../domain/planning';
 import { appStore } from '../../state/appStore';
-import { agregarTecnico, quitarTecnico } from '../actions/technicianActions';
+import type { TecnicoCatalogo } from '../../types/noc';
+import { agregarTecnico, cambiarActivoTecnico } from '../actions/technicianActions';
 import { byId, clonarPlantilla, crearElemento, ref } from '../dom';
 import { abrirModal, establecerError } from './modal';
 
 const ID_MODAL = 'modalTechnicians';
 const ID_ERROR = 'techError';
 
-const GRUPOS = [...TURNOS.map((t) => ({ id: t.id as string, nombre: t.nombre })), { id: 'comodin', nombre: ETIQUETA_COMODIN }];
+function crearFila(tecnico: TecnicoCatalogo): HTMLElement {
+  const { tecnicos, incidentes } = appStore.get();
+  const deHoy = tecnicos.find((t) => t.id === tecnico.id);
+  const casos = incidentes.filter((i) => i.tecnicoId === tecnico.id).length;
 
-function crearFila(id: string, nombre: string, casos: number, horario: string): HTMLElement {
   const fragmento = clonarPlantilla('tpl-tecnico-fila');
   const fila = ref(fragmento, 'fila');
+  fila.dataset.tecnicoId = tecnico.id;
+  fila.dataset.tecnicoNombre = tecnico.nombre;
+  fila.dataset.activo = String(tecnico.activo);
+  fila.classList.toggle('is-inactivo', !tecnico.activo);
 
-  fila.dataset.tecnicoId = id;
-  fila.dataset.tecnicoNombre = nombre;
-  ref(fragmento, 'nombre').textContent = nombre;
-  ref(fragmento, 'horario').textContent = horario;
+  ref(fragmento, 'nombre').textContent = tecnico.nombre;
+  ref(fragmento, 'horario').textContent = deHoy ? `Hoy: ${abreviaturaDeJornada(deHoy)}` : tecnico.activo ? 'Libre hoy' : '';
   ref(fragmento, 'casos').textContent = casos === 0 ? '' : `${casos} caso(s)`;
+
+  const boton = ref(fragmento, 'botonActivo');
+  boton.textContent = tecnico.activo ? 'Desactivar' : 'Activar';
+  boton.title = tecnico.activo
+    ? 'Deja de aparecer en la planificación; conserva su historial'
+    : 'Vuelve a aparecer en la planificación';
   return fila;
 }
 
 function renderizarLista(): void {
-  const { tecnicos, incidentes } = appStore.get();
-  const conIncidentes = unirTecnicosConIncidentes(tecnicos, incidentes);
-  const contenido: HTMLElement[] = [];
+  const { catalogo } = appStore.get();
+  const activos = catalogo.filter((t) => t.activo);
+  const inactivos = catalogo.filter((t) => !t.activo);
 
-  for (const grupo of GRUPOS) {
-    contenido.push(crearElemento('div', 'tech-group-title', grupo.nombre));
+  const contenido: HTMLElement[] = [crearElemento('div', 'tech-group-title', `Activos (${activos.length})`)];
+  if (activos.length === 0) contenido.push(crearElemento('div', 'tech-item-row text-muted', 'Sin técnicos'));
+  activos.forEach((t) => contenido.push(crearFila(t)));
 
-    const delGrupo = conIncidentes.filter((t) => t.turno === grupo.id);
-    if (delGrupo.length === 0) {
-      contenido.push(crearElemento('div', 'tech-item-row text-muted', 'Sin técnicos'));
-    }
-    delGrupo.forEach((t) => {
-      const horario = t.horarioInicio && t.horarioFin ? `${t.horarioInicio} - ${t.horarioFin}` : '';
-      contenido.push(crearFila(t.id, t.nombre, t.incidentes.length, horario));
-    });
+  if (inactivos.length > 0) {
+    contenido.push(crearElemento('div', 'tech-group-title', `Inactivos (${inactivos.length})`));
+    inactivos.forEach((t) => contenido.push(crearFila(t)));
   }
 
   byId('techManagerList').replaceChildren(...contenido);
@@ -53,32 +58,12 @@ export function abrirModalTecnicos(): void {
 export function iniciarModalTecnicos(): void {
   const formulario = byId<HTMLFormElement>('formAddTech');
   const nombre = byId<HTMLInputElement>('newTechName');
-  const turno = byId<HTMLSelectElement>('newTechShift');
-  const horarioComodin = byId('comodinHorario');
-  const inicio = byId<HTMLInputElement>('comodinStart');
-  const fin = byId<HTMLInputElement>('comodinEnd');
-
-  const alternarHorario = () => {
-    const esComodin = turno.value === 'comodin';
-    horarioComodin.classList.toggle('hidden', !esComodin);
-    inicio.required = esComodin;
-    fin.required = esComodin;
-  };
-  turno.addEventListener('change', alternarHorario);
-  alternarHorario();
 
   formulario.addEventListener('submit', async (evento) => {
     evento.preventDefault();
-    if (!esTurnoTecnico(turno.value) || !nombre.value.trim()) return;
+    if (!nombre.value.trim()) return;
 
-    const esComodin = turno.value === 'comodin';
-    if (esComodin && !esRangoValido(inicio.value, fin.value)) {
-      establecerError(ID_ERROR, 'Indica el horario del comodín (la hora de fin debe ser distinta de la de inicio).');
-      return;
-    }
-
-    const horario = esComodin ? { inicio: inicio.value, fin: fin.value } : undefined;
-    const resultado = await agregarTecnico(nombre.value, turno.value, horario);
+    const resultado = await agregarTecnico(nombre.value);
     if (resultado.ok) {
       establecerError(ID_ERROR, null);
       nombre.value = '';
@@ -90,15 +75,19 @@ export function iniciarModalTecnicos(): void {
 
   byId('techManagerList').addEventListener('click', (evento) => {
     if (!(evento.target instanceof Element)) return;
-    if (!evento.target.closest('[data-action="quitar-tecnico"]')) return;
+    if (!evento.target.closest('[data-action="alternar-activo"]')) return;
 
     const fila = evento.target.closest<HTMLElement>('[data-tecnico-id]');
-    const { tecnicoId, tecnicoNombre } = fila?.dataset ?? {};
+    const { tecnicoId, tecnicoNombre, activo } = fila?.dataset ?? {};
     if (!tecnicoId || !tecnicoNombre) return;
 
-    const casos = appStore.get().incidentes.filter((i) => i.tecnicoId === tecnicoId).length;
-    const aviso = casos > 0 ? `\nSe eliminarán también sus ${casos} caso(s) asignado(s).` : '';
-    if (window.confirm(`¿Eliminar a ${tecnicoNombre}?${aviso}`)) void quitarTecnico(tecnicoId, tecnicoNombre);
+    const desactivar = activo === 'true';
+    if (desactivar) {
+      const casos = appStore.get().incidentes.filter((i) => i.tecnicoId === tecnicoId).length;
+      const aviso = casos > 0 ? `\nTiene ${casos} caso(s) abierto(s): quedarán "por reasignar".` : '';
+      if (!window.confirm(`¿Desactivar a ${tecnicoNombre}?${aviso}`)) return;
+    }
+    void cambiarActivoTecnico(tecnicoId, tecnicoNombre, !desactivar);
   });
 
   // Mantiene la lista al día si cambian los datos con el modal abierto.

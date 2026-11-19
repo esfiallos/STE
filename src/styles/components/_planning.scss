@@ -1,0 +1,157 @@
+@use '../abstracts/variables' as *;
+
+// Casos abiertos cuyo responsable no trabaja hoy
+.reassign-strip {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: $radio-md;
+  border: 1px dashed $color-almuerzo-borde;
+  background-color: $color-almuerzo-fondo;
+}
+
+.reassign-strip__title {
+  font-size: 0.95rem;
+  color: $color-almuerzo-texto;
+}
+
+.reassign-strip__help {
+  margin: 0.15rem 0 0.6rem;
+  font-size: 0.8rem;
+  color: $color-almuerzo-texto;
+}
+
+.reassign-strip__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.5rem;
+}
+
+.reassign-strip__owner {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: $color-texto-suave;
+}
+
+// Planificación semanal
+.planning-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.planning-week {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.planning-title {
+  font-size: 1rem;
+  min-width: 14rem;
+  text-align: center;
+}
+
+.planning-help {
+  margin: 0.6rem 0 0.9rem;
+  font-size: 0.82rem;
+  color: $color-texto-suave;
+}
+
+.planning-grid {
+  th.is-today {
+    color: $color-acento;
+  }
+
+  .planning-name {
+    white-space: nowrap;
+    text-align: left;
+  }
+
+  tfoot th,
+  tfoot td {
+    background-color: $color-superficie-alta;
+  }
+}
+
+.planning-cell {
+  min-width: 9.5rem;
+  vertical-align: top;
+  transition: background-color 0.2s ease;
+
+  &.is-today {
+    background-color: $color-acento-suave;
+  }
+
+  &.is-past {
+    opacity: 0.6;
+  }
+
+  &[data-turno='turnoA'] .planning-select {
+    border-left: 3px solid #2e7dd7;
+  }
+  &[data-turno='turnoB'] .planning-select {
+    border-left: 3px solid #7a4cc2;
+  }
+  &[data-turno='turnoC'] .planning-select {
+    border-left: 3px solid #233041;
+  }
+  &[data-turno='comodin'] .planning-select {
+    border-left: 3px solid $color-cian;
+  }
+}
+
+.planning-select {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border-radius: $radio-sm;
+  border: 1px solid $color-borde-fuerte;
+  background-color: $color-superficie;
+  font-size: 0.8rem;
+}
+
+.planning-lunch {
+  margin-top: 0.3rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid $color-almuerzo-borde;
+  border-radius: $radio-pildora;
+  background-color: $color-almuerzo-fondo;
+  color: $color-almuerzo-texto;
+  font-size: 0.72rem;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.planning-total {
+  font-size: 0.72rem;
+  white-space: nowrap;
+  color: $color-texto-suave;
+}
+
+// Técnico desactivado en "Gestionar técnicos"
+.tech-item-row.is-inactivo .tech-item-name {
+  color: $color-texto-suave;
+  text-decoration: line-through;
+}
+
+// Usuario sin rol asignado
+.no-profile {
+  text-align: center;
+
+  p {
+    margin: 0.75rem 0 1.25rem;
+    font-size: 0.9rem;
+    color: $color-texto-suave;
+  }
+}
+
+.no-profile__icon {
+  font-size: 2rem;
+  color: $color-acento;
+  margin-bottom: 0.5rem;
+}

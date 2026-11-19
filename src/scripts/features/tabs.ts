@@ -1,18 +1,19 @@
 import { appStore } from '../../state/appStore';
 import type { Vista } from '../../types/noc';
 
-const VISTAS: readonly Vista[] = ['tablero', 'historial', 'bitacora'];
-
-function vistaDesdeLaDireccion(): Vista {
-  const hash = window.location.hash.slice(1);
-  return VISTAS.find((vista) => vista === hash) ?? 'tablero';
-}
+const VISTAS: readonly Vista[] = ['tablero', 'planificacion', 'historial', 'bitacora'];
 
 /**
- * Pestañas Tablero / Historial / Bitácora. La vista activa vive en la dirección (#historial),
- * así se conserva al recargar y se puede compartir el enlace. `alAbrir` carga los datos de cada vista.
+ * Pestañas Tablero / Planificación / Historial / Bitácora. La vista activa vive en la dirección (#historial),
+ * así se conserva al recargar y se puede compartir el enlace. `alAbrir` carga los datos de cada vista;
+ * una vista sin función en `alAbrir` no está permitida para el rol (se abre el tablero).
  */
-export function iniciarPestanas(alAbrir: Record<Vista, () => void>): void {
+export function iniciarPestanas(alAbrir: Partial<Record<Vista, () => void>>): void {
+  const vistaDesdeLaDireccion = (): Vista => {
+    const hash = window.location.hash.slice(1);
+    return VISTAS.find((vista) => vista === hash && alAbrir[vista]) ?? 'tablero';
+  };
+
   const pintar = () => {
     const { vista } = appStore.get();
 
@@ -29,7 +30,7 @@ export function iniciarPestanas(alAbrir: Record<Vista, () => void>): void {
   const abrir = (vista: Vista) => {
     appStore.set({ vista });
     pintar();
-    alAbrir[vista]();
+    alAbrir[vista]?.();
   };
 
   document.querySelectorAll<HTMLElement>('[data-tab]').forEach((pestana) => {

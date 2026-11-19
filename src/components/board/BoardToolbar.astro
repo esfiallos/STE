@@ -2,29 +2,36 @@
 ---
 
 <div class="toolbar">
-  <div class="toolbar__search">
-    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-    <input
-      type="search"
-      id="searchInput"
-      placeholder="Buscar INC o técnico en el tablero..."
-      aria-label="Buscar incidente o técnico en el tablero"
-      autocomplete="off"
-    />
+  <div class="toolbar__filters">
+    <div class="toolbar__search">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <input
+        type="search"
+        id="searchInput"
+        placeholder="Buscar INC o técnico en el tablero..."
+        aria-label="Buscar incidente o técnico en el tablero"
+        autocomplete="off"
+      />
+    </div>
+
+    <label class="toolbar__select">
+      <i class="fa-solid fa-user-check" aria-hidden="true"></i>
+      <select id="filterTech" aria-label="Filtrar el tablero por técnico">
+        <option value="">Todos los técnicos</option>
+      </select>
+    </label>
+
+    <span class="toolbar__date" id="boardDate" title="Día operativo: de 06:00 a 06:00"></span>
   </div>
 
   <div class="toolbar__actions">
     <button id="btnNewIncident" type="button" class="btn btn-primary" data-edit-only>
       <i class="fa-solid fa-plus"></i>
-      <span>Nuevo incidente</span>
+      <span>Nuevo caso</span>
     </button>
     <button id="btnManageTechs" type="button" class="btn" data-edit-only>
       <i class="fa-solid fa-users-gear"></i>
       <span>Técnicos</span>
-    </button>
-    <button id="btnToggleMode" type="button" class="btn" aria-pressed="false">
-      <i class="fa-solid fa-lock-open" id="modeIcon"></i>
-      <span id="modeLabel">Modo Consulta</span>
     </button>
   </div>
 </div>

@@ -68,10 +68,10 @@ entre los técnicos con jornada en esos turnos):
 > `incidentes` ni `tecnicos.turno`, así la app actual sigue funcionando en DEV. El paso 9 copia el turno de
 > hoy a `jornadas` y los incidentes a `casos` (re-ejecutarla copia solo lo que falte).
 >
-> **Pendiente para el corte (fase 2, `sql/05_*.sql`):** borrar `incidentes`, `tecnicos.turno/horario_*` y sus
-> triggers; RLS de `tecnicos` solo escribible por dispatch; cron del snapshot → `generar_snapshot_operativo()`
-> a las 05:59; reescribir `03_datos_demo_dev.sql` (hoy su `truncate ... cascade` también vaciaría `perfiles`,
-> `jornadas`, `casos` y `traspasos`).
+> **Corte (fase 2, `sql/05_v2_corte.sql`) — ✅ hecho:** resincroniza lo que la app anterior cambió después
+> de la 04 (casos nuevos, reasignados y cerrados), borra `incidentes` y el turno fijo de `tecnicos`, RLS de
+> `tecnicos` solo dispatch, vista `casos_abiertos`, cron del snapshot operativo a las 05:59. `03_datos_demo_dev.sql`
+> reescrito: ya no vacía `perfiles`. Pruebas: `tests/sql/corte-v2.test.ts`.
 
 ### 3.1 Usuarios y roles
 ```
@@ -201,8 +201,8 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 
 | Fase | Contenido | Depende de |
 |---|---|---|
-| **1. Base de datos v2** | `perfiles`, `jornadas`, `casos`, `caso_responsables`, RLS por rol, día operativo, migración de datos, snapshot, pruebas SQL | — |
-| **2. Dispatch v2** | Planificación semanal + revisión del día, tablero por fecha operativa, filtro por técnico, quitar Modo Consulta, enrutamiento por rol | 1 |
+| **1. Base de datos v2** ✅ | `perfiles`, `jornadas`, `casos`, `caso_responsables`, RLS por rol, día operativo, migración de datos, snapshot, pruebas SQL | — |
+| **2. Dispatch v2** ✅ | Planificación semanal + revisión del día, tablero por fecha operativa, filtro por técnico, quitar Modo Consulta, enrutamiento por rol, corte (`05`) | 1 |
 | **3. Login** | Recuperar/restablecer contraseña, pulido visual | — (paralelo) |
 | **4. Técnico** | Mi día, Seguimiento, última actualización, notificaciones + alertas | 1, 2 |
 | **5. Traspasos** | Armado, balanceo, etiquetas, export Outlook/TSV, envío transaccional | 4 |
@@ -222,3 +222,27 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 - **D6. Destinos de traspaso:** A → B/Comodín (mismo día) · B → C (mismo día) o A/Comodín (día siguiente) ·
   Comodín → C (mismo día) o A/Comodín (día siguiente) · C → A/Comodín (día siguiente).
 - **D7. Comodín:** horarios fijos 06–16, 07–17, 08–18. Almuerzos a elección del dispatch.
+
+---
+
+## 9. Fase 2 en la app (qué cambió) y orden de despliegue
+
+**En la app**
+- Al entrar se lee el perfil: **dispatch** edita; **técnico** ve el tablero en solo lectura (hasta la fase 4);
+  sin perfil, pantalla "Tu usuario aún no tiene un rol". Desaparece el botón Modo Consulta.
+- Tablero = técnicos con jornada en la **fecha operativa** + casos abiertos de ese día. Arriba, la franja
+  **Por reasignar**: casos abiertos cuyo responsable no trabaja hoy (se arrastran a un técnico disponible).
+- **Filtro por técnico** en la barra, y el día operativo visible.
+- "Quitar" un caso ahora lo **cierra** (no lo borra). Asignar un código cerrado ofrece **reabrirlo**.
+- **Gestionar técnicos**: solo nombre; activar/desactivar en lugar de eliminar.
+- Pestaña **Planificación** (solo dispatch): semana lunes–domingo, turno por celda (comodín con su horario),
+  almuerzo por celda, días pasados bloqueados, cobertura por día, **Copiar semana anterior**.
+
+**Orden de despliegue (DEV primero, después PROD)**
+1. `05_v2_corte.sql` en la base (la 04 ya debe estar aplicada).
+2. Crear los perfiles: el tuyo como `dispatch` y los técnicos con su `tecnico_id`. Sin perfil, el usuario no
+   entra al panel.
+3. DEV: opcionalmente `03_datos_demo_dev.sql` y probar con `bun run dev`.
+4. PROD: hacer 1 y 2 **justo antes** de unir `desarrollo` → `main` (el despliegue tarda unos minutos y en ese
+   intervalo la app publicada anterior deja de funcionar, porque ya no existe `incidentes`).
+5. Revisar en Planificación la semana en curso: la 05 solo crea la jornada de **hoy** a partir del turno fijo.

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { esperar, fijarHora, iniciarApp } from '../helpers/app';
+import { datosBase } from '../helpers/backendSimulado';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -88,22 +89,82 @@ describe('incidentes: copiar y ver el comentario', () => {
   });
 });
 
-describe('Modo Consulta', () => {
+describe('rol técnico: solo lectura', () => {
   it('oculta la edición y bloquea las acciones, pero permite ver y copiar', async () => {
-    const app = await iniciarApp();
-    const cantidad = app.db.incidentes!.length;
+    const app = await iniciarApp(undefined, { rol: 'tecnico' });
+    const antes = JSON.stringify(app.db.casos);
 
-    app.click(document.getElementById('btnToggleMode')!);
-    expect(document.body.classList.contains('modo-consulta')).toBe(true);
-
+    expect(document.body.classList.contains('solo-lectura')).toBe(true);
     app.click(app.tarjeta('turnoA', 'marta').querySelector('[data-action="asignar"]')!);
     app.click(app.tarjeta('turnoA', 'ana').querySelector('[data-action="quitar-incidente"]')!);
     await esperar();
 
-    expect(app.db.incidentes).toHaveLength(cantidad);
+    expect(JSON.stringify(app.db.casos)).toBe(antes);
+    expect(app.escrituras).toHaveLength(0);
     expect(app.qa('form[data-form="asignar"]')).toHaveLength(0);
+    expect(await app.solicitarAsignacion('INC9', '', 'ana')).toMatchObject({ ok: false });
+  });
+});
 
-    app.click(document.getElementById('btnToggleMode')!);
-    expect(document.body.classList.contains('modo-consulta')).toBe(false);
+describe('día operativo (06:00 → 06:00)', () => {
+  const ayer = () => {
+    const datos = datosBase();
+    datos.jornadas = [
+      { id: 'j-c', fecha_operativa: '2026-11-08', tecnico_id: 'luis', turno: 'turnoC', horario_inicio: null, horario_fin: null, almuerzo_inicio: null, almuerzo_fin: null }
+    ];
+    datos.casos = [
+      { id: 'i1', codigo: 'INC1', nota: null, estado: 'en_curso', tecnico_actual_id: 'luis', creado_en: '2026-11-08T23:00:00Z', _fecha: '2026-11-08' }
+    ];
+    return datos;
+  };
+
+  it('a las 05:59 el turno C de ayer sigue en el tablero', async () => {
+    fijarHora(5, 59);
+    const app = await iniciarApp(ayer());
+
+    expect(app.tarjeta('turnoC', 'luis').dataset.disponible).toBe('true');
+    expect(app.tarjeta('turnoC', 'luis').querySelectorAll('.incident-item-card')).toHaveLength(1);
+    expect(app.qa('.reassign-strip')).toHaveLength(0);
+  });
+
+  it('a las 06:00 el tablero empieza limpio y los casos abiertos de ayer quedan "por reasignar"', async () => {
+    fijarHora(6, 0);
+    const app = await iniciarApp(ayer());
+
+    expect(app.qa('.tech-column-card')).toHaveLength(0);
+    expect(app.q('#shiftsAccordionContainer')!.textContent).toContain('Aún no hay técnicos planificados para hoy');
+    const franja = app.q<HTMLElement>('.reassign-strip');
+    expect(franja.textContent).toContain('Por reasignar (1)');
+    expect(franja.textContent).toContain('Último: Luis Mora');
+  });
+
+  it('los casos traspasados para mañana todavía no aparecen hoy', async () => {
+    const datos = datosBase();
+    datos.casos.push({ id: 'i2', codigo: 'INC2', nota: null, estado: 'en_curso', tecnico_actual_id: 'ana', creado_en: '', _fecha: '2026-11-10' });
+    const app = await iniciarApp(datos);
+
+    expect(app.tarjeta('turnoA', 'ana').querySelectorAll('.incident-item-card')).toHaveLength(1);
+  });
+});
+
+describe('filtro por técnico', () => {
+  it('muestra solo las columnas del técnico elegido, en todos sus turnos', async () => {
+    const app = await iniciarApp();
+    const filtro = app.q<HTMLSelectElement>('#filterTech');
+
+    expect([...filtro.options].map((o) => o.textContent)).toEqual([
+      'Todos los técnicos',
+      'Ana Pérez · Turno A',
+      'Luis Mora · Turno B',
+      'Marta Soto · Comodín'
+    ]);
+
+    filtro.value = 'marta';
+    filtro.dispatchEvent(new Event('change'));
+    expect(app.qa('.tech-column-card').map((t) => t.dataset.tecnicoId)).toEqual(['marta', 'marta']);
+
+    filtro.value = '';
+    filtro.dispatchEvent(new Event('change'));
+    expect(app.qa('.tech-column-card')).toHaveLength(4);
   });
 });

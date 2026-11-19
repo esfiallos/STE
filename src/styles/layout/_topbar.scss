@@ -97,8 +97,8 @@
   }
 }
 
-// Con la edición bloqueada, la barra cambia para que sea evidente
-.modo-consulta .topbar {
+// Sin permiso de edición (rol técnico), la barra cambia para que sea evidente
+.solo-lectura .topbar {
   border-bottom-color: $color-almuerzo-borde;
 }
 
@@ -191,4 +191,50 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   vertical-align: middle;
+}
+
+// Filtros del tablero: buscador + técnico + día operativo
+.toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+}
+
+.toolbar__select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: $color-texto-suave;
+
+  select {
+    padding: 0.45rem 0.6rem;
+    border-radius: $radio-sm;
+    border: 1px solid $color-borde-fuerte;
+    background-color: $color-superficie;
+    font-size: 0.88rem;
+    max-width: 16rem;
+  }
+}
+
+.toolbar__date {
+  font-size: 0.8rem;
+  color: $color-texto-suave;
+}
+
+// Rol del usuario junto a su nombre
+.role-badge {
+  padding: 0.1rem 0.5rem;
+  border-radius: $radio-pildora;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: $color-texto-sobre-marca;
+
+  &[data-rol='dispatch'] {
+    background-color: $color-cian;
+    color: $color-marca-oscuro;
+  }
 }

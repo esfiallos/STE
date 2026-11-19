@@ -63,7 +63,7 @@ bun run check       # tipos
 
 - `tests/domain/`: tiempo, turnos, comodín, disponibilidad, métricas, búsqueda, entorno y rutas.
 - `tests/app/`: la app real contra un Supabase simulado: disponibilidad, almuerzo, asignación rápida, INC único,
-  arrastre, Modo Consulta, historial y pestañas.
+  arrastre, rol técnico en solo lectura, día operativo, filtro por técnico, planificación semanal, historial y pestañas.
 - `tests/sql/`: ejecuta `sql/` en un PostgreSQL de prueba: migración sobre datos existentes, comodín, INC único,
   bitácora con el usuario, snapshot, búsquedas, permisos y la protección del script de datos de demo.
 

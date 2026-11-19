@@ -1,0 +1,33 @@
+---
+// Planificación semanal (solo dispatch). La grilla la dibuja scripts/planning/planningView.ts
+---
+
+<section class="panel-card planning" aria-labelledby="planningTitle">
+  <div class="planning-toolbar">
+    <div class="planning-week">
+      <button id="btnPrevWeek" type="button" class="btn btn-sm" title="Semana anterior" aria-label="Semana anterior">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
+      <h2 id="planningTitle" class="planning-title"><span id="planningWeekLabel"></span></h2>
+      <button id="btnNextWeek" type="button" class="btn btn-sm" title="Semana siguiente" aria-label="Semana siguiente">
+        <i class="fa-solid fa-chevron-right"></i>
+      </button>
+      <button id="btnThisWeek" type="button" class="btn btn-sm">Esta semana</button>
+    </div>
+    <button id="btnCopyPrevWeek" type="button" class="btn">
+      <i class="fa-regular fa-copy"></i>
+      <span>Copiar semana anterior</span>
+    </button>
+  </div>
+
+  <p class="planning-help">
+    Elige el turno de cada técnico por día (el comodín, con su horario). El almuerzo se edita con el botón de cada
+    celda. Los días pasados no se modifican. Cada mañana revisa la columna de <strong>hoy</strong> por eventualidades.
+  </p>
+
+  <p id="planningStatus" class="board-status hidden" role="status"></p>
+
+  <div class="data-table-wrap">
+    <table class="data-table planning-grid" id="planningGrid"></table>
+  </div>
+</section>

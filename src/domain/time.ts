@@ -82,3 +82,14 @@ export function sumarDias(fecha: string, dias: number): string {
   const [anio, mes, dia] = fecha.split('-').map(Number);
   return formatearFechaLocal(new Date(anio!, mes! - 1, dia! + dias));
 }
+
+/** Lunes (YYYY-MM-DD) de la semana de una fecha "YYYY-MM-DD". La semana de planificación va de lunes a domingo. */
+export function inicioDeSemana(fecha: string): string {
+  const [anio, mes, dia] = fecha.split('-').map(Number);
+  const diaSemana = (new Date(anio!, mes! - 1, dia!).getDay() + 6) % 7; // lunes = 0
+  return sumarDias(fecha, -diaSemana);
+}
+
+export function diasDeLaSemana(lunes: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i));
+}

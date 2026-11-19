@@ -1,13 +1,14 @@
 # Panel NOC · Traspasos y Turnos — contexto rápido
 
-Panel web en tiempo real para un NOC: incidentes (INC) asignados a técnicos por turno, almuerzos,
-búsqueda, Modo Consulta (solo lectura), historial diario (snapshots) y bitácora de cambios.
-Todo el código, nombres y mensajes están **en español**; mantén ese idioma.
+Panel web en tiempo real para un NOC: casos (INC/SCTASK…) asignados a técnicos según su turno **del día**,
+planificación semanal, almuerzos, búsqueda, historial diario (snapshots) y bitácora de cambios.
+Roles: **dispatch** (edita todo) y **técnico** (hoy: tablero en solo lectura). Todo el código, nombres y
+mensajes están **en español**; mantén ese idioma.
 
-> **En curso: v2** (roles dispatch/técnico, turno por día, casos persistentes, traspasos, notificaciones).
-> Se trabaja en la rama **`desarrollo`**, nunca en `main`. Diseño, modelo de datos y fases en
-> `docs/DISENO_V2.md`: léelo antes de tocar BD, tablero o módulos nuevos. Proyecto de referencia para
-> traspasos/exportación: `C:\Users\Eme\Downloads\traspasos-noc` (JS, basado en Excel; se portan
+> **En curso: v2.** Rama de trabajo **`desarrollo`**, nunca `main`. Diseño, modelo, fases y estado en
+> `docs/DISENO_V2.md`: léelo antes de tocar BD, tablero o módulos nuevos. Fases 1 (BD) y 2 (dispatch + corte)
+> hechas; siguen login (3), técnico (4), traspasos (5), búsqueda global (6), animaciones (7).
+> Referencia para traspasos/exportación: `C:\Users\Eme\Downloads\traspasos-noc` (JS sobre Excel; se portan
 > `report.js`, `sorting.js`, `balancer.js`, no los parsers).
 
 **Stack:** Astro 7 (sitio estático, sin SSR) · TypeScript estricto · SCSS · Supabase (Auth, Postgres, RLS,
@@ -28,10 +29,11 @@ bun run test        # build + todas las pruebas (igual que el CI)
 pages/ + components/   Marcado Astro sin lógica. Lo dinámico son <template> que scripts/ clona.
         │
 scripts/               Comportamiento en el navegador
-  main.ts              Arranque: sesión → iniciar módulos → store.subscribe(render) → sync
-  board/               Vistas del tablero, eventos, drag & drop, renderScheduler
+  main.ts              Arranque: sesión → perfil/rol → iniciar módulos → store.subscribe(render) → sync
+  board/               Vistas del tablero (+ franja "por reasignar"), eventos, drag & drop, renderScheduler
+  planning/            Planificación semanal (grilla técnico × día), solo dispatch
   modals/              Un controlador por modal + assignFlow (reglas de asignación compartidas)
-  features/            Pestañas, buscador, Modo Consulta, sesión, estado de conexión
+  features/            Pestañas (según rol), buscador, filtro por técnico, sesión, estado de conexión
   history/ audit/      Vistas de Historial y Bitácora
   actions/             Casos de uso: service → recarga (cargarDatos) → aviso/sonido
   ui/                  toast, sonido, portapapeles, tablas, formato
@@ -39,9 +41,10 @@ scripts/               Comportamiento en el navegador
 state/                 appStore (createStore: get/set/subscribe) + sync.ts (Realtime + respaldo)
         │
 services/              ÚNICO lugar que habla con Supabase. Repos devuelven Resultado<T>, nunca lanzan.
+                       perfilRepo, tecnicosRepo (catálogo), jornadasRepo, casosRepo, historial, bitácora
         │
-domain/                Reglas puras (sin DOM ni Supabase): turnos, tiempo, disponibilidad, almuerzo,
-                       métricas, búsqueda, asignaciones, bitácora
+domain/                Reglas puras (sin DOM ni Supabase): día operativo y semanas (time), turnos, disponibilidad,
+                       almuerzo, planificación, traspasos (handover), métricas, búsqueda, asignaciones
 types/                 noc.ts (modelo) y result.ts (Resultado, exito, falla)
 styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variables.scss
 ```
@@ -49,12 +52,13 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 ### Flujo de datos
 
 1. Acción del usuario → `scripts/actions/*` → `services/*Repo` (Supabase) → `Resultado`.
-2. Si ok → `cargarDatos()` relee técnicos + incidentes → `appStore.set()`.
+2. Si ok → `cargarDatos()` relee catálogo + jornadas de la fecha operativa + `casos_abiertos` → `appStore.set()`.
+   `tecnicosDelDia()` arma `Tecnico` (catálogo + jornada: turno, horario, almuerzo) y `casosDelTablero()` filtra.
 3. El store notifica → `solicitarRender()` redibuja tablero y métricas (se pospone si hay drag o
    escritura en un formulario de tarjeta).
-4. Otros clientes: Realtime (`services/realtime.ts`) solo avisa "hubo cambios" → `solicitarSincronizacion()`
-   (debounce 150 ms). Respaldo: relectura cada 60 s, al volver a la pestaña y al recuperar red.
-5. Cada 30 s se re-renderiza solo para refrescar estados dependientes de la hora.
+4. Otros clientes: Realtime (tecnicos, jornadas, casos, caso_responsables) solo avisa "hubo cambios" →
+   `solicitarSincronizacion()` (debounce 150 ms). Respaldo: relectura cada 60 s, al volver a la pestaña y al recuperar red.
+5. Cada 30 s se re-renderiza por la hora; si cambió la fecha operativa (06:00) se vuelve a leer todo.
 
 ## Reglas del proyecto (respetar siempre)
 
@@ -62,29 +66,34 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - Solo `services/` importa `supabaseClient`. Errores → `errorDeBaseDeDatos()` → `falla(...)` con mensaje en español.
 - `.astro` = solo marcado; la lógica en `scripts/`, un archivo por responsabilidad.
 - Texto de usuario (código, nota, nombre) siempre vía `textContent`. **Nunca `innerHTML` con datos.**
-- Mapeo snake_case (BD) ↔ camelCase (TS) se hace en cada repo (`aIncidente`, etc.).
-- Los horarios de turnos viven solo en `src/domain/shifts.ts` (`TURNOS`).
+- Mapeo snake_case (BD) ↔ camelCase (TS) se hace en cada repo (`aIncidente`, `aJornada`, etc.).
+- Los permisos los impone la BD (RLS + triggers); la UI solo oculta (`body.solo-lectura`, `[data-edit-only]`).
+- Casos y técnicos **no se borran**: los casos se cierran, los técnicos se desactivan.
+- Reglas duplicadas a propósito en SQL y TS, con prueba que verifica que coincidan:
+  `desfase_traspaso()` = `domain/handover.ts`; horarios de comodín (`jornada_horario_comodin`) = `HORARIOS_COMODIN`.
 
 ## Dominio clave
 
-- Turnos: A 06–14, B 14–22, C 22–06 (cruza medianoche). **Comodín**: horario propio, aparece en todos los
-  turnos que su horario toca.
+- **Día operativo** 06:00 → 06:00 (Honduras): `fechaOperativa()` / `public.fecha_operativa()`. A las 06:00 el
+  tablero queda limpio sin borrar nada; los casos abiertos de un responsable que no trabaja hoy salen en
+  "Por reasignar".
+- Turnos: A 06–14, B 14–22, C 22–06. **Comodín**: 06–16, 07–17 u 08–18; aparece en los turnos que toca.
+  El turno es **por día** (tabla `jornadas`), lo planifica el dispatch por semana; el almuerzo también.
 - Un técnico recibe casos solo si está `disponible` (en horario y fuera de almuerzo) → `domain/availability.ts`.
-- Un INC solo puede estar con un técnico: índice único en BD sobre `codigo` normalizado (trigger).
-  Duplicado → `Resultado` con `motivo: 'duplicado'`.
+- Un código de caso existe una sola vez en todo el historial. Asignar uno cerrado ofrece reabrirlo.
+- Estados: En curso · Pausado · Resuelto · Cerrado. Al cerrar turno todo lo no cerrado se traspasa (fase 5).
 
 ## Base de datos (`sql/`, se ejecutan a mano en el SQL Editor de Supabase)
 
-- `01_schema_inicial.sql`: `tecnicos`, `incidentes`, `historial_snapshots`, RLS (usuarios autenticados), Realtime.
-- `02_migracion_v3.sql`: comodín (`horario_inicio/fin`), `bitacora` (la escriben **triggers**, la app solo lee),
-  `generar_snapshot_diario()`, `buscar_en_historial()`, `buscar_en_bitacora()`, pg_cron 23:59 Honduras (05:59 UTC).
-- `04_v2_modelo_base.sql` (v2, fase 1, **aditiva**): día operativo, `perfiles` + roles (`es_dispatch()`,
-  `mi_tecnico_id()`), `jornadas`, `casos` + `caso_responsables`, `notificaciones`, `traspasos` +
-  `enviar_traspaso()`, `generar_snapshot_operativo()`. Aún convive con `incidentes`/`tecnicos.turno`;
-  el corte (borrarlos, endurecer RLS de `tecnicos`, cron 05:59) es parte de la fase 2.
-  Regla de traspaso duplicada a propósito: `desfase_traspaso()` (SQL) = `domain/handover.ts`; una prueba
-  verifica que coincidan.
-- `03_datos_demo_dev.sql`: solo DEV; se niega a correr si no existe la tabla marcadora `public.entorno_dev`.
+- `01_schema_inicial.sql`, `02_migracion_v3.sql`: modelo anterior (histórico; la 05 lo retira).
+- `04_v2_modelo_base.sql` (aditiva): día operativo, `perfiles` + roles (`es_dispatch()`, `mi_tecnico_id()`),
+  `jornadas`, `casos` + `caso_responsables` (historial, lo escriben triggers), `notificaciones`, `traspasos` +
+  `enviar_traspaso()`, `generar_snapshot_operativo()`.
+- `05_v2_corte.sql`: resincroniza lo hecho con la app anterior, **borra** `incidentes` y el turno fijo de
+  `tecnicos`, RLS de técnicos solo dispatch, vista `casos_abiertos` (security_invoker), cron 05:59.
+  Rompe la app anterior: se ejecuta justo antes de publicar la v2 (ver `docs/DISENO_V2.md` §9).
+- `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`); no toca `perfiles`.
+- Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04).
 - Cambios de esquema → nuevo archivo `sql/0N_*.sql` idempotente + actualizar `tests/sql/`.
 
 ## Entornos
@@ -100,5 +109,7 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 
 - `domain/`: funciones puras.
 - `app/`: la app real con jsdom (`// @vitest-environment jsdom`) contra `helpers/backendSimulado.ts`
-  (stub de `fetch` que imita PostgREST). Usa `helpers/app.ts` (`iniciarApp`, `fijarHora`, `esperar`).
-- `sql/`: ejecuta los `.sql` en PGlite con un Supabase mínimo simulado (sin el bloque pg_cron).
+  (stub de `fetch` que imita PostgREST: casos, jornadas con upsert, vista casos_abiertos). Usa
+  `helpers/app.ts` (`iniciarApp(datos, { rol })`, `fijarHora` — lunes 9/11/2026, `esperar`).
+- `sql/`: ejecuta los `.sql` en PGlite con un Supabase mínimo simulado (`helpers/baseSql.ts`: roles, auth,
+  `actuarComo(uid)` para probar RLS; sin los bloques pg_cron).
