@@ -165,7 +165,15 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
   contraseña, aviso de Bloq Mayús, botón con indicador de carga, sacudida al fallar, animación de entrada
   (se apaga con "reducir movimiento"). Configuración de Supabase: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1, pasos 7 y 8.
 
-### 5.2 Técnico
+### 5.2 Técnico — ✅ Fase 4
+
+> Hecho: pestaña **Mi seguimiento** (vista por defecto del técnico) con *Recibidos en traspaso* (incluye los
+> del próximo turno), *Nuevos de hoy* y *De días anteriores*; por caso: estado (cerrar pide confirmación), etiqueta
+> (sugeridas o propia), última actualización (Guardar o Ctrl+Enter), historial de responsables, copiar código o
+> resumen; "Copiar todos" en texto. Campana con no leídas, lista, marcar leída/todas, aviso + sonido en tiempo
+> real y alertas de escritorio opcionales. Su columna se resalta en el tablero. `sql/06_v2_seguimiento.sql` agrega
+> `origen_responsable` a `casos_abiertos`.
+
 - **Mi día**: versión de solo lectura del tablero del día, con mis casos resaltados y copiar código en 1 clic.
 - **Seguimiento**: mis casos abiertos agrupados en *Nuevos hoy* · *Recibidos en traspaso*;
   cada uno con estado, etiqueta, última actualización (edición rápida en línea) e historial de responsables.
@@ -209,7 +217,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **1. Base de datos v2** ✅ | `perfiles`, `jornadas`, `casos`, `caso_responsables`, RLS por rol, día operativo, migración de datos, snapshot, pruebas SQL | — |
 | **2. Dispatch v2** ✅ | Planificación semanal + revisión del día, tablero por fecha operativa, filtro por técnico, quitar Modo Consulta, enrutamiento por rol, corte (`05`) | 1 |
 | **3. Login** ✅ | Recuperar/restablecer contraseña, pulido visual | — (paralelo) |
-| **4. Técnico** | Mi día, Seguimiento, última actualización, notificaciones + alertas | 1, 2 |
+| **4. Técnico** ✅ | Mi día, Seguimiento, última actualización, notificaciones + alertas (`06`) | 1, 2 |
 | **5. Traspasos** | Armado, balanceo, etiquetas, export Outlook/TSV, envío transaccional | 4 |
 | **6. Búsqueda global** | Casos + historial de responsables | 1 |
 | **7. Animaciones** | Capa de efectos y pulido | 2, 4 |
@@ -244,7 +252,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
   almuerzo por celda, días pasados bloqueados, cobertura por día, **Copiar semana anterior**.
 
 **Orden de despliegue (DEV primero, después PROD)**
-1. `05_v2_corte.sql` en la base (la 04 ya debe estar aplicada).
+1. `05_v2_corte.sql` y luego `06_v2_seguimiento.sql` en la base (la 04 ya debe estar aplicada).
 2. Crear los perfiles: el tuyo como `dispatch` y los técnicos con su `tecnico_id`. Sin perfil, el usuario no
    entra al panel.
 3. DEV: opcionalmente `03_datos_demo_dev.sql` y probar con `bun run dev`.

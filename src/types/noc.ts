@@ -11,7 +11,7 @@ export type Hora = string;
 
 export type EstadoConexion = 'conectando' | 'conectado' | 'desconectado';
 
-export type Vista = 'tablero' | 'planificacion' | 'historial' | 'bitacora';
+export type Vista = 'tablero' | 'seguimiento' | 'planificacion' | 'historial' | 'bitacora';
 
 /** Rol del usuario (tabla perfiles). El dispatch edita; el técnico solo consulta el tablero. */
 export type Rol = 'dispatch' | 'tecnico';
@@ -69,6 +69,40 @@ export interface Incidente {
   estado?: EstadoCaso;
   /** Día operativo en que el responsable actual tiene el caso (ver casos_abiertos). */
   fechaResponsable?: string | null;
+  /** Cómo llegó el caso a su responsable actual (casos_abiertos.origen_responsable). */
+  origenResponsable?: OrigenResponsable | null;
+  cliente?: string | null;
+  area?: string | null;
+  descripcion?: string | null;
+  etiqueta?: string | null;
+  /** Texto corto que escribe el técnico; la base guarda quién y cuándo. */
+  ultimaActualizacion?: string | null;
+  ultimaActualizacionEn?: string | null;
+  ultimaActualizacionPor?: string | null;
+}
+
+export type OrigenResponsable = 'dispatch' | 'reasignacion' | 'traspaso' | 'reapertura' | 'migracion';
+
+/** Un tramo del historial de un caso: quién lo tuvo, en qué día operativo y cómo le llegó. */
+export interface ResponsableCaso {
+  tecnicoNombre: string;
+  fechaOperativa: string;
+  origen: OrigenResponsable;
+  desde: string;
+  hasta: string | null;
+  asignadoPor: string;
+}
+
+export type TipoNotificacion = 'asignado' | 'reasignado' | 'traspaso';
+
+export interface Notificacion {
+  id: string;
+  tipo: TipoNotificacion;
+  casoId: string;
+  /** Código del caso. */
+  detalle: string | null;
+  leida: boolean;
+  creadoEn: string;
 }
 
 export interface TecnicoConIncidentes extends Tecnico {

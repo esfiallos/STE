@@ -1,4 +1,4 @@
-import type { EstadoCaso, Incidente } from '../types/noc';
+import type { EstadoCaso, Incidente, OrigenResponsable, ResponsableCaso } from '../types/noc';
 import { exito, type Resultado } from '../types/result';
 import { errorDeBaseDeDatos } from './dbErrors';
 import { supabase } from './supabaseClient';
@@ -6,12 +6,21 @@ import { supabase } from './supabaseClient';
 interface FilaCasoAbierto {
   id: string;
   codigo: string;
+  cliente?: string | null;
+  area?: string | null;
+  descripcion?: string | null;
   nota: string | null;
   estado: EstadoCaso;
+  etiqueta?: string | null;
   tecnico_actual_id: string | null;
+  ultima_actualizacion?: string | null;
+  ultima_actualizacion_en?: string | null;
+  ultima_actualizacion_por?: string | null;
   creado_en: string;
   fecha_responsable: string | null;
   asignado_en: string | null;
+  /** Desde la migración 06. */
+  origen_responsable?: OrigenResponsable | null;
 }
 
 function aIncidente(fila: FilaCasoAbierto): Incidente {
@@ -22,8 +31,63 @@ function aIncidente(fila: FilaCasoAbierto): Incidente {
     tecnicoId: fila.tecnico_actual_id,
     creadoEn: fila.asignado_en ?? fila.creado_en,
     estado: fila.estado,
-    fechaResponsable: fila.fecha_responsable
+    fechaResponsable: fila.fecha_responsable,
+    origenResponsable: fila.origen_responsable ?? null,
+    cliente: fila.cliente ?? null,
+    area: fila.area ?? null,
+    descripcion: fila.descripcion ?? null,
+    etiqueta: fila.etiqueta ?? null,
+    ultimaActualizacion: fila.ultima_actualizacion ?? null,
+    ultimaActualizacionEn: fila.ultima_actualizacion_en ?? null,
+    ultimaActualizacionPor: fila.ultima_actualizacion_por ?? null
   };
+}
+
+/** Lo que el técnico puede cambiar de SUS casos (la base de datos rechaza cualquier otra columna). */
+export interface CambiosDeSeguimiento {
+  estado?: EstadoCaso;
+  etiqueta?: string | null;
+  ultimaActualizacion?: string | null;
+}
+
+export async function actualizarSeguimiento(id: string, cambios: CambiosDeSeguimiento): Promise<Resultado> {
+  const fila: Record<string, unknown> = {};
+  if (cambios.estado !== undefined) fila.estado = cambios.estado;
+  if (cambios.etiqueta !== undefined) fila.etiqueta = cambios.etiqueta;
+  if (cambios.ultimaActualizacion !== undefined) fila.ultima_actualizacion = cambios.ultimaActualizacion;
+
+  const { error } = await supabase.from('casos').update(fila).eq('id', id);
+  if (error) return errorDeBaseDeDatos(error, 'No se pudo actualizar el caso');
+  return exito();
+}
+
+interface FilaResponsable {
+  tecnico_nombre: string;
+  fecha_operativa: string;
+  origen: OrigenResponsable;
+  desde: string;
+  hasta: string | null;
+  asignado_por: string;
+}
+
+/** Historial de responsables de un caso, del más antiguo al actual. */
+export async function listarResponsables(casoId: string): Promise<Resultado<ResponsableCaso[]>> {
+  const { data, error } = await supabase
+    .from('caso_responsables')
+    .select('tecnico_nombre, fecha_operativa, origen, desde, hasta, asignado_por')
+    .eq('caso_id', casoId)
+    .order('desde', { ascending: true });
+  if (error) return errorDeBaseDeDatos(error, 'No se pudo cargar el historial del caso');
+  return exito(
+    (data as FilaResponsable[]).map((f) => ({
+      tecnicoNombre: f.tecnico_nombre,
+      fechaOperativa: f.fecha_operativa,
+      origen: f.origen,
+      desde: f.desde,
+      hasta: f.hasta,
+      asignadoPor: f.asignado_por
+    }))
+  );
 }
 
 /** Casos no cerrados con el día operativo de su responsable (vista casos_abiertos). */

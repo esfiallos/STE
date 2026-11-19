@@ -1,17 +1,17 @@
 import { appStore } from '../../state/appStore';
 import type { Vista } from '../../types/noc';
 
-const VISTAS: readonly Vista[] = ['tablero', 'planificacion', 'historial', 'bitacora'];
+const VISTAS: readonly Vista[] = ['tablero', 'seguimiento', 'planificacion', 'historial', 'bitacora'];
 
 /**
  * Pestañas Tablero / Planificación / Historial / Bitácora. La vista activa vive en la dirección (#historial),
  * así se conserva al recargar y se puede compartir el enlace. `alAbrir` carga los datos de cada vista;
- * una vista sin función en `alAbrir` no está permitida para el rol (se abre el tablero).
+ * una vista sin función en `alAbrir` no está permitida para el rol (se abre `predeterminada`).
  */
-export function iniciarPestanas(alAbrir: Partial<Record<Vista, () => void>>): void {
+export function iniciarPestanas(alAbrir: Partial<Record<Vista, () => void>>, predeterminada: Vista = 'tablero'): void {
   const vistaDesdeLaDireccion = (): Vista => {
     const hash = window.location.hash.slice(1);
-    return VISTAS.find((vista) => vista === hash && alAbrir[vista]) ?? 'tablero';
+    return VISTAS.find((vista) => vista === hash && alAbrir[vista]) ?? predeterminada;
   };
 
   const pintar = () => {

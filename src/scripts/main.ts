@@ -23,6 +23,8 @@ import { iniciarModalAsignar } from './modals/assignIncidentModal';
 import { iniciarModalAlmuerzo } from './modals/lunchModal';
 import { iniciarModales } from './modals/modal';
 import { iniciarModalTecnicos } from './modals/techniciansModal';
+import { iniciarSeguimiento, renderizarSeguimiento, resaltarCaso } from './followUp/followUpView';
+import { iniciarNotificaciones } from './notifications/notificationsPanel';
 import { cargarPlanificacion, iniciarPlanificacion } from './planning/planningView';
 import { RUTAS } from './routes';
 import { mostrarAviso } from './ui/toast';
@@ -54,8 +56,11 @@ async function iniciar(): Promise<void> {
   }
 
   const esDispatch = perfil.data.rol === 'dispatch';
+  /** Técnico enlazado a su fila de `tecnicos`: tiene Seguimiento y notificaciones. */
+  const miTecnicoId = esDispatch ? null : perfil.data.tecnicoId;
   appStore.set({ perfil: perfil.data, soloLectura: !esDispatch });
   document.body.classList.toggle('solo-lectura', !esDispatch);
+  document.body.classList.toggle('rol-tecnico', miTecnicoId !== null);
   byId('appRoot').classList.remove('hidden');
 
   iniciarSesionDeUsuario(sesion.user.email, perfil.data);
@@ -72,6 +77,15 @@ async function iniciar(): Promise<void> {
   iniciarHistorial();
   iniciarBitacora();
   if (esDispatch) iniciarPlanificacion();
+  if (miTecnicoId) {
+    iniciarSeguimiento(miTecnicoId);
+    iniciarNotificaciones(miTecnicoId, (casoId) => {
+      window.location.hash = 'seguimiento';
+      window.setTimeout(() => resaltarCaso(casoId), 50);
+    });
+  } else if (!esDispatch) {
+    mostrarAviso('Tu usuario técnico no está enlazado a un técnico: pide al administrador que complete tu perfil.', 'error');
+  }
 
   appStore.subscribe(solicitarRender);
   solicitarRender();
@@ -80,12 +94,16 @@ async function iniciar(): Promise<void> {
   void cargarDatos();
   window.setInterval(refrescarPorLaHora, REFRESCO_DE_HORA_MS);
 
-  iniciarPestanas({
-    tablero: () => undefined,
-    ...(esDispatch ? { planificacion: () => void cargarPlanificacion() } : {}),
-    historial: () => void cargarHistorial(),
-    bitacora: () => void cargarBitacora()
-  });
+  iniciarPestanas(
+    {
+      tablero: () => undefined,
+      ...(miTecnicoId ? { seguimiento: renderizarSeguimiento } : {}),
+      ...(esDispatch ? { planificacion: () => void cargarPlanificacion() } : {}),
+      historial: () => void cargarHistorial(),
+      bitacora: () => void cargarBitacora()
+    },
+    miTecnicoId ? 'seguimiento' : 'tablero'
+  );
 }
 
 void iniciar();

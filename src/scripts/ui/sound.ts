@@ -1,4 +1,4 @@
-export type TipoDeSonido = 'asignar' | 'copiar' | 'almuerzo';
+export type TipoDeSonido = 'asignar' | 'copiar' | 'almuerzo' | 'notificacion';
 
 interface Tono {
   frecuencia: number;
@@ -10,7 +10,8 @@ interface Tono {
 const TONOS: Record<TipoDeSonido, Tono> = {
   asignar: { frecuencia: 523.25, volumen: 0.12, duracion: 0.25, onda: 'sine' },
   copiar: { frecuencia: 880, volumen: 0.05, duracion: 0.1, onda: 'sine' },
-  almuerzo: { frecuencia: 440, volumen: 0.15, duracion: 0.35, onda: 'triangle' }
+  almuerzo: { frecuencia: 440, volumen: 0.15, duracion: 0.35, onda: 'triangle' },
+  notificacion: { frecuencia: 659.25, volumen: 0.14, duracion: 0.4, onda: 'sine' }
 };
 
 let contexto: AudioContext | null = null;

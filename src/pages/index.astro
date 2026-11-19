@@ -7,6 +7,7 @@ import MetricBar from '../components/metrics/MetricBar.astro';
 import IncidentBoard from '../components/board/IncidentBoard.astro';
 import HistoryView from '../components/history/HistoryView.astro';
 import PlanningView from '../components/planning/PlanningView.astro';
+import FollowUpView from '../components/followUp/FollowUpView.astro';
 import NoProfileNotice from '../components/auth/NoProfileNotice.astro';
 import AuditView from '../components/audit/AuditView.astro';
 import AssignIncidentModal from '../components/modals/AssignIncidentModal.astro';
@@ -26,6 +27,10 @@ import ToastHost from '../components/ui/ToastHost.astro';
         <BoardToolbar />
         <MetricBar />
         <IncidentBoard />
+      </section>
+
+      <section data-vista="seguimiento" class="view hidden">
+        <FollowUpView />
       </section>
 
       <section data-vista="planificacion" class="view hidden">

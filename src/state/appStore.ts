@@ -2,6 +2,7 @@ import type {
   BorradorAsignacion,
   EstadoConexion,
   Incidente,
+  Notificacion,
   Perfil,
   Tecnico,
   TecnicoCatalogo,
@@ -25,6 +26,10 @@ export interface AppState {
   tecnicos: Tecnico[];
   /** Casos abiertos que pertenecen al tablero de la fecha operativa. */
   incidentes: Incidente[];
+  /** Todos los casos abiertos (incluye los traspasados para el próximo turno): base del Seguimiento. */
+  casosAbiertos: Incidente[];
+  /** Notificaciones del técnico con sesión (vacío para el dispatch). */
+  notificaciones: Notificacion[];
   carga: EstadoCarga;
   errorCarga: string | null;
   conexion: EstadoConexion;
@@ -48,6 +53,8 @@ export const appStore = createStore<AppState>({
   catalogo: [],
   tecnicos: [],
   incidentes: [],
+  casosAbiertos: [],
+  notificaciones: [],
   carga: 'cargando',
   errorCarga: null,
   conexion: 'conectando',

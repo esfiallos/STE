@@ -89,7 +89,8 @@ export function renderizarTablero(): void {
     termino: normalizarBusqueda(estado.busqueda),
     notasAbiertas: new Set(estado.notasAbiertas),
     claveFormulario: estado.claveFormulario,
-    borrador: estado.borrador
+    borrador: estado.borrador,
+    miTecnicoId: estado.perfil?.rol === 'tecnico' ? estado.perfil.tecnicoId : null
   };
 
   const todos = unirTecnicosConIncidentes(estado.tecnicos, estado.incidentes);

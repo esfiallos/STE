@@ -7,8 +7,10 @@ type Fila = Record<string, unknown>;
 export interface Datos {
   tecnicos: Fila[];
   jornadas: Fila[];
-  /** `_fecha`: día operativo del responsable vigente (lo que la vista casos_abiertos llama fecha_responsable). */
+  /** `_fecha`: día operativo del responsable vigente (casos_abiertos.fecha_responsable); `_origen`: cómo le llegó. */
   casos: Fila[];
+  notificaciones?: Fila[];
+  caso_responsables?: Fila[];
 }
 
 /** Día de las pruebas: lunes 9 de noviembre de 2026 (ver fijarHora). */
@@ -54,7 +56,14 @@ function cumpleFiltros(fila: Fila, parametros: URLSearchParams): boolean {
  * una jornada por técnico y día (upsert), y la vista casos_abiertos.
  */
 export function crearBackendSimulado(datos: Datos = datosBase()) {
-  const db: Record<string, Fila[]> = { tecnicos: datos.tecnicos, jornadas: datos.jornadas, casos: datos.casos, perfiles: [] };
+  const db: Record<string, Fila[]> = {
+    tecnicos: datos.tecnicos,
+    jornadas: datos.jornadas,
+    casos: datos.casos,
+    perfiles: [],
+    notificaciones: datos.notificaciones ?? [],
+    caso_responsables: datos.caso_responsables ?? []
+  };
   const escrituras: string[] = [];
   let secuencia = 100;
   const nuevoId = () => `n${secuencia++}`;
@@ -62,7 +71,12 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
   const casosAbiertos = () =>
     db.casos!
       .filter((c) => c.estado !== 'cerrado')
-      .map((c) => ({ ...c, fecha_responsable: c.tecnico_actual_id ? c._fecha : null, asignado_en: c.creado_en }));
+      .map((c) => ({
+        ...c,
+        fecha_responsable: c.tecnico_actual_id ? c._fecha : null,
+        asignado_en: c.creado_en,
+        origen_responsable: c.tecnico_actual_id ? (c._origen ?? 'dispatch') : null
+      }));
 
   vi.stubGlobal('fetch', async (entrada: unknown, init?: RequestInit) => {
     const url = new URL(typeof entrada === 'string' ? entrada : ((entrada as Request).url ?? String(entrada)));
@@ -103,7 +117,10 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
         const cambiaResponsable =
           tabla === 'casos' && ('tecnico_actual_id' in cambios || (original.estado === 'cerrado' && cambios.estado !== 'cerrado'));
         Object.assign(original, cambios);
-        if (cambiaResponsable) original._fecha = fechaOperativa(new Date());
+        if (cambiaResponsable) {
+          original._fecha = fechaOperativa(new Date());
+          original._origen = 'reasignacion';
+        }
       });
       return new Response(null, { status: 204 });
     }

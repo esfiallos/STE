@@ -31,7 +31,10 @@ export const esperar = (ms = 40) => new Promise((resolver) => setTimeout(resolve
  * Arranca la app como lo hace main.ts (sin login), contra un Supabase simulado, con el rol indicado.
  * Cada llamada empieza de cero: módulos, estado, DOM y base de datos.
  */
-export async function iniciarApp(datos: Datos = datosBase(), { rol = 'dispatch' }: { rol?: 'dispatch' | 'tecnico' } = {}) {
+export async function iniciarApp(
+  datos: Datos = datosBase(),
+  { rol = 'dispatch', tecnicoId = null }: { rol?: 'dispatch' | 'tecnico'; tecnicoId?: string | null } = {}
+) {
   vi.resetModules();
   cargarPaginaCompilada();
   const backend = crearBackendSimulado(datos);
@@ -50,8 +53,9 @@ export async function iniciarApp(datos: Datos = datosBase(), { rol = 'dispatch' 
   const { iniciarFiltroPorTecnico } = await import('../../src/scripts/features/techFilter');
   const { solicitarAsignacion } = await import('../../src/scripts/modals/assignFlow');
 
-  appStore.set({ perfil: { nombre: 'Prueba', rol, tecnicoId: null }, soloLectura: rol !== 'dispatch' });
+  appStore.set({ perfil: { nombre: 'Prueba', rol, tecnicoId }, soloLectura: rol !== 'dispatch' });
   document.body.classList.toggle('solo-lectura', rol !== 'dispatch');
+  document.body.classList.toggle('rol-tecnico', rol === 'tecnico' && tecnicoId !== null);
 
   iniciarModalAsignar();
   iniciarFiltroPorTecnico();

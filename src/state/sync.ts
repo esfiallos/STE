@@ -33,6 +33,7 @@ export async function cargarDatos(): Promise<void> {
     catalogo: catalogo.data,
     tecnicos: tecnicosDelDia(catalogo.data, jornadas.data),
     incidentes: casosDelTablero(casos.data, fecha),
+    casosAbiertos: casos.data,
     carga: 'listo',
     errorCarga: null
   });

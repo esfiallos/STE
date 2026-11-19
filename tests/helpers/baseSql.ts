@@ -12,6 +12,7 @@ export const MIGRACIONES = {
   v3: () => sinCron(leerSql('02_migracion_v3.sql'), '-- 5. Programar'),
   v4: () => leerSql('04_v2_modelo_base.sql'),
   corte: () => sinCron(leerSql('05_v2_corte.sql'), '-- 5. Snapshot diario'),
+  seguimiento: () => leerSql('06_v2_seguimiento.sql'),
   demo: () => leerSql('03_datos_demo_dev.sql')
 };
 
