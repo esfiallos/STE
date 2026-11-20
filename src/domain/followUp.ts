@@ -2,7 +2,8 @@ import type { EstadoCaso, Incidente, Notificacion, OrigenResponsable, TipoNotifi
 import { ETIQUETA_ESTADO_CASO } from './handover';
 
 /** Etiquetas que se ofrecen al técnico (también puede escribir una propia, hasta 40 caracteres). */
-export const ETIQUETAS_SUGERIDAS = ['Crítico', 'Monitoreo', 'Pendiente cliente', 'Escalar'] as const;
+/** VM: al caso se le programó una ventana de mantenimiento (VM). */
+export const ETIQUETAS_SUGERIDAS = ['Crítico', 'Monitoreo', 'Pendiente cliente', 'Escalar', 'VM'] as const;
 export const LARGO_MAXIMO_ETIQUETA = 40;
 export const LARGO_MAXIMO_ACTUALIZACION = 500;
 
@@ -66,7 +67,8 @@ export const ETIQUETA_ORIGEN: Record<OrigenResponsable, string> = {
 const TEXTO_NOTIFICACION: Record<TipoNotificacion, string> = {
   asignado: 'Te asignaron',
   reasignado: 'Te reasignaron',
-  traspaso: 'Recibiste en traspaso'
+  traspaso: 'Recibiste en traspaso',
+  recordatorio: 'Recordatorio:'
 };
 
 export function describirNotificacion(notificacion: Pick<Notificacion, 'tipo' | 'detalle'>): string {

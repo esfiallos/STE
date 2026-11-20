@@ -14,9 +14,10 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
-   §8 decisiones D1–D7, §9 despliegue). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 17 archivos, 123 pruebas).
-4. Siguiente trabajo: **Fase 5 — Traspasos** (detalle abajo en "Lo que falta").
+   §8 decisiones D1–D15, §9 despliegue, §10 requerimientos v2.1). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 20 archivos, 151 pruebas). En una máquina cargada
+   vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
+4. Siguiente trabajo: **Fase 6 — Coordinador** (detalle en §10.3 del diseño).
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
@@ -30,13 +31,19 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 2. Dispatch v2 + corte | ✅ | `sql/05_v2_corte.sql`, planificación semanal, tablero por día operativo, "Por reasignar", filtro por técnico, roles |
 | 3. Login | ✅ | Recuperar contraseña (panel en `/login/`), página `/restablecer/`, mejoras visuales |
 | 4. Técnico | ✅ | `sql/06_v2_seguimiento.sql`, pestaña **Mi seguimiento**, campana de notificaciones + alertas, su columna resaltada |
-| 5. Traspasos | ⏳ siguiente | BD lista desde la fase 1; falta toda la UI |
-| 6. Búsqueda global | ⏳ | Falta función SQL + pestaña |
-| 7. Animaciones | 🟡 parcial | Login, seguimiento y campana ya animan; falta el tablero (mover/asignar) |
+| 5. Casos + Traspasos | ✅ | `sql/07_v2_traspasos.sql`, pestañas **Traspaso** y **Mis traspasos**, área/empresa en Mi seguimiento, etiqueta VM, recordatorios |
+| 6. Coordinador | ⏳ siguiente | Rol nuevo, buscador global, estadísticas, alertas 2/4/6 h (§10.3) |
+| 7. Ronda | ⏳ | "Crear y asignar a la ronda", rotativa alfabética por turno (§10.2) |
+| 8. Planificación con solicitudes | ⏳ | Dispatch solo lectura + solicitud por día; coordinación planifica (§10.7) |
+| 9. Animaciones | 🟡 parcial | Login, seguimiento y campana ya animan; falta el tablero (mover/asignar) |
 
-**Bases de datos (lo que el usuario ejecutó, según dijo):** PROD tiene la **04** aplicada (aditiva; la app
-publicada sigue funcionando). La 05 y la 06 **no** deben correrse en PROD hasta el despliegue (ver §9 del diseño).
-DEV: confirmar con el usuario si ya corrió 05 y 06 y si creó perfiles.
+**Bases de datos (revisado con el conector el 19/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
+DEV = `DEV` (`bofqefbxziqxzrdujihd`).
+- DEV y PROD: 04, 05 y 06 aplicadas; la **07 aún no** (la ejecuta el usuario). Cron 05:59 funcionando.
+- 19/11/2026, a pedido del usuario: se **vaciaron todas las tablas** de `public` en DEV y PROD (casos, jornadas,
+  técnicos, perfiles, traspasos, notificaciones, snapshots y bitácora). Se conservan los usuarios de `auth` y
+  `entorno_dev` en DEV. El usuario las poblará al terminar la nueva arquitectura: sin perfiles nadie entra.
+- PROD: la app publicada (`main`, que aún usa `incidentes`) **no funciona** hasta publicar la v2.
 
 **Configuración pendiente (la hace el usuario):** en Supabase DEV y PROD agregar `/restablecer/` a
 *Authentication → URL Configuration → Redirect URLs* y configurar SMTP propio (el correo incluido solo envía al
@@ -47,35 +54,26 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
 
 ## Lo que falta
 
-### Fase 5 — Traspasos (siguiente)
-Ya existe en BD (`04`): `traspasos` (borrador/enviado, uno por técnico y día), `traspaso_items` (receptor, estado,
-etiqueta, nota_personalizada, ultima_actualizacion) y la RPC **`enviar_traspaso(id)`**, que valida y aplica todo en
-una transacción: carga propia en 0 (todo lo no cerrado incluido), receptor planificado en un turno permitido,
-última actualización obligatoria; los ítems "cerrado" se cierran; notifica a los receptores. Probado en
-`tests/sql/modelo-v2.test.ts`. Reglas de destino en `domain/handover.ts` (`DESTINOS_DE_TRASPASO`,
-`puedeRecibirTraspaso`). Falta construir:
-- `services/traspasosRepo.ts`: crear/leer borrador del día, upsert de ítems, `rpc('enviar_traspaso')`.
-- Pool de receptores: jornadas de hoy y de mañana (`listarJornadas(D, D+1)`) filtradas con `puedeRecibirTraspaso`
-  según el turno de quien entrega. Si no hay nadie planificado: aviso y no dejar cerrar turno.
-- Portar de `C:\Users\Eme\Downloads\traspasos-noc`: `services/balancer.js` (reparto con candados + deshacer),
-  `services/report.js` (tabla HTML para Outlook con estilos en línea + TSV), `services/sorting.js`. Van a
-  `domain/` en TS (son puros) con sus pruebas (`tests/*.test.js` de ese proyecto sirven de base). Los parsers de
-  Excel **no** se portan: los casos salen de la BD.
-- Vista (pestaña del técnico, p. ej. "Traspaso" o dentro de Mi seguimiento): tabla de mis casos no cerrados
-  con receptor, estado, etiqueta, nota personalizada y última actualización; balancear; vista previa; copiar
-  texto enriquecido (Outlook), texto plano y TSV (Excel); botón **Cerrar turno = enviar** deshabilitado mientras
-  falte algo (la BD vuelve a validar).
-- Al armar el borrador **precargar** estado, etiqueta y última actualización actuales de cada caso
-  (`enviar_traspaso` escribe los valores del ítem en el caso; un ítem vacío borraría la etiqueta).
-- En Mi seguimiento, los casos "Recibidos en traspaso" deberían mostrar la `nota_personalizada` de quien entregó
-  (RLS ya permite al receptor leer esos ítems).
+### Fase 5 — Casos + Traspasos ✅ (qué quedó)
+- `sql/07_v2_traspasos.sql`: áreas fijas (`areas_de_caso()` = `domain/areas.ts`), el técnico edita área y empresa
+  (`cliente`), `casos.actividad_tecnico_en` (la escribe el trigger con cualquier edición del técnico), recordatorio
+  (`traspaso_items` → `casos.recordatorio_*`, `generar_recordatorios()` por pg_cron cada 5 min, aviso tipo
+  `recordatorio` al inicio del turno del responsable), `traspaso_items.fecha_destino`, vista `casos_abiertos` +3 columnas.
+- Dominio: `handoverBalance.ts` (reparto con candados), `handoverReport.ts` (Outlook/texto/TSV, todo escapado),
+  `handoverDraft.ts` (receptores, borrador precargado, problemas para cerrar turno). `services/traspasosRepo.ts`.
+- Pestaña **Traspaso** (`scripts/handover/handoverView.ts`): el borrador se crea al primer cambio y se guarda solo;
+  repartir sin receptor / rebalancear / deshacer, vista previa en `iframe sandbox`, copiar (Outlook usa el evento
+  `copy`, sin `innerHTML`), **Cerrar turno** guarda y llama a `enviar_traspaso`.
+- Pestaña **Mis traspasos** (`myHandoversView.ts`): entregados y recibidos de un día, con el reporte para copiar.
+- Mi seguimiento: área (lista), empresa, chip de recordatorio y la nota de quien entregó.
+- Límite conocido: un traspaso por técnico y día; si llegan casos después de enviarlo, la pestaña lo avisa y el
+  dispatch debe reasignarlos.
 
-### Fase 6 — Búsqueda global
-Función SQL nueva (p. ej. `buscar_casos(termino)`) sobre `casos` + `caso_responsables` (todos los casos alguna vez
-creados, estado, responsable actual e historial) y una pestaña para ambos roles. Hoy existen
-`buscar_en_historial()` (snapshots) y `buscar_en_bitacora()`.
+### Fases 6–8 — Coordinador, Ronda, Planificación con solicitudes
+Detalle completo en `docs/DISENO_V2.md` §10.2, §10.3 y §10.7 (decisiones D10–D15). La antigua fase
+"Búsqueda global" (`buscar_casos(termino)`) queda dentro de la fase 6 (Coordinador).
 
-### Fase 7 — Animaciones
+### Fase 9 — Animaciones
 Tablero: entrada/destello al asignar o mover un caso (FLIP), "pop" del contador de la tarjeta, realce de la
 columna destino. Hacerlo en `scripts/ui/motion.ts` + SCSS; `_base.scss` ya apaga animaciones con
 `prefers-reduced-motion`.
@@ -182,6 +180,8 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
   `tecnicos`, RLS de técnicos solo dispatch, vista `casos_abiertos` (security_invoker), cron 05:59.
   Rompe la app anterior: se ejecuta justo antes de publicar la v2 (ver `docs/DISENO_V2.md` §9).
 - `06_v2_seguimiento.sql`: `casos_abiertos` suma `origen_responsable` y `ultima_actualizacion_por`.
+- `07_v2_traspasos.sql`: áreas fijas, área/empresa del técnico, actividad del técnico, recordatorios (+ cron cada
+  5 min), `fecha_destino` de los ítems, `enviar_traspaso` actualizado y `casos_abiertos` +3 columnas.
 - `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`); no toca `perfiles`.
 - Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
   **con** `tecnico_id`; sin él no tiene seguimiento ni notificaciones.

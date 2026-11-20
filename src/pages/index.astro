@@ -8,6 +8,8 @@ import IncidentBoard from '../components/board/IncidentBoard.astro';
 import HistoryView from '../components/history/HistoryView.astro';
 import PlanningView from '../components/planning/PlanningView.astro';
 import FollowUpView from '../components/followUp/FollowUpView.astro';
+import HandoverView from '../components/handover/HandoverView.astro';
+import MyHandoversView from '../components/handover/MyHandoversView.astro';
 import NoProfileNotice from '../components/auth/NoProfileNotice.astro';
 import AuditView from '../components/audit/AuditView.astro';
 import AssignIncidentModal from '../components/modals/AssignIncidentModal.astro';
@@ -31,6 +33,14 @@ import ToastHost from '../components/ui/ToastHost.astro';
 
       <section data-vista="seguimiento" class="view hidden">
         <FollowUpView />
+      </section>
+
+      <section data-vista="traspaso" class="view hidden">
+        <HandoverView />
+      </section>
+
+      <section data-vista="misTraspasos" class="view hidden">
+        <MyHandoversView />
       </section>
 
       <section data-vista="planificacion" class="view hidden">

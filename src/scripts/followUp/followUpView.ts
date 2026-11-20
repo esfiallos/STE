@@ -9,7 +9,9 @@ import {
   type GruposDeSeguimiento
 } from '../../domain/followUp';
 import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
+import { fechaCorta } from '../../domain/handoverReport';
 import { listarResponsables } from '../../services/casosRepo';
+import { notasDeTraspasosRecibidos, type NotaRecibida } from '../../services/traspasosRepo';
 import { appStore } from '../../state/appStore';
 import type { EstadoCaso, Incidente } from '../../types/noc';
 import { copiarTexto, guardarSeguimiento } from '../actions/followUpActions';
@@ -21,6 +23,9 @@ let tecnicoId = '';
 let renderPendiente = false;
 /** Casos con el historial desplegado (se conserva al redibujar). */
 const historialAbierto = new Set<string>();
+/** Nota que dejó quien me entregó cada caso recibido en traspaso. */
+let notasRecibidas = new Map<string, NotaRecibida>();
+let clavesDeNotas = '';
 
 const vista = () => byId('followUpView');
 
@@ -51,10 +56,26 @@ function crearTarjeta(caso: Incidente, hoy: string): HTMLElement {
     fecha.classList.remove('hidden');
   }
 
-  const descripcion = [caso.cliente, caso.area, caso.descripcion ?? caso.nota].filter(Boolean).join(' · ');
+  const descripcion = caso.descripcion ?? caso.nota;
   const parrafo = ref(fragmento, 'descripcion');
   if (descripcion) parrafo.textContent = descripcion;
   else parrafo.remove();
+
+  const recordatorio = ref(fragmento, 'recordatorio');
+  if (caso.recordatorioFecha) {
+    recordatorio.textContent = `Recordatorio ${fechaCorta(caso.recordatorioFecha)}${caso.recordatorioTexto ? `: ${caso.recordatorioTexto}` : ''}`;
+    recordatorio.classList.remove('hidden');
+  }
+  const nota = notasRecibidas.get(caso.id);
+  if (nota && caso.origenResponsable === 'traspaso') {
+    const deQuien = appStore.get().catalogo.find((t) => t.id === nota.deTecnicoId)?.nombre ?? 'quien entregó';
+    const notaRecibida = ref(fragmento, 'notaRecibida');
+    notaRecibida.textContent = `Nota de ${deQuien}: ${nota.nota}`;
+    notaRecibida.classList.remove('hidden');
+  }
+
+  ref<HTMLSelectElement>(fragmento, 'area').value = caso.area ?? '';
+  ref<HTMLInputElement>(fragmento, 'empresa').value = caso.cliente ?? '';
 
   const estado = ref<HTMLSelectElement>(fragmento, 'estado');
   estado.append(...ESTADOS_DE_SEGUIMIENTO.map((e) => new Option(ETIQUETA_ESTADO_CASO[e], e)));
@@ -99,6 +120,7 @@ export function renderizarSeguimiento(): void {
   estado.classList.toggle('hidden', carga !== 'cargando');
 
   const casos = misCasos();
+  void actualizarNotasRecibidas(casos);
   const grupos = agruparSeguimiento(casos, tecnicoId, fechaOperativa);
   pintarGrupo('traspaso', grupos.traspaso, fechaOperativa);
   pintarGrupo('nuevos', grupos.nuevos, fechaOperativa);
@@ -113,6 +135,18 @@ export function renderizarSeguimiento(): void {
   const insignia = byId('followUpBadge');
   insignia.textContent = String(pendientes);
   insignia.classList.toggle('hidden', pendientes === 0);
+}
+
+/** Lee (solo si cambiaron mis casos recibidos) la nota que dejó quien me los entregó. */
+async function actualizarNotasRecibidas(casos: Incidente[]): Promise<void> {
+  const ids = casos.filter((c) => c.origenResponsable === 'traspaso').map((c) => c.id).sort();
+  const clave = ids.join(',');
+  if (clave === clavesDeNotas) return;
+  clavesDeNotas = clave;
+  const resultado = await notasDeTraspasosRecibidos(tecnicoId, ids);
+  if (!resultado.ok || clave !== clavesDeNotas) return;
+  notasRecibidas = resultado.data;
+  if (resultado.data.size > 0) renderizarSeguimiento();
 }
 
 async function cargarHistorial(tarjeta: HTMLElement, casoId: string): Promise<void> {
@@ -213,6 +247,14 @@ export function iniciarSeguimiento(miTecnicoId: string): void {
         return;
       }
       void guardar(tarjeta, caso, { estado }, `${caso.codigo}: ${ETIQUETA_ESTADO_CASO[estado]}.`);
+    }
+    if (campo instanceof HTMLSelectElement && campo.dataset.ref === 'area') {
+      const area = campo.value || null;
+      if (area !== (caso.area ?? null)) void guardar(tarjeta, caso, { area }, `${caso.codigo}: área ${area ?? 'quitada'}.`);
+    }
+    if (campo instanceof HTMLInputElement && campo.dataset.ref === 'empresa') {
+      const empresa = campo.value.trim().replace(/\s+/g, ' ') || null;
+      if (empresa !== (caso.cliente ?? null)) void guardar(tarjeta, caso, { empresa }, `${caso.codigo}: empresa ${empresa ?? 'quitada'}.`);
     }
     if (campo instanceof HTMLInputElement && campo.dataset.ref === 'etiqueta') {
       const etiqueta = normalizarEtiqueta(campo.value);

@@ -11,7 +11,7 @@ export type Hora = string;
 
 export type EstadoConexion = 'conectando' | 'conectado' | 'desconectado';
 
-export type Vista = 'tablero' | 'seguimiento' | 'planificacion' | 'historial' | 'bitacora';
+export type Vista = 'tablero' | 'seguimiento' | 'traspaso' | 'misTraspasos' | 'planificacion' | 'historial' | 'bitacora';
 
 /** Rol del usuario (tabla perfiles). El dispatch edita; el técnico solo consulta el tablero. */
 export type Rol = 'dispatch' | 'tecnico';
@@ -79,6 +79,11 @@ export interface Incidente {
   ultimaActualizacion?: string | null;
   ultimaActualizacionEn?: string | null;
   ultimaActualizacionPor?: string | null;
+  /** Última edición del técnico responsable (migración 07). */
+  actividadTecnicoEn?: string | null;
+  /** Recordatorio que dejó quien traspasó: avisa al inicio del turno de ese día operativo. */
+  recordatorioFecha?: string | null;
+  recordatorioTexto?: string | null;
 }
 
 export type OrigenResponsable = 'dispatch' | 'reasignacion' | 'traspaso' | 'reapertura' | 'migracion';
@@ -93,7 +98,7 @@ export interface ResponsableCaso {
   asignadoPor: string;
 }
 
-export type TipoNotificacion = 'asignado' | 'reasignado' | 'traspaso';
+export type TipoNotificacion = 'asignado' | 'reasignado' | 'traspaso' | 'recordatorio';
 
 export interface Notificacion {
   id: string;
@@ -133,4 +138,62 @@ export interface CoincidenciaHistorial {
   nota: string | null;
   tecnico: string;
   turno: TurnoTecnico;
+}
+
+/** Un caso dentro del traspaso de fin de turno (tabla traspaso_items). */
+export interface ItemTraspaso {
+  casoId: string;
+  /** A quién se entrega; null mientras no se elija (o si el caso se cierra). */
+  paraTecnicoId: string | null;
+  estado: EstadoCaso;
+  etiqueta: string | null;
+  /** Nota para quien recibe (se adjunta a la descripción del reporte). */
+  notaPersonalizada: string | null;
+  ultimaActualizacion: string | null;
+  recordatorioFecha: string | null;
+  recordatorioTexto: string | null;
+}
+
+export type EstadoTraspaso = 'borrador' | 'enviado';
+
+/** Traspaso de un técnico en un día operativo (uno por técnico y día). */
+export interface Traspaso {
+  id: string;
+  deTecnicoId: string;
+  fecha: string;
+  turnoOrigen: TurnoTecnico | null;
+  estado: EstadoTraspaso;
+  enviadoEn: string | null;
+  items: ItemTraspaso[];
+}
+
+/** Técnico planificado que puede recibir el traspaso, con el día operativo en que lo recibe. */
+export interface ReceptorTraspaso {
+  tecnicoId: string;
+  nombre: string;
+  turno: TurnoTecnico;
+  fecha: string;
+  horarioInicio: Hora | null;
+  horarioFin: Hora | null;
+}
+
+/** Un caso de un traspaso ya enviado, con los datos del caso (pantalla "Mis traspasos"). */
+export interface ItemTraspasoEnviado extends ItemTraspaso {
+  traspasoId: string;
+  codigo: string;
+  cliente: string | null;
+  area: string | null;
+  nota: string | null;
+  /** Día operativo en que el receptor recibió el caso (null si se cerró). */
+  fechaDestino: string | null;
+}
+
+/** Traspaso enviado (propio o recibido) para consultar un día concreto. */
+export interface TraspasoEnviado {
+  id: string;
+  deTecnicoId: string;
+  fecha: string;
+  turnoOrigen: TurnoTecnico | null;
+  enviadoEn: string | null;
+  items: ItemTraspasoEnviado[];
 }

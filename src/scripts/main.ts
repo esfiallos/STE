@@ -24,6 +24,8 @@ import { iniciarModalAlmuerzo } from './modals/lunchModal';
 import { iniciarModales } from './modals/modal';
 import { iniciarModalTecnicos } from './modals/techniciansModal';
 import { iniciarSeguimiento, renderizarSeguimiento, resaltarCaso } from './followUp/followUpView';
+import { abrirTraspaso, iniciarTraspaso } from './handover/handoverView';
+import { cargarMisTraspasos, iniciarMisTraspasos } from './handover/myHandoversView';
 import { iniciarNotificaciones } from './notifications/notificationsPanel';
 import { cargarPlanificacion, iniciarPlanificacion } from './planning/planningView';
 import { RUTAS } from './routes';
@@ -79,6 +81,8 @@ async function iniciar(): Promise<void> {
   if (esDispatch) iniciarPlanificacion();
   if (miTecnicoId) {
     iniciarSeguimiento(miTecnicoId);
+    iniciarTraspaso(miTecnicoId);
+    iniciarMisTraspasos(miTecnicoId);
     iniciarNotificaciones(miTecnicoId, (casoId) => {
       window.location.hash = 'seguimiento';
       window.setTimeout(() => resaltarCaso(casoId), 50);
@@ -97,7 +101,9 @@ async function iniciar(): Promise<void> {
   iniciarPestanas(
     {
       tablero: () => undefined,
-      ...(miTecnicoId ? { seguimiento: renderizarSeguimiento } : {}),
+      ...(miTecnicoId
+        ? { seguimiento: renderizarSeguimiento, traspaso: abrirTraspaso, misTraspasos: () => void cargarMisTraspasos() }
+        : {}),
       ...(esDispatch ? { planificacion: () => void cargarPlanificacion() } : {}),
       historial: () => void cargarHistorial(),
       bitacora: () => void cargarBitacora()

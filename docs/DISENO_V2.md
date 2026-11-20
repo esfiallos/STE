@@ -218,9 +218,13 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **2. Dispatch v2** ✅ | Planificación semanal + revisión del día, tablero por fecha operativa, filtro por técnico, quitar Modo Consulta, enrutamiento por rol, corte (`05`) | 1 |
 | **3. Login** ✅ | Recuperar/restablecer contraseña, pulido visual | — (paralelo) |
 | **4. Técnico** ✅ | Mi día, Seguimiento, última actualización, notificaciones + alertas (`06`) | 1, 2 |
-| **5. Traspasos** | Armado, balanceo, etiquetas, export Outlook/TSV, envío transaccional | 4 |
-| **6. Búsqueda global** | Casos + historial de responsables | 1 |
-| **7. Animaciones** | Capa de efectos y pulido | 2, 4 |
+| **5. Casos + Traspasos** ✅ | §10.1 (áreas, campos del técnico, actividad) + armado, balanceo, etiquetas (+VM), recordatorio por fecha, export Outlook/TSV, envío transaccional, **Mis traspasos** (§10.4–10.6) | 4 |
+| **6. Coordinador** | Rol nuevo, buscador global (absorbe la antigua fase "Búsqueda global"), panel de estadísticas, alertas 2/4/6 h (§10.3) | 5 |
+| **7. Ronda** | Botón "Asignar a la ronda" del dispatch, rotativa alfabética por turno (§10.2) | 5 |
+| **8. Planificación con solicitudes** | Dispatch en solo lectura + solicitud de edición por día; planificación completa para coordinación (§10.7) | 6 |
+| **9. Animaciones** | Capa de efectos y pulido | 2, 4 |
+
+> Orden revisado el 19/11/2026 al sumar los requerimientos de §10. Cada fase con su migración `sql/0N_*.sql`.
 
 ---
 
@@ -235,6 +239,8 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 - **D6. Destinos de traspaso:** A → B/Comodín (mismo día) · B → C (mismo día) o A/Comodín (día siguiente) ·
   Comodín → C (mismo día) o A/Comodín (día siguiente) · C → A/Comodín (día siguiente).
 - **D7. Comodín:** horarios fijos 06–16, 07–17, 08–18. Almuerzos a elección del dispatch.
+- **D8–D15** (19/11/2026): ver §10. Cambian D3 (hay un tercer rol, **coordinador**) y D5 (la planificación la
+  hace coordinación; el dispatch solo la edita por día con solicitud aprobada).
 
 ---
 
@@ -259,3 +265,86 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 4. PROD: hacer 1 y 2 **justo antes** de unir `desarrollo` → `main` (el despliegue tarda unos minutos y en ese
    intervalo la app publicada anterior deja de funcionar, porque ya no existe `incidentes`).
 5. Revisar en Planificación la semana en curso: la 05 solo crea la jornada de **hoy** a partir del turno fijo.
+
+---
+
+## 10. Requerimientos v2.1 (19/11/2026)
+
+Reglas nuevas pedidas por el usuario. Las decisiones D8–D15 ya están tomadas: no re-preguntarlas.
+Lo marcado como **Supuesto** es criterio propio para completar la regla; confirmarlo al implementar la fase.
+
+### 10.1 Datos del caso: quién llena qué (fase 5) — ✅ `sql/07_v2_traspasos.sql`
+- **D8.** El **dispatch** crea el caso solo con **código + nota** (la nota suele llevar empresa e ID de enlace).
+  Su tablero muestra solo incidente, nota y técnico.
+- El **técnico** registra en **sus** casos: **área**, **empresa** (`casos.cliente`), estado, etiqueta y
+  última actualización. Hay que abrir `area` y `cliente` en el trigger `casos_antes_de_guardar` (hoy los bloquea).
+- El **coordinador** solo lee todos los campos.
+- **Áreas (catálogo fijo):** CPE · PLEX · TX · CORE CS · CORE IP · CORE PS · SIO · SOPORTE DIGITAL · FRESH ·
+  REDPRO · PVR · REGIONAL · COMERCIAL. La constante va en `domain/` y el check en SQL, con una prueba que verifica
+  que coincidan. Los casos existentes con otra área (en DEV hay demo: "DATACENTER", "ENLACES B2B"…) se dejan en
+  `null` en la migración, y antes se copian a la bitácora.
+- **D9. Actividad del técnico:** toda edición del técnico sobre su caso (estado, etiqueta, área, empresa,
+  última actualización) cuenta como actualización. Columna nueva `casos.actividad_tecnico_en`, que escribe el
+  trigger. Es la referencia de las alertas (§10.3).
+
+### 10.2 Asignar a la ronda (fase 7)
+- Junto al botón actual (asignar a un técnico concreto), el dispatch tiene **"Crear y asignar a la ronda"**:
+  crea el caso y lo asigna al **siguiente técnico de la ronda**.
+- **D10. Ronda rotativa alfabética por turno:** candidatos = técnicos **disponibles ahora** (en horario y fuera
+  de almuerzo, `domain/availability.ts`) ordenados por nombre (orden español, sin acentos ni mayúsculas). Se
+  recuerda quién recibió el último caso de la ronda **en el turno actual** (A 06–14, B 14–22, C 22–06) y se
+  asigna al siguiente en orden; al final se vuelve al primero. El puntero se reinicia al empezar cada turno.
+- La elección se hace en SQL (RPC `asignar_a_ronda(codigo, nota)` con bloqueo de la fila del puntero, tabla
+  `ronda_estado(fecha_operativa, turno, ultimo_tecnico_id)`) para que dos dispatch a la vez no le den el caso al
+  mismo técnico. Misma regla pura en `domain/` con prueba de coincidencia.
+- **Supuesto:** la asignación manual a un técnico concreto **no** mueve el puntero. Los comodines participan
+  mientras estén en horario. Si nadie está disponible, error claro y no se crea el caso.
+
+### 10.3 Rol Coordinador (fase 6)
+- **D11.** Tercer rol `coordinador` (se otorga por SQL, igual que dispatch; sin `tecnico_id`). Helper
+  `es_coordinador()`. Lee todo: casos, responsables, jornadas, traspasos e ítems, notificaciones de sistema y bitácora.
+- **Buscador global:** todos los casos alguna vez creados (código, empresa, área, nota, estado, etiqueta, última
+  actualización con autor y hora, responsable actual e historial de responsables y traspasos con su nota).
+  Función SQL `buscar_casos(termino)` + ficha del caso. Absorbe la antigua fase 6 "Búsqueda global";
+  **Supuesto:** también se ofrece al dispatch, en solo lectura.
+- **Panel principal:** total de tickets del día operativo (casos con responsable en la fecha de hoy) y cantidad
+  por estado (En curso · Pausado · Resuelto · Cerrado). En tiempo real.
+- **D12. Alertas por falta de actualización:** 3 niveles, a las **2 h, 4 h y 6 h** sin actividad del técnico.
+  Referencia = la más reciente entre `actividad_tecnico_en` y la hora en que el responsable actual recibió el
+  caso. Las genera pg_cron cada 5 min en una tabla nueva (`alertas_coordinacion`: caso, técnico, nivel, desde,
+  leída), una por caso y nivel desde esa referencia; una actualización nueva reinicia el conteo. Llegan a la
+  campana del coordinador (Realtime + sonido + alerta de escritorio opcional).
+  **Supuesto:** solo cuentan los casos no cerrados cuyo responsable **está en su turno**; las horas fuera de
+  turno no suman (un caso recibido para el turno siguiente no alerta antes de que ese turno empiece).
+
+### 10.4 Etiqueta VM (fase 5) — ✅
+- Se suma **VM** a las etiquetas sugeridas (`ETIQUETAS_SUGERIDAS`): indica que al caso se le programó una VM.
+
+### 10.5 Recordatorio con fecha en el traspaso (fase 5) — ✅
+- **D13.** En cada ítem del traspaso se puede dejar un **recordatorio** con **fecha** y texto (p. ej. "VM
+  programada"). Al enviar, el recordatorio se guarda en el **caso** (sigue al caso aunque cambie de manos).
+- El aviso llega **al inicio del turno** del técnico que tenga el caso ese día (inicio de su jornada de esa
+  fecha; para comodín, su `horario_inicio`). Lo genera pg_cron cada 5 min como notificación de tipo
+  `recordatorio`.
+- **Supuesto:** si ese día el responsable no tiene jornada, el aviso sale a las 06:00 y además se muestra al
+  coordinador (esto último, en la fase 6).
+- Implementado: `inicio_de_turno(tecnico, fecha)` + `generar_recordatorios(ahora)` (pg_cron `recordatorios-traspaso`,
+  cada 5 min). Cambiar la fecha o el texto lo vuelve a dejar pendiente. `enviar_traspaso` rechaza un recordatorio
+  con texto sin fecha o con fecha pasada.
+- `traspaso_items.fecha_destino` (lo escribe `enviar_traspaso`) permite listar lo recibido por día.
+
+### 10.6 Mis traspasos (fase 5) — ✅
+- Panel del técnico para consultar sus traspasos por **fecha**: los que **envió** (a quién pasó cada caso, con
+  estado, etiqueta, nota y última actualización) y los que **recibió**. Desde ahí puede volver a copiar el
+  reporte (Outlook, texto, TSV). Solo lectura.
+
+### 10.7 Planificación con solicitudes (fase 8)
+- **D14.** Para el **dispatch** la planificación pasa a **solo lectura**. Para editar un día concreto envía una
+  **solicitud a coordinación** con fecha y **motivo** (p. ej. falta de un técnico). Si coordinación la aprueba,
+  ese día (solo ese) queda editable para el dispatch. Tabla `solicitudes_planificacion` (fecha_operativa,
+  motivo, solicitante, estado pendiente/aprobada/rechazada, resuelta_por, resuelta_en). La campana avisa al
+  coordinador al llegar una y al dispatch con la respuesta.
+- La **planificación completa** (semana, copiar semana anterior, etc.) vive en la versión del **coordinador**.
+- **D15.** Nadie edita días pasados: solo **hoy en adelante**. Una semana ya pasada es inmutable (sus casos ya
+  se traspasaron). Lo impone la BD (RLS + trigger en `jornadas`), no solo la UI.
+- **Supuesto:** una aprobación vence al terminar ese día operativo.

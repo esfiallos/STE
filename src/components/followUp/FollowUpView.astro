@@ -1,6 +1,7 @@
 ---
 // "Mi seguimiento" del técnico: sus casos abiertos. Lo dibuja scripts/followUp/followUpView.ts
 import { ETIQUETAS_SUGERIDAS, LARGO_MAXIMO_ACTUALIZACION, LARGO_MAXIMO_ETIQUETA } from '../../domain/followUp';
+import { AREAS_DE_CASO, LARGO_MAXIMO_EMPRESA } from '../../domain/areas';
 ---
 
 <section class="panel-card followup" id="followUpView" aria-labelledby="followUpTitle">
@@ -41,10 +42,23 @@ import { ETIQUETAS_SUGERIDAS, LARGO_MAXIMO_ACTUALIZACION, LARGO_MAXIMO_ETIQUETA 
         <button type="button" class="followup-code" data-action="copiar-codigo" title="Copiar número" data-ref="codigo"></button>
         <span class="followup-chip" data-ref="origen"></span>
         <span class="followup-chip followup-chip--fecha hidden" data-ref="fecha"></span>
+        <span class="followup-chip followup-chip--recordatorio hidden" data-ref="recordatorio"></span>
       </header>
       <p class="followup-card__desc" data-ref="descripcion"></p>
+      <p class="followup-card__handoff hidden" data-ref="notaRecibida"></p>
 
       <div class="followup-controls">
+        <label class="followup-field">
+          <span>Área</span>
+          <select data-ref="area">
+            <option value="">Sin área</option>
+            {AREAS_DE_CASO.map((area) => <option value={area}>{area}</option>)}
+          </select>
+        </label>
+        <label class="followup-field">
+          <span>Empresa</span>
+          <input type="text" maxlength={LARGO_MAXIMO_EMPRESA} data-ref="empresa" placeholder="Sin empresa" />
+        </label>
         <label class="followup-field">
           <span>Estado</span>
           <select data-ref="estado" data-action="cambiar-estado"></select>

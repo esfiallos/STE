@@ -11,6 +11,8 @@ export interface Datos {
   casos: Fila[];
   notificaciones?: Fila[];
   caso_responsables?: Fila[];
+  traspasos?: Fila[];
+  traspaso_items?: Fila[];
 }
 
 /** Día de las pruebas: lunes 9 de noviembre de 2026 (ver fijarHora). */
@@ -46,6 +48,7 @@ function cumpleFiltros(fila: Fila, parametros: URLSearchParams): boolean {
     if (op === 'eq') return actual === esperado;
     if (op === 'gte') return actual >= esperado;
     if (op === 'lte') return actual <= esperado;
+    if (op === 'in') return esperado.replace(/^\(|\)$/g, '').split(',').map((v) => v.replace(/^"|"$/g, '')).includes(actual);
     return true; // select, order, limit, on_conflict, columns...
   });
 }
@@ -62,7 +65,9 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
     casos: datos.casos,
     perfiles: [],
     notificaciones: datos.notificaciones ?? [],
-    caso_responsables: datos.caso_responsables ?? []
+    caso_responsables: datos.caso_responsables ?? [],
+    traspasos: datos.traspasos ?? [],
+    traspaso_items: datos.traspaso_items ?? []
   };
   const escrituras: string[] = [];
   let secuencia = 100;
@@ -78,10 +83,42 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
         origen_responsable: c.tecnico_actual_id ? (c._origen ?? 'dispatch') : null
       }));
 
+  /** Imita enviar_traspaso(): valida lo básico, entrega cada caso y marca el traspaso como enviado. */
+  function enviarTraspaso(id: string): Response {
+    const traspaso = db.traspasos!.find((t) => t.id === id);
+    if (!traspaso || traspaso.estado !== 'borrador') return json({ code: 'P0001', message: 'Este traspaso ya fue enviado.' }, 400);
+    const items = db.traspaso_items!.filter((i) => i.traspaso_id === id);
+    const pendiente = items.find((i) => i.estado !== 'cerrado' && (!i.para_tecnico_id || !String(i.ultima_actualizacion ?? '').trim()));
+    if (pendiente) return json({ code: 'P0001', message: 'Falta receptor o última actualización.' }, 400);
+    let movidos = 0;
+    for (const item of items) {
+      const caso = db.casos!.find((c) => c.id === item.caso_id)!;
+      if (item.estado === 'cerrado') {
+        Object.assign(caso, { estado: 'cerrado' });
+        continue;
+      }
+      const destino = db.jornadas!.find((j) => j.tecnico_id === item.para_tecnico_id)?.fecha_operativa ?? traspaso.fecha_operativa;
+      Object.assign(caso, {
+        tecnico_actual_id: item.para_tecnico_id, estado: item.estado, etiqueta: item.etiqueta, ultima_actualizacion: item.ultima_actualizacion,
+        recordatorio_fecha: item.recordatorio_fecha, recordatorio_texto: item.recordatorio_texto, _origen: 'traspaso', _fecha: destino
+      });
+      item.fecha_destino = destino;
+      movidos++;
+    }
+    Object.assign(traspaso, { estado: 'enviado', turno_origen: 'turnoA', enviado_en: new Date().toISOString() });
+    return json(movidos);
+  }
+
   vi.stubGlobal('fetch', async (entrada: unknown, init?: RequestInit) => {
     const url = new URL(typeof entrada === 'string' ? entrada : ((entrada as Request).url ?? String(entrada)));
     const metodo = (init?.method ?? 'GET').toUpperCase();
     const tabla = url.pathname.split('/').pop() as string;
+    const cabeceras = new Headers(init?.headers);
+    if (url.pathname.includes('/rpc/')) {
+      escrituras.push(`RPC ${tabla} ${init?.body ?? ''}`);
+      if (tabla === 'enviar_traspaso') return enviarTraspaso(JSON.parse(String(init?.body)).p_traspaso);
+      return json(null);
+    }
     const origen: Fila[] = tabla === 'casos_abiertos' ? casosAbiertos() : (db[tabla] ?? []);
     const filas = origen.filter((fila) => cumpleFiltros(fila, url.searchParams));
 
@@ -90,6 +127,7 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
 
     if (metodo === 'POST') {
       const cuerpo = JSON.parse(String(init?.body));
+      const creados: Fila[] = [];
       for (const nuevo of Array.isArray(cuerpo) ? cuerpo : [cuerpo]) {
         if (tabla === 'casos') {
           nuevo.codigo = String(nuevo.codigo).trim().toUpperCase();
@@ -103,9 +141,22 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
           const existente = db.jornadas!.find((j) => j.fecha_operativa === nuevo.fecha_operativa && j.tecnico_id === nuevo.tecnico_id);
           if (existente) Object.assign(existente, nuevo);
           else db.jornadas!.push({ id: nuevoId(), ...nuevo });
+        } else if (tabla === 'traspaso_items') {
+          const existente = db.traspaso_items!.find((i) => i.traspaso_id === nuevo.traspaso_id && i.caso_id === nuevo.caso_id);
+          if (existente) Object.assign(existente, nuevo);
+          else db.traspaso_items!.push({ id: nuevoId(), fecha_destino: null, ...nuevo });
+        } else if (tabla === 'traspasos') {
+          if (db.traspasos!.some((t) => t.de_tecnico_id === nuevo.de_tecnico_id && t.fecha_operativa === nuevo.fecha_operativa)) return duplicado();
+          const fila = { id: nuevoId(), estado: 'borrador', turno_origen: null, enviado_en: null, ...nuevo };
+          db.traspasos!.push(fila);
+          creados.push(fila);
         } else {
           (db[tabla] ??= []).push({ id: nuevoId(), ...nuevo });
         }
+      }
+      if (cabeceras.get('prefer')?.includes('return=representation')) {
+        const unico = cabeceras.get('accept')?.includes('vnd.pgrst.object');
+        return json(unico ? creados[0] : creados, 201);
       }
       return new Response(null, { status: 201 });
     }

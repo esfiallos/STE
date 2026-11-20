@@ -21,6 +21,10 @@ interface FilaCasoAbierto {
   asignado_en: string | null;
   /** Desde la migración 06. */
   origen_responsable?: OrigenResponsable | null;
+  /** Desde la migración 07. */
+  actividad_tecnico_en?: string | null;
+  recordatorio_fecha?: string | null;
+  recordatorio_texto?: string | null;
 }
 
 function aIncidente(fila: FilaCasoAbierto): Incidente {
@@ -39,7 +43,10 @@ function aIncidente(fila: FilaCasoAbierto): Incidente {
     etiqueta: fila.etiqueta ?? null,
     ultimaActualizacion: fila.ultima_actualizacion ?? null,
     ultimaActualizacionEn: fila.ultima_actualizacion_en ?? null,
-    ultimaActualizacionPor: fila.ultima_actualizacion_por ?? null
+    ultimaActualizacionPor: fila.ultima_actualizacion_por ?? null,
+    actividadTecnicoEn: fila.actividad_tecnico_en ?? null,
+    recordatorioFecha: fila.recordatorio_fecha ?? null,
+    recordatorioTexto: fila.recordatorio_texto ?? null
   };
 }
 
@@ -48,6 +55,10 @@ export interface CambiosDeSeguimiento {
   estado?: EstadoCaso;
   etiqueta?: string | null;
   ultimaActualizacion?: string | null;
+  /** Una de AREAS_DE_CASO (la base rechaza otra). */
+  area?: string | null;
+  /** Empresa (columna `cliente`). */
+  empresa?: string | null;
 }
 
 export async function actualizarSeguimiento(id: string, cambios: CambiosDeSeguimiento): Promise<Resultado> {
@@ -55,6 +66,8 @@ export async function actualizarSeguimiento(id: string, cambios: CambiosDeSeguim
   if (cambios.estado !== undefined) fila.estado = cambios.estado;
   if (cambios.etiqueta !== undefined) fila.etiqueta = cambios.etiqueta;
   if (cambios.ultimaActualizacion !== undefined) fila.ultima_actualizacion = cambios.ultimaActualizacion;
+  if (cambios.area !== undefined) fila.area = cambios.area;
+  if (cambios.empresa !== undefined) fila.cliente = cambios.empresa;
 
   const { error } = await supabase.from('casos').update(fila).eq('id', id);
   if (error) return errorDeBaseDeDatos(error, 'No se pudo actualizar el caso');

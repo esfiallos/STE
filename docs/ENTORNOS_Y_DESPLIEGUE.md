@@ -31,13 +31,25 @@ La app se niega a arrancar si el entorno no coincide con el modo (por ejemplo, u
 7. **Recuperar contraseña** (en DEV y en PROD): Authentication → URL Configuration → *Redirect URLs*, agrega la
    página `/restablecer/` de cada entorno:
    - DEV: `http://localhost:4321/restablecer/`
-   - PROD: `https://<usuario>.github.io/<repositorio>/restablecer/`
+   - PROD: `https://<usuario>.github.io/<repositorio>/restablecer/` (con este repo:
+     `https://esfiallos.github.io/STE/restablecer/`). Va **directo** bajo el repositorio, no dentro de `/login/`.
 
    Si falta, el correo de recuperación llega pero el enlace abre la *Site URL* en vez de `/restablecer/`.
+   En DEV la *Site URL* puede quedar en `http://localhost:4321`.
 8. **Correos:** el servidor de correo incluido en Supabase solo envía a los miembros del equipo del proyecto y con
    un límite bajo por hora. Para que les llegue a todos los técnicos, configura un SMTP propio en
-   Authentication → Emails → *SMTP Settings*. Ahí mismo (Templates → *Reset Password*) puedes poner el texto del
-   correo en español.
+   Authentication → Emails → *SMTP Settings* (Enable custom SMTP). Opción sin dominio propio, con una cuenta de Gmail:
+   1. En la cuenta de Google activa la verificación en 2 pasos y crea una **contraseña de aplicación**
+      (Cuenta de Google → Seguridad → Contraseñas de aplicaciones). Son 16 letras; no es tu contraseña normal.
+   2. En Supabase: *Sender email* = esa cuenta de Gmail · *Sender name* = `Panel NOC` · *Host* =
+      `smtp.gmail.com` · *Port* = `465` · *Username* = la cuenta de Gmail · *Password* = la contraseña de
+      aplicación. Guarda.
+   3. Authentication → Rate Limits: sube *emails per hour* (con SMTP propio ya se puede; p. ej. 30).
+   4. Templates → *Reset Password*: texto del correo en español.
+
+   Gmail permite unos 500 correos al día, de sobra para recuperar contraseñas. Si más adelante hay un dominio
+   propio, un servicio transaccional (Resend, Brevo, SendGrid) es mejor para la entrega. El mismo SMTP puede
+   usarse en DEV y en PROD.
 
 ## 4. Flujo de trabajo
 

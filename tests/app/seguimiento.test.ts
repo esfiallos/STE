@@ -65,7 +65,7 @@ describe('mi seguimiento', () => {
 
   it('cambiar el estado y la etiqueta se guarda al momento', async () => {
     const app = await abrirSeguimiento();
-    const estado = app.tarjeta('INC1').querySelector<HTMLSelectElement>('select')!;
+    const estado = app.tarjeta('INC1').querySelector<HTMLSelectElement>('[data-ref="estado"]')!;
     estado.value = 'pausado';
     estado.dispatchEvent(new Event('change', { bubbles: true }));
     await esperar(80);
@@ -81,7 +81,7 @@ describe('mi seguimiento', () => {
   it('cerrar un caso pide confirmación', async () => {
     const app = await abrirSeguimiento();
     app.confirmar.mockReturnValue(false);
-    const estado = app.tarjeta('INC1').querySelector<HTMLSelectElement>('select')!;
+    const estado = app.tarjeta('INC1').querySelector<HTMLSelectElement>('[data-ref="estado"]')!;
     estado.value = 'cerrado';
     estado.dispatchEvent(new Event('change', { bubbles: true }));
     await esperar(80);
