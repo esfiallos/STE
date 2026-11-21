@@ -222,7 +222,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **6. Coordinador** ✅ | Rol nuevo, buscador global (absorbe la antigua fase "Búsqueda global"), panel de estadísticas, alertas 2/4/6 h (§10.3) | 5 |
 | **7. Ronda** ✅ | Botón "Asignar a la ronda" del dispatch, rotativa alfabética por turno (§10.2) | 5 |
 | **8. Planificación con solicitudes** ✅ | Dispatch en solo lectura + solicitud de edición por día; planificación completa para coordinación (§10.7) | 6 |
-| **9. Animaciones** | Capa de efectos y pulido | 2, 4 |
+| **9. Animaciones** ✅ | Capa de efectos y pulido | 2, 4 |
 
 > Orden revisado el 19/11/2026 al sumar los requerimientos de §10. Cada fase con su migración `sql/0N_*.sql`.
 

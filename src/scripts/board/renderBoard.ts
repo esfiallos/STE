@@ -1,15 +1,19 @@
 import { casosPorReasignar, unirTecnicosConIncidentes } from '../../domain/assignments';
+import { cambiosDelTablero, fotoDelTablero, hayCambios, type FotoDelTablero } from '../../domain/boardChanges';
 import { incidenteCoincide, normalizarBusqueda } from '../../domain/search';
 import { tecnicosDelTurno, TURNOS } from '../../domain/shifts';
 import { appStore, type AppState } from '../../state/appStore';
 import type { Incidente } from '../../types/noc';
 import { byId, crearElemento } from '../dom';
 import { formatearFechaLarga } from '../ui/format';
+import { animarCambiosDelTablero, continuarAnimaciones, medirCasos } from '../ui/motion';
 import type { ContextoTablero } from './boardContext';
 import { crearVistaIncidente } from './incidentView';
 import { crearVistaTurno } from './shiftView';
 
 let claveAEnfocar: string | null = null;
+/** Estado del último dibujo, para animar lo que cambió en el siguiente. */
+let fotoAnterior: FotoDelTablero | null = null;
 
 /** Pide que, en el próximo dibujo, se enfoque el campo del formulario de esa tarjeta (solo al abrirlo). */
 export function solicitarEnfoqueDeFormulario(clave: string): void {
@@ -103,7 +107,14 @@ export function renderizarTablero(): void {
     ? null
     : crearFranjaPorReasignar(casosPorReasignar(estado.incidentes, estado.tecnicos), estado, contexto.termino);
 
+  const foto = fotoDelTablero(estado.fechaOperativa, estado.incidentes);
+  const cambios = cambiosDelTablero(fotoAnterior, foto);
+  const posiciones = hayCambios(cambios) ? medirCasos(contenedor) : new Map<string, DOMRect>();
+  fotoAnterior = foto;
+
   contenedor.replaceChildren(...(franja ? [franja] : []), ...turnos);
+  continuarAnimaciones(contenedor);
+  if (hayCambios(cambios)) animarCambiosDelTablero(contenedor, cambios, posiciones);
 
   if (estado.tecnicos.length === 0) {
     const aviso = estado.soloLectura

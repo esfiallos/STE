@@ -16,9 +16,10 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
    §8 decisiones D1–D15, §9 despliegue, §10 requerimientos v2.1). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 28 archivos, 197 pruebas). En una máquina cargada
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 30 archivos, 206 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Siguiente trabajo: **Fase 9 — Animaciones del tablero** (ver "Lo que falta").
+4. Las 9 fases del diseño v2 están hechas. Siguiente: aplicar 07–10 en Supabase, poblar perfiles, probar contra
+   DEV en el navegador y publicar (`docs/DISENO_V2.md` §9). Pendientes menores en "Otros pendientes conocidos".
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
@@ -36,7 +37,7 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 6. Coordinador | ✅ | `sql/08_v2_coordinador.sql`, pestañas **Panel** y **Buscar casos**, campana de alertas 2/4/6 h |
 | 7. Ronda | ✅ | `sql/09_v2_ronda.sql`, botón **Asignar a la ronda** en Nuevo caso con vista previa del siguiente |
 | 8. Planificación con solicitudes | ✅ | `sql/10_v2_planificacion.sql`, coordinación planifica; el dispatch pide permiso por día (campanas en ambos roles) |
-| 9. Animaciones | ⏳ siguiente (🟡 parcial) | Login, seguimiento y campana ya animan; falta el tablero (mover/asignar) |
+| 9. Animaciones | ✅ | Tablero: FLIP al mover, entrada + destello del caso nuevo, pop del contador, realce de la columna (`ui/motion.ts`) |
 
 **Bases de datos (revisado con el conector el 19/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
 DEV = `DEV` (`bofqefbxziqxzrdujihd`).
@@ -114,10 +115,15 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
   (`planning/requestsBell.ts`) con las respuestas. `planningRequestsSync.ts` relee con Realtime y avisa.
 - El almuerzo también es planificación: el dispatch lo cambia solo con permiso del día.
 
-### Fase 9 — Animaciones
-Tablero: entrada/destello al asignar o mover un caso (FLIP), "pop" del contador de la tarjeta, realce de la
-columna destino. Hacerlo en `scripts/ui/motion.ts` + SCSS; `_base.scss` ya apaga animaciones con
-`prefers-reduced-motion`.
+### Fase 9 — Animaciones ✅ (qué quedó)
+- `domain/boardChanges.ts`: compara el **estado** de dos dibujos (no el DOM): casos nuevos, movidos, técnicos que
+  reciben y contadores que cambian. Sin dibujo anterior o con cambio de día operativo no anima; colapsar, buscar o
+  filtrar tampoco.
+- `scripts/ui/motion.ts`: mide las tarjetas antes de `replaceChildren` y anima después: FLIP (Web Animations, se
+  omite con movimiento reducido) y clases `is-entering`, `is-moved`, `is-receiving`, `is-popping`. Si se redibuja a
+  media animación la retoma con `animation-delay` negativo. Lo usa `board/renderBoard.ts`.
+- `styles/components/_motion.scss` (máx. 900 ms = `DURACION_ANIMACION_MS`); `_base.scss` las apaga con
+  `prefers-reduced-motion`. Se animan también los cambios que llegan de otros usuarios (Realtime).
 
 ### Otros pendientes conocidos
 - `03_datos_demo_dev.sql` no crea perfiles: para probar el rol técnico, enlazar un perfil a un técnico demo

@@ -1,0 +1,84 @@
+@use '../abstracts/variables' as *;
+
+// Animaciones del tablero (scripts/ui/motion.ts). Duración máxima = DURACION_ANIMACION_MS (900 ms).
+// `_base.scss` las apaga todas con prefers-reduced-motion.
+
+// Caso recién asignado: entra desde abajo y destella
+.incident-item-card.is-entering {
+  animation:
+    tablero-entrar 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both,
+    tablero-destello 0.9s ease-out;
+}
+
+// Caso reasignado o arrastrado: destello suave (el deslizamiento lo hace FLIP desde motion.ts)
+.incident-item-card.is-moved {
+  animation: tablero-destello-suave 0.9s ease-out;
+}
+
+// Columna del técnico que recibe un caso
+.tech-column-card.is-receiving {
+  animation: tablero-realce 0.9s ease-out;
+}
+
+// Contador de casos de la tarjeta
+.tech-case-count.is-popping {
+  display: inline-block;
+  animation: tablero-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes tablero-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tablero-destello {
+  0% {
+    box-shadow: 0 0 0 0 rgba($color-cian, 0.85);
+  }
+  100% {
+    box-shadow: 0 0 0 12px rgba($color-cian, 0);
+  }
+}
+
+@keyframes tablero-destello-suave {
+  0% {
+    box-shadow: 0 0 0 0 rgba($color-acento, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba($color-acento, 0);
+  }
+}
+
+@keyframes tablero-realce {
+  0% {
+    box-shadow: 0 0 0 0 rgba($color-acento, 0);
+    border-color: $color-borde-fuerte;
+  }
+  25% {
+    box-shadow: 0 0 0 3px rgba($color-acento, 0.35);
+    border-color: $color-acento;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba($color-acento, 0);
+    border-color: $color-borde-fuerte;
+  }
+}
+
+@keyframes tablero-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.35);
+    color: $color-acento;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
