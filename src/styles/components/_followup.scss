@@ -1,0 +1,346 @@
+@use '../abstracts/variables' as *;
+
+// Solo para técnicos enlazados (body.rol-tecnico lo pone main.ts)
+body:not(.rol-tecnico) [data-tecnico-only] {
+  display: none !important;
+}
+
+.tab-badge {
+  margin-left: 0.35rem;
+  min-width: 1.2rem;
+  padding: 0 0.35rem;
+  border-radius: $radio-pildora;
+  background-color: $color-almuerzo-borde;
+  color: $color-almuerzo-texto;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+// Mi columna en el tablero (rol técnico)
+.tech-column-card.is-mine {
+  outline: 2px solid $color-cian;
+  outline-offset: 2px;
+}
+
+// ------------------------------------------------------------- Seguimiento
+.followup-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+
+  .planning-title {
+    text-align: left;
+    min-width: 0;
+  }
+}
+
+.followup-section {
+  margin-top: 1.25rem;
+}
+
+.followup-section__title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+  color: $color-texto-suave;
+}
+
+.followup-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr));
+  gap: 0.75rem;
+}
+
+.followup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid $color-borde;
+  border-left: 4px solid $color-acento;
+  border-radius: $radio-md;
+  background-color: $color-superficie;
+  box-shadow: $sombra-tarjeta;
+  animation: entrar-caso 0.25s ease-out both;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+
+  &[data-estado='pausado'] {
+    border-left-color: $color-almuerzo-borde;
+  }
+  &[data-estado='resuelto'] {
+    border-left-color: $color-exito;
+  }
+  &.is-sin-actualizar {
+    background-color: $color-superficie-alta;
+  }
+  &.is-saving {
+    opacity: 0.6;
+  }
+  &.is-highlight {
+    animation: destacar 1.6s ease-out;
+  }
+}
+
+.followup-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.followup-code {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: $fuente-mono;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: $color-marca;
+  cursor: copy;
+
+  &:hover {
+    color: $color-acento;
+    text-decoration: underline;
+  }
+}
+
+.followup-chip {
+  padding: 0.05rem 0.45rem;
+  border-radius: $radio-pildora;
+  background-color: $color-acento-suave;
+  color: $color-acento;
+  font-size: 0.7rem;
+  font-weight: 600;
+
+  &--fecha {
+    background-color: $color-almuerzo-fondo;
+    color: $color-almuerzo-texto;
+  }
+}
+
+.followup-card__desc {
+  font-size: 0.85rem;
+  color: $color-texto;
+  overflow-wrap: anywhere;
+}
+
+.followup-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.followup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $color-texto-suave;
+
+  small {
+    font-weight: 400;
+  }
+
+  select,
+  input,
+  textarea {
+    padding: 0.4rem 0.55rem;
+    border-radius: $radio-sm;
+    border: 1px solid $color-borde-fuerte;
+    background-color: $color-superficie;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: $color-texto;
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 3rem;
+  }
+}
+
+.followup-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.followup-meta {
+  font-size: 0.72rem;
+  color: $color-texto-suave;
+}
+
+.followup-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.followup-history {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.75rem;
+  color: $color-texto-suave;
+
+  .is-actual {
+    color: $color-texto;
+    font-weight: 600;
+  }
+}
+
+// ------------------------------------------------------------- Notificaciones
+.notif {
+  position: relative;
+}
+
+.notif__bell {
+  position: relative;
+
+  &.is-ringing i {
+    animation: campana 0.8s ease-in-out;
+  }
+}
+
+.notif__count {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.3rem;
+  min-width: 1.1rem;
+  padding: 0 0.25rem;
+  border-radius: $radio-pildora;
+  background-color: $color-peligro;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.1rem;
+  animation: aparecer 0.25s ease-out;
+}
+
+.notif__panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 150;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: 24rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid $color-borde;
+  border-radius: $radio-md;
+  background-color: $color-superficie;
+  color: $color-texto;
+  box-shadow: $sombra-modal;
+  animation: entrar-caso 0.18s ease-out;
+}
+
+.notif__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid $color-borde;
+  font-size: 0.85rem;
+
+  .link-button {
+    font-size: 0.75rem;
+  }
+}
+
+.notif__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.notif__item.is-unread {
+  background-color: $color-acento-suave;
+}
+
+.notif__link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0.55rem 0.8rem;
+  border: 0;
+  border-bottom: 1px solid $color-borde;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background-color: $color-superficie-alta;
+  }
+}
+
+.notif__text {
+  font-size: 0.85rem;
+}
+
+.notif__time,
+.notif__empty {
+  font-size: 0.72rem;
+  color: $color-texto-suave;
+}
+
+.notif__empty {
+  padding: 0.8rem;
+}
+
+.notif__desktop {
+  padding: 0.6rem;
+  font-size: 0.75rem;
+}
+
+@keyframes entrar-caso {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes destacar {
+  0% {
+    box-shadow: 0 0 0 0 rgba($color-cian, 0.9);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba($color-cian, 0);
+  }
+}
+
+@keyframes campana {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20%,
+  60% {
+    transform: rotate(-18deg);
+  }
+  40%,
+  80% {
+    transform: rotate(18deg);
+  }
+}
+
+@keyframes aparecer {
+  from {
+    transform: scale(0.4);
+  }
+  to {
+    transform: scale(1);
+  }
+}

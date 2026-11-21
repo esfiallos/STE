@@ -1,0 +1,19 @@
+---
+interface Props {
+  subtitulo: string;
+}
+
+const { subtitulo } = Astro.props;
+const esDesarrollo = import.meta.env.PUBLIC_APP_ENV === 'development';
+---
+
+<header class="auth-brand">
+  <span class="auth-brand__mark" aria-hidden="true"><i class="fa-solid fa-tower-broadcast"></i></span>
+  <div>
+    <h1>
+      Panel de Traspasos
+      {esDesarrollo && <span class="env-badge">DESARROLLO</span>}
+    </h1>
+    <p class="login-subtitle" data-ref="subtitulo">{subtitulo}</p>
+  </div>
+</header>

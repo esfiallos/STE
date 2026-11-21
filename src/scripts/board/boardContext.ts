@@ -9,4 +9,6 @@ export interface ContextoTablero {
   notasAbiertas: ReadonlySet<string>;
   claveFormulario: string | null;
   borrador: BorradorAsignacion | null;
+  /** Técnico con sesión (rol técnico): su columna se resalta. null para el dispatch o en el historial. */
+  miTecnicoId?: string | null;
 }

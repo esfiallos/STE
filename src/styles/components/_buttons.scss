@@ -116,7 +116,7 @@
 
 // Sin permiso de edición se ocultan los controles que modifican datos
 // (y en la foto histórica, que es de solo lectura).
-.modo-consulta [data-edit-only],
+.solo-lectura [data-edit-only],
 .board--historico [data-edit-only] {
   display: none !important;
 }

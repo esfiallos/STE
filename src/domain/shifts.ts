@@ -21,6 +21,17 @@ export const TURNOS: readonly Turno[] = [
 
 export const ETIQUETA_COMODIN = 'Comodín';
 
+/** Horarios permitidos para un comodín (D7). La base de datos exige los mismos (jornada_horario_comodin). */
+export const HORARIOS_COMODIN: readonly { inicio: string; fin: string }[] = [
+  { inicio: '06:00', fin: '16:00' },
+  { inicio: '07:00', fin: '17:00' },
+  { inicio: '08:00', fin: '18:00' }
+];
+
+export function esHorarioComodinValido(inicio: string, fin: string): boolean {
+  return HORARIOS_COMODIN.some((h) => h.inicio === inicio.slice(0, 5) && h.fin === fin.slice(0, 5));
+}
+
 export function esTurnoId(valor: string): valor is TurnoId {
   return TURNOS.some((turno) => turno.id === valor);
 }

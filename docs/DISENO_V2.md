@@ -1,0 +1,364 @@
+# Diseño v2 · Dispatch, Técnicos y Traspasos
+
+Rama de trabajo: **`desarrollo`** (nunca directo en `main`).
+Este documento traduce el requerimiento a cambios concretos sobre la arquitectura actual
+(ver `CLAUDE.md`). Las decisiones abiertas están al final.
+
+---
+
+## 1. Qué hay hoy y qué falta
+
+| Requerimiento | Estado actual | Brecha |
+|---|---|---|
+| Dashboard de asignación del día (dispatch) | ✅ Tablero turnos → técnicos → INC, Realtime | Filtro por técnico |
+| Bitácora de modificaciones | ✅ Triggers en BD | Registrar también traspasos, etiquetas, última actualización |
+| Guardar el estado final del día | ✅ `generar_snapshot_diario()` 23:59 | Cambiar hora/criterio al **día operativo** (§2) |
+| Turno **por día**, no por técnico | ❌ `tecnicos.turno` es fijo | Planificación diaria del dispatch (§3.2) |
+| Tablero limpio a las 06:00 | ❌ Los INC viven hasta que se borran | Día operativo 06:00 → 06:00 (§2) |
+| Búsqueda global de todos los casos y quién los llevó | ⚠ Solo snapshots + bitácora (texto) | Casos persistentes + historial de responsables (§3.3) |
+| Animaciones / feedback visual de dónde pasan las cosas | ⚠ Toast y sonido | Capa transversal de efectos (§6) |
+| Login: "olvidé mi contraseña" | ❌ | Flujo de recuperación de Supabase (§5.1) |
+| Roles dispatch / técnico | ❌ Todos editan; "Modo Consulta" manual | Tabla `perfiles` + RLS por rol; se elimina Modo Consulta |
+| Vista del técnico: sus tickets del día | ❌ | Módulo técnico (§5.2) |
+| Notificaciones y alertas de asignación | ❌ (sonido local) | Tabla `notificaciones` + Realtime (§3.5) |
+| Seguimiento (nuevos + en traspaso) | ❌ | Vista de seguimiento (§5.2) |
+| Traspasos al final del turno | ❌ (existe en `traspasos-noc` sobre Excel) | Módulo de traspasos sobre datos de la BD (§5.3) |
+| Estados (En curso, Pausado, Resuelto, Cerrado) + etiquetas (Crítico, Monitoreo, Pendiente) + nota personalizada | ❌ | Campos en caso / ítem de traspaso |
+| "Última actualización" por caso | ❌ | Campo de texto corto + fecha (§3.3) |
+| Exportar: texto enriquecido (Outlook), texto plano, Excel | ❌ | Portar `report.js` de `traspasos-noc` a `domain/` |
+
+---
+
+## 2. Concepto central: el **día operativo**
+
+- Un día operativo empieza a las **06:00** (hora de Honduras) y termina a las 06:00 del día siguiente.
+- Turnos dentro del día operativo `D`:
+  - **A** 06:00–14:00 · **B** 14:00–22:00 · **C** 22:00–06:00 (D → D+1).
+  - **Comodín**: horario elegido de una lista fija: **06:00–16:00 · 07:00–17:00 · 08:00–18:00**
+    (constante `HORARIOS_COMODIN` en `domain/shifts.ts`).
+  - **Almuerzo**: lo define el dispatch para cada técnico en la planificación del día.
+- Entre 00:00 y 05:59 la fecha operativa sigue siendo la de **ayer** (es el turno C).
+- El tablero muestra solo las asignaciones de la fecha operativa actual ⇒ a las 06:00 queda **limpio sin
+  borrar nada**: los datos de ayer siguen en la BD para historial y búsqueda.
+- Función pura nueva: `fechaOperativa(ahora: Date): string` en `domain/time.ts` (+ equivalente SQL).
+
+**Destino de un traspaso** (a quién puedo traspasar al terminar mi turno; el técnico elige caso por caso
+entre los técnicos con jornada en esos turnos):
+
+| Termino turno | Puede traspasar a | Fecha operativa del receptor |
+|---|---|---|
+| A | B · Comodín | mismo día (D) |
+| B | C | mismo día (D) |
+| B | A · Comodín | siguiente día (D+1) |
+| Comodín | C | mismo día (D) |
+| Comodín | A · Comodín | siguiente día (D+1) |
+| C | A · Comodín | siguiente día (D+1) |
+
+- Regla pura en `domain/handover.ts` → `destinosDeTraspaso(turnoOrigen, fecha)`; la misma regla se valida
+  en SQL dentro de `enviar_traspaso` (la UI no es la única barrera).
+- Como B, C y Comodín traspasan al **día siguiente**, el traspaso solo ofrece técnicos **ya planificados**
+  para D+1. Eso lo garantiza la planificación semanal (D5); si D+1 no tiene a nadie en A/Comodín, la
+  pantalla de traspaso lo avisa y no deja cerrar turno hasta que el dispatch lo planifique.
+
+---
+
+## 3. Modelo de datos (migración `sql/04_v2_modelo_base.sql`, idempotente) — ✅ Fase 1
+
+> **Estado:** implementada y probada (`tests/sql/modelo-v2.test.ts`). Es **aditiva**: no borra
+> `incidentes` ni `tecnicos.turno`, así la app actual sigue funcionando en DEV. El paso 9 copia el turno de
+> hoy a `jornadas` y los incidentes a `casos` (re-ejecutarla copia solo lo que falte).
+>
+> **Corte (fase 2, `sql/05_v2_corte.sql`) — ✅ hecho:** resincroniza lo que la app anterior cambió después
+> de la 04 (casos nuevos, reasignados y cerrados), borra `incidentes` y el turno fijo de `tecnicos`, RLS de
+> `tecnicos` solo dispatch, vista `casos_abiertos`, cron del snapshot operativo a las 05:59. `03_datos_demo_dev.sql`
+> reescrito: ya no vacía `perfiles`. Pruebas: `tests/sql/corte-v2.test.ts`.
+
+### 3.1 Usuarios y roles
+```
+perfiles (id uuid PK = auth.users.id, nombre, rol 'dispatch'|'tecnico', tecnico_id uuid unique null → tecnicos)
+```
+- Helpers SQL: `es_dispatch()`, `mi_tecnico_id()` (security definer, stable) para usar en RLS.
+- Un técnico (usuario) solo lee el tablero y edita **sus** casos; el dispatch edita todo.
+
+### 3.2 Técnicos y turno del día
+- `tecnicos`: se elimina `turno` y el horario de comodín (pasa al día). Queda: nombre, activo.
+- Nueva `jornadas` (una fila por técnico y fecha; la arma el dispatch en la **planificación semanal**):
+```
+jornadas (fecha_operativa date, tecnico_id, turno 'turnoA'|'turnoB'|'turnoC'|'comodin',
+          horario_inicio, horario_fin (solo comodín), almuerzo_inicio, almuerzo_fin,
+          unique (fecha_operativa, tecnico_id))
+```
+- Toda la lógica actual de `domain/shifts.ts` y `availability.ts` sigue igual, pero recibe la **jornada**
+  en lugar del técnico. Cambio acotado.
+- Migración de datos: el `turno` actual de cada técnico se copia como su jornada de hoy.
+
+### 3.3 Casos persistentes (sustituye a `incidentes`)
+```
+casos (id, codigo unique normalizado, cliente, area, descripcion, nota,
+       estado 'en_curso'|'pausado'|'resuelto'|'cerrado', etiqueta, tecnico_actual_id,
+       ultima_actualizacion text, ultima_actualizacion_en timestamptz, ultima_actualizacion_por,
+       creado_en, creado_por)
+
+caso_responsables (caso_id, tecnico_id, fecha_operativa, origen 'dispatch'|'traspaso'|'reasignacion',
+                   desde timestamptz, hasta timestamptz null)
+```
+- **Estados:** En curso · Pausado · Resuelto · Cerrado. Solo **Cerrado** saca el caso del flujo; *Resuelto*
+  sigue vivo (p. ej. en monitoreo) y se traspasa como los demás.
+- **Nunca se borran casos**: se cierran. "Eliminar" del dispatch = corrección (se registra en bitácora).
+- El tablero del día = responsables con `fecha_operativa = hoy` y `hasta is null`.
+- Búsqueda global = `casos` + `caso_responsables` (quién lo llevó y cuándo), sin depender de snapshots.
+- "Última actualización": un solo campo de texto corto que el técnico escribe; la BD guarda quién y cuándo.
+
+### 3.4 Traspasos
+```
+traspasos (id, de_tecnico_id, fecha_operativa, turno_origen, estado 'borrador'|'enviado', enviado_en)
+traspaso_items (traspaso_id, caso_id, para_tecnico_id, etiqueta, nota_personalizada, ultima_actualizacion)
+```
+- RPC `enviar_traspaso(id)` en **una transacción**: valida que **todos** mis casos no cerrados estén en el
+  traspaso con receptor y última actualización (mi carga queda en 0; si no, se rechaza), cierra el responsable actual, abre el del receptor (`origen = 'traspaso'`) con la fecha
+  operativa del destino (§2), crea notificaciones y entrada en bitácora.
+
+### 3.5 Notificaciones
+```
+notificaciones (id, tecnico_id, tipo 'asignado'|'traspaso'|'reasignado', caso_id, leida, creado_en)
+```
+- Las escribe un trigger (al abrir un responsable). La app solo lee y marca como leídas (RLS: solo las mías).
+- Realtime sobre `notificaciones` ⇒ alerta visual + sonido en la sesión del técnico.
+
+### 3.6 Snapshot
+- `generar_snapshot_diario()` pasa a recibir la fecha operativa y se basa en `casos` + `jornadas`.
+- Hora del cron: ver decisión abierta D1.
+
+---
+
+## 4. Arquitectura de la app (se mantienen las capas)
+
+```
+src/pages/
+  index.astro          → redirige según rol
+  login.astro          (+ recuperar contraseña)
+  restablecer.astro    nueva: fijar contraseña nueva desde el enlace del correo
+  dispatch.astro       tablero editable · planificación del día · bitácora · historial · búsqueda global
+  tecnico.astro        mi día · seguimiento · notificaciones · traspaso · búsqueda global
+src/domain/            + operativeDay.ts, handover.ts (reglas de traspaso), report.ts (Outlook/TSV), tags.ts
+src/services/          + perfilRepo, jornadasRepo, casosRepo, traspasosRepo, notificacionesRepo
+src/scripts/           + planning/, followUp/, handover/, notifications/, globalSearch/, ui/motion.ts
+```
+- El **rol se decide en la BD** (RLS); la UI solo esconde controles. Un técnico que manipule la página
+  no puede escribir lo que no le corresponde.
+- Se elimina `features/readOnlyMode.ts` (Modo Consulta): lo reemplaza el rol.
+- `report.js` / `sorting.js` / `clipboard.js` de `traspasos-noc` se portan a TS (`domain/report.ts`,
+  `scripts/ui/clipboard.ts` ya existe). Los parsers de Excel **no** se necesitan.
+
+---
+
+## 5. Módulos
+
+### 5.1 Login — ✅ Fase 3
+- "¿Olvidaste tu contraseña?" → `supabase.auth.resetPasswordForEmail(correo, { redirectTo: <base>/restablecer/ })`.
+- `/restablecer/` → `supabase.auth.updateUser({ password })`.
+- Requiere en Supabase (DEV y PROD): *Authentication → URL Configuration → Redirect URLs* con esa ruta.
+- Mejoras visuales: estados de carga, errores en línea, transición de entrada.
+- Hecho: panel "¿Olvidaste tu contraseña?" dentro del login (no revela si el correo existe; avisa si se pide
+  otro enlace demasiado pronto), página `/restablecer/` (detecta enlace vencido o abierto sin enlace, valida
+  8+ caracteres con letras y números, quita el token de la dirección y entra al panel), mostrar/ocultar
+  contraseña, aviso de Bloq Mayús, botón con indicador de carga, sacudida al fallar, animación de entrada
+  (se apaga con "reducir movimiento"). Configuración de Supabase: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1, pasos 7 y 8.
+
+### 5.2 Técnico — ✅ Fase 4
+
+> Hecho: pestaña **Mi seguimiento** (vista por defecto del técnico) con *Recibidos en traspaso* (incluye los
+> del próximo turno), *Nuevos de hoy* y *De días anteriores*; por caso: estado (cerrar pide confirmación), etiqueta
+> (sugeridas o propia), última actualización (Guardar o Ctrl+Enter), historial de responsables, copiar código o
+> resumen; "Copiar todos" en texto. Campana con no leídas, lista, marcar leída/todas, aviso + sonido en tiempo
+> real y alertas de escritorio opcionales. Su columna se resalta en el tablero. `sql/06_v2_seguimiento.sql` agrega
+> `origen_responsable` a `casos_abiertos`.
+
+- **Mi día**: versión de solo lectura del tablero del día, con mis casos resaltados y copiar código en 1 clic.
+- **Seguimiento**: mis casos abiertos agrupados en *Nuevos hoy* · *Recibidos en traspaso*;
+  cada uno con estado, etiqueta, última actualización (edición rápida en línea) e historial de responsables.
+- **Notificaciones**: campana con contador, panel con lista, alerta (toast + sonido + resaltado del caso).
+
+### 5.3 Traspasos (adaptación de `traspasos-noc`)
+1. Toma automáticamente **todos mis casos abiertos** (nuevos + recibidos).
+2. Pool de receptores = técnicos con jornada en el turno destino (§2).
+3. Por caso: receptor, estado (En curso · Pausado · Resuelto · Cerrado), etiqueta (Crítico, Monitoreo,
+   Pendiente, …), nota personalizada que se adjunta a la descripción, última actualización (obligatoria).
+4. Balanceo automático con candados (se porta `balancer.js`) y "Deshacer".
+5. Vista previa → copiar **texto enriquecido para Outlook**, **texto plano** o **TSV/Excel**.
+6. **Cerrar turno = enviar el traspaso.** El sistema **impide cerrar turno** mientras quede algún caso no
+   *Cerrado* sin receptor: la carga propia debe quedar en **0**. Los marcados *Cerrado* no se traspasan.
+7. Al enviar (RPC `enviar_traspaso`) los casos pasan al receptor y aparecen en su Seguimiento como
+   "Recibidos en traspaso".
+
+### 5.4 Dispatch
+- **Planificación semanal**: el lunes (día 1 de jornada) el dispatch arma la semana completa en una grilla
+  técnico × día: turno (A, B, C o Comodín con su horario de la lista) y almuerzo. Atajos: copiar la semana
+  anterior, copiar un día a otro.
+- **Revisión del día** (al inicio, 06:00): la planificación de hoy aparece para confirmarla o ajustarla por
+  eventualidades (ausencias, cambios de turno, almuerzos). Los cambios quedan en la bitácora.
+- Tablero actual + **filtro por técnico**.
+- **Búsqueda global**: todos los casos alguna vez creados, estado, responsable actual e historial.
+
+---
+
+## 6. Feedback visual (transversal)
+- Caso nuevo/movido: animación de entrada y destello en la columna destino (técnica FLIP al reasignar).
+- Columna que recibe un drag: realce; contador de la tarjeta con "pop" al cambiar.
+- Notificación: badge animado y desplazamiento al caso.
+- Todo en `scripts/ui/motion.ts` + parciales SCSS; respeta `prefers-reduced-motion`.
+
+---
+
+## 7. Plan por fases (cada fase = PR a `desarrollo`, con pruebas)
+
+| Fase | Contenido | Depende de |
+|---|---|---|
+| **1. Base de datos v2** ✅ | `perfiles`, `jornadas`, `casos`, `caso_responsables`, RLS por rol, día operativo, migración de datos, snapshot, pruebas SQL | — |
+| **2. Dispatch v2** ✅ | Planificación semanal + revisión del día, tablero por fecha operativa, filtro por técnico, quitar Modo Consulta, enrutamiento por rol, corte (`05`) | 1 |
+| **3. Login** ✅ | Recuperar/restablecer contraseña, pulido visual | — (paralelo) |
+| **4. Técnico** ✅ | Mi día, Seguimiento, última actualización, notificaciones + alertas (`06`) | 1, 2 |
+| **5. Casos + Traspasos** ✅ | §10.1 (áreas, campos del técnico, actividad) + armado, balanceo, etiquetas (+VM), recordatorio por fecha, export Outlook/TSV, envío transaccional, **Mis traspasos** (§10.4–10.6) | 4 |
+| **6. Coordinador** ✅ | Rol nuevo, buscador global (absorbe la antigua fase "Búsqueda global"), panel de estadísticas, alertas 2/4/6 h (§10.3) | 5 |
+| **7. Ronda** ✅ | Botón "Asignar a la ronda" del dispatch, rotativa alfabética por turno (§10.2) | 5 |
+| **8. Planificación con solicitudes** ✅ | Dispatch en solo lectura + solicitud de edición por día; planificación completa para coordinación (§10.7) | 6 |
+| **9. Animaciones** ✅ | Capa de efectos y pulido | 2, 4 |
+
+> Orden revisado el 19/11/2026 al sumar los requerimientos de §10. Cada fase con su migración `sql/0N_*.sql`.
+
+---
+
+## 8. Decisiones tomadas
+- **D1. Snapshot:** a las **05:59**, cierre del día operativo (incluye el turno C).
+- **D2. Fin de turno:** todo caso que no esté *Cerrado* **debe** traspasarse; no se puede cerrar turno con
+  carga propia distinta de 0. No existen casos "arrastrados" sin traspaso.
+- **D3. Rol dispatch:** se otorga **solo por SQL** (administrador). No hay pantalla de usuarios.
+- **D4. Roles separados:** un dispatch no tiene casos propios ni Seguimiento.
+- **D5. Planificación:** es **semanal**. El dispatch arma la semana el lunes y cada mañana revisa el día
+  por eventualidades. El traspaso solo ofrece receptores ya planificados.
+- **D6. Destinos de traspaso:** A → B/Comodín (mismo día) · B → C (mismo día) o A/Comodín (día siguiente) ·
+  Comodín → C (mismo día) o A/Comodín (día siguiente) · C → A/Comodín (día siguiente).
+- **D7. Comodín:** horarios fijos 06–16, 07–17, 08–18. Almuerzos a elección del dispatch.
+- **D8–D15** (19/11/2026): ver §10. Cambian D3 (hay un tercer rol, **coordinador**) y D5 (la planificación la
+  hace coordinación; el dispatch solo la edita por día con solicitud aprobada).
+
+---
+
+## 9. Fase 2 en la app (qué cambió) y orden de despliegue
+
+**En la app**
+- Al entrar se lee el perfil: **dispatch** edita; **técnico** ve el tablero en solo lectura (hasta la fase 4);
+  sin perfil, pantalla "Tu usuario aún no tiene un rol". Desaparece el botón Modo Consulta.
+- Tablero = técnicos con jornada en la **fecha operativa** + casos abiertos de ese día. Arriba, la franja
+  **Por reasignar**: casos abiertos cuyo responsable no trabaja hoy (se arrastran a un técnico disponible).
+- **Filtro por técnico** en la barra, y el día operativo visible.
+- "Quitar" un caso ahora lo **cierra** (no lo borra). Asignar un código cerrado ofrece **reabrirlo**.
+- **Gestionar técnicos**: solo nombre; activar/desactivar en lugar de eliminar.
+- Pestaña **Planificación** (solo dispatch): semana lunes–domingo, turno por celda (comodín con su horario),
+  almuerzo por celda, días pasados bloqueados, cobertura por día, **Copiar semana anterior**.
+
+**Orden de despliegue (DEV primero, después PROD)**
+1. `05_v2_corte.sql` y luego `06_v2_seguimiento.sql` en la base (la 04 ya debe estar aplicada).
+2. Crear los perfiles: el tuyo como `dispatch` y los técnicos con su `tecnico_id`. Sin perfil, el usuario no
+   entra al panel.
+3. DEV: opcionalmente `03_datos_demo_dev.sql` y probar con `bun run dev`.
+4. PROD: hacer 1 y 2 **justo antes** de unir `desarrollo` → `main` (el despliegue tarda unos minutos y en ese
+   intervalo la app publicada anterior deja de funcionar, porque ya no existe `incidentes`).
+5. Revisar en Planificación la semana en curso: la 05 solo crea la jornada de **hoy** a partir del turno fijo.
+
+---
+
+## 10. Requerimientos v2.1 (19/11/2026)
+
+Reglas nuevas pedidas por el usuario. Las decisiones D8–D15 ya están tomadas: no re-preguntarlas.
+Lo marcado como **Supuesto** es criterio propio para completar la regla; confirmarlo al implementar la fase.
+
+### 10.1 Datos del caso: quién llena qué (fase 5) — ✅ `sql/07_v2_traspasos.sql`
+- **D8.** El **dispatch** crea el caso solo con **código + nota** (la nota suele llevar empresa e ID de enlace).
+  Su tablero muestra solo incidente, nota y técnico.
+- El **técnico** registra en **sus** casos: **área**, **empresa** (`casos.cliente`), estado, etiqueta y
+  última actualización. Hay que abrir `area` y `cliente` en el trigger `casos_antes_de_guardar` (hoy los bloquea).
+- El **coordinador** solo lee todos los campos.
+- **Áreas (catálogo fijo):** CPE · PLEX · TX · CORE CS · CORE IP · CORE PS · SIO · SOPORTE DIGITAL · FRESH ·
+  REDPRO · PVR · REGIONAL · COMERCIAL. La constante va en `domain/` y el check en SQL, con una prueba que verifica
+  que coincidan. Los casos existentes con otra área (en DEV hay demo: "DATACENTER", "ENLACES B2B"…) se dejan en
+  `null` en la migración, y antes se copian a la bitácora.
+- **D9. Actividad del técnico:** toda edición del técnico sobre su caso (estado, etiqueta, área, empresa,
+  última actualización) cuenta como actualización. Columna nueva `casos.actividad_tecnico_en`, que escribe el
+  trigger. Es la referencia de las alertas (§10.3).
+
+### 10.2 Asignar a la ronda (fase 7) — ✅ `sql/09_v2_ronda.sql`
+- Junto al botón actual (asignar a un técnico concreto), el dispatch tiene **"Crear y asignar a la ronda"**:
+  crea el caso y lo asigna al **siguiente técnico de la ronda**.
+- **D10. Ronda rotativa alfabética por turno:** candidatos = técnicos **disponibles ahora** (en horario y fuera
+  de almuerzo, `domain/availability.ts`) ordenados por nombre (orden español, sin acentos ni mayúsculas). Se
+  recuerda quién recibió el último caso de la ronda **en el turno actual** (A 06–14, B 14–22, C 22–06) y se
+  asigna al siguiente en orden; al final se vuelve al primero. El puntero se reinicia al empezar cada turno.
+- La elección se hace en SQL (RPC `asignar_a_ronda(codigo, nota)` con bloqueo de la fila del puntero, tabla
+  `ronda_estado(fecha_operativa, turno, ultimo_tecnico_id)`) para que dos dispatch a la vez no le den el caso al
+  mismo técnico. Misma regla pura en `domain/` con prueba de coincidencia.
+- **Supuesto:** la asignación manual a un técnico concreto **no** mueve el puntero. Los comodines participan
+  mientras estén en horario. Si nadie está disponible, error claro y no se crea el caso.
+- Implementado: el puntero guarda el **nombre** del último; si esa persona ya no está disponible (almuerzo, fin de
+  turno), el caso va a quien sigue después de ella en el orden. La ronda solo crea casos nuevos: un código que ya
+  existe (abierto o cerrado) se asigna o reabre con "Asignar al técnico". El modal muestra el siguiente como vista
+  previa; la elección real la hace `asignar_a_ronda()` en la base (con el puntero bloqueado).
+
+### 10.3 Rol Coordinador (fase 6) — ✅ `sql/08_v2_coordinador.sql`
+- **D11.** Tercer rol `coordinador` (se otorga por SQL, igual que dispatch; sin `tecnico_id`). Helper
+  `es_coordinador()`. Lee todo: casos, responsables, jornadas, traspasos e ítems, notificaciones de sistema y bitácora.
+- **Buscador global:** todos los casos alguna vez creados (código, empresa, área, nota, estado, etiqueta, última
+  actualización con autor y hora, responsable actual e historial de responsables y traspasos con su nota).
+  Función SQL `buscar_casos(termino)` + ficha del caso. Absorbe la antigua fase 6 "Búsqueda global";
+  **Supuesto:** también se ofrece al dispatch, en solo lectura.
+- **Panel principal:** total de tickets del día operativo (casos con responsable en la fecha de hoy) y cantidad
+  por estado (En curso · Pausado · Resuelto · Cerrado). En tiempo real.
+- **D12. Alertas por falta de actualización:** 3 niveles, a las **2 h, 4 h y 6 h** sin actividad del técnico.
+  Referencia = la más reciente entre `actividad_tecnico_en` y la hora en que el responsable actual recibió el
+  caso. Las genera pg_cron cada 5 min en una tabla nueva (`alertas_coordinacion`: caso, técnico, nivel, desde,
+  leída), una por caso y nivel desde esa referencia; una actualización nueva reinicia el conteo. Llegan a la
+  campana del coordinador (Realtime + sonido + alerta de escritorio opcional).
+  **Supuesto:** solo cuentan los casos no cerrados cuyo responsable **está en su turno**; las horas fuera de
+  turno no suman (un caso recibido para el turno siguiente no alerta antes de que ese turno empiece).
+- Implementado así: referencia = lo más reciente entre `actividad_tecnico_en`, la recepción del caso y el inicio del
+  turno de hoy; solo se evalúa entre `inicio_de_turno()` y `fin_de_turno()`. Una actualización nueva (o cerrar o
+  reasignar el caso) deja leídas las alertas anteriores. "Leída" es compartida por todos los coordinadores.
+  La campana y el panel muestran una alerta por caso (la de más horas); abrirla atiende las del caso y lo abre en
+  el buscador.
+
+### 10.4 Etiqueta VM (fase 5) — ✅
+- Se suma **VM** a las etiquetas sugeridas (`ETIQUETAS_SUGERIDAS`): indica que al caso se le programó una VM.
+
+### 10.5 Recordatorio con fecha en el traspaso (fase 5) — ✅
+- **D13.** En cada ítem del traspaso se puede dejar un **recordatorio** con **fecha** y texto (p. ej. "VM
+  programada"). Al enviar, el recordatorio se guarda en el **caso** (sigue al caso aunque cambie de manos).
+- El aviso llega **al inicio del turno** del técnico que tenga el caso ese día (inicio de su jornada de esa
+  fecha; para comodín, su `horario_inicio`). Lo genera pg_cron cada 5 min como notificación de tipo
+  `recordatorio`.
+- **Supuesto:** si ese día el responsable no tiene jornada, el aviso sale a las 06:00 y además se muestra al
+  coordinador (esto último, en la fase 6).
+- Implementado: `inicio_de_turno(tecnico, fecha)` + `generar_recordatorios(ahora)` (pg_cron `recordatorios-traspaso`,
+  cada 5 min). Cambiar la fecha o el texto lo vuelve a dejar pendiente. `enviar_traspaso` rechaza un recordatorio
+  con texto sin fecha o con fecha pasada.
+- `traspaso_items.fecha_destino` (lo escribe `enviar_traspaso`) permite listar lo recibido por día.
+
+### 10.6 Mis traspasos (fase 5) — ✅
+- Panel del técnico para consultar sus traspasos por **fecha**: los que **envió** (a quién pasó cada caso, con
+  estado, etiqueta, nota y última actualización) y los que **recibió**. Desde ahí puede volver a copiar el
+  reporte (Outlook, texto, TSV). Solo lectura.
+
+### 10.7 Planificación con solicitudes (fase 8) — ✅ `sql/10_v2_planificacion.sql`
+- **D14.** Para el **dispatch** la planificación pasa a **solo lectura**. Para editar un día concreto envía una
+  **solicitud a coordinación** con fecha y **motivo** (p. ej. falta de un técnico). Si coordinación la aprueba,
+  ese día (solo ese) queda editable para el dispatch. Tabla `solicitudes_planificacion` (fecha_operativa,
+  motivo, solicitante, estado pendiente/aprobada/rechazada, resuelta_por, resuelta_en). La campana avisa al
+  coordinador al llegar una y al dispatch con la respuesta.
+- La **planificación completa** (semana, copiar semana anterior, etc.) vive en la versión del **coordinador**.
+- **D15.** Nadie edita días pasados: solo **hoy en adelante**. Una semana ya pasada es inmutable (sus casos ya
+  se traspasaron). Lo impone la BD (RLS + trigger en `jornadas`), no solo la UI.
+- **Supuesto:** una aprobación vence al terminar ese día operativo.
+- Implementado: "ese día operativo" = el día en que coordinación **aprueba** (vence a las 06:00 siguientes), así una
+  aprobación para un día futuro no queda abierta varios días. El almuerzo cuenta como planificación (necesita el
+  permiso). La aprobación habilita al rol dispatch (cualquier usuario dispatch). Una solicitud pendiente de un día
+  que ya pasó queda como "Sin responder". Avisos: la campana de coordinación suma las solicitudes por responder; el
+  dispatch tiene una campana propia con las respuestas (y aviso en pantalla al llegar).

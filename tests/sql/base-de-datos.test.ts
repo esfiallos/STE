@@ -135,18 +135,5 @@ describe('datos de demostración de desarrollo', () => {
     await expect(db.exec(leer('03_datos_demo_dev.sql'))).rejects.toThrow(/NO es la base de desarrollo/);
     expect((await db.query<{ n: number }>('select count(*)::int n from tecnicos')).rows[0]!.n).toBe(1);
   });
-
-  it('en la base de desarrollo cargan técnicos, casos y un snapshot de ayer', async () => {
-    const db = await crearBaseConSupabaseSimulado();
-    await db.exec(leer('01_schema_inicial.sql'));
-    await db.exec(migracionSinCron);
-    await db.exec('create table public.entorno_dev (id int)');
-    await db.exec(leer('03_datos_demo_dev.sql'));
-
-    const n = async (tabla: string) => (await db.query<{ n: number }>(`select count(*)::int n from ${tabla}`)).rows[0]!.n;
-    expect(await n('tecnicos')).toBe(6);
-    expect(await n('incidentes')).toBe(6);
-    expect(await n('historial_snapshots')).toBe(1);
-    expect((await db.query(`select 1 from tecnicos where turno = 'comodin'`)).rows).toHaveLength(1);
-  });
+  // La carga en la base de desarrollo (modelo v2) se prueba en corte-v2.test.ts
 });

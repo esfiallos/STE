@@ -30,7 +30,7 @@ export function iniciarDragAndDrop(alTerminar: () => void): void {
     const tarjeta = evento.target instanceof Element ? evento.target.closest<HTMLElement>('.incident-item-card') : null;
     if (!tarjeta) return;
 
-    if (appStore.get().modoConsulta) {
+    if (appStore.get().soloLectura) {
       evento.preventDefault();
       return;
     }

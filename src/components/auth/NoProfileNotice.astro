@@ -1,0 +1,15 @@
+---
+// Se muestra cuando el usuario inició sesión pero el administrador aún no le asignó un rol (tabla perfiles).
+---
+
+<main id="noProfileNotice" class="login-page hidden">
+  <div class="login-card no-profile">
+    <i class="fa-solid fa-user-lock no-profile__icon" aria-hidden="true"></i>
+    <h1>Tu usuario aún no tiene un rol</h1>
+    <p>
+      Iniciaste sesión como <strong id="noProfileEmail"></strong>, pero el administrador todavía no te asignó
+      el rol de <em>dispatch</em> o de <em>técnico</em>. Pídeselo y vuelve a entrar.
+    </p>
+    <button id="btnNoProfileLogout" type="button" class="btn btn-primary">Cerrar sesión</button>
+  </div>
+</main>

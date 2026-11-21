@@ -1,31 +1,164 @@
 # Panel NOC · Traspasos y Turnos — contexto rápido
 
-Panel web en tiempo real para un NOC: incidentes (INC) asignados a técnicos por turno, almuerzos,
-búsqueda, Modo Consulta (solo lectura), historial diario (snapshots) y bitácora de cambios.
+Panel web en tiempo real para un NOC: casos (INC/SCTASK…) asignados a técnicos según su turno **del día**,
+planificación semanal, almuerzos, seguimiento del técnico con notificaciones, historial diario (snapshots) y
+bitácora. Roles: **dispatch** (asigna y planifica), **técnico** (tablero en solo lectura + su seguimiento y
+traspaso) y **coordinador** (panel con estadísticas y alertas, buscador global; solo lee).
 Todo el código, nombres y mensajes están **en español**; mantén ese idioma.
 
 **Stack:** Astro 7 (sitio estático, sin SSR) · TypeScript estricto · SCSS · Supabase (Auth, Postgres, RLS,
 Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub Pages (rama `gh-pages`).
 
+---
+
+## ▶ Cómo retomar en un contexto nuevo (leer primero)
+
+1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
+2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
+   §8 decisiones D1–D15, §9 despliegue, §10 requerimientos v2.1). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 30 archivos, 206 pruebas). En una máquina cargada
+   vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
+4. Las 9 fases del diseño v2 están hechas. Siguiente: aplicar 07–10 en Supabase, poblar perfiles, probar contra
+   DEV en el navegador y publicar (`docs/DISENO_V2.md` §9). Pendientes menores en "Otros pendientes conocidos".
+5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
+   actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
+6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
+   usuario lo pide; nunca ejecutes migraciones ni escrituras en PROD sin su confirmación explícita.
+
+## Estado (al 19/11/2026)
+
+| Fase | Estado | Qué quedó |
+|---|---|---|
+| 1. BD v2 | ✅ | `sql/04_v2_modelo_base.sql` (aditiva) |
+| 2. Dispatch v2 + corte | ✅ | `sql/05_v2_corte.sql`, planificación semanal, tablero por día operativo, "Por reasignar", filtro por técnico, roles |
+| 3. Login | ✅ | Recuperar contraseña (panel en `/login/`), página `/restablecer/`, mejoras visuales |
+| 4. Técnico | ✅ | `sql/06_v2_seguimiento.sql`, pestaña **Mi seguimiento**, campana de notificaciones + alertas, su columna resaltada |
+| 5. Casos + Traspasos | ✅ | `sql/07_v2_traspasos.sql`, pestañas **Traspaso** y **Mis traspasos**, área/empresa en Mi seguimiento, etiqueta VM, recordatorios |
+| 6. Coordinador | ✅ | `sql/08_v2_coordinador.sql`, pestañas **Panel** y **Buscar casos**, campana de alertas 2/4/6 h |
+| 7. Ronda | ✅ | `sql/09_v2_ronda.sql`, botón **Asignar a la ronda** en Nuevo caso con vista previa del siguiente |
+| 8. Planificación con solicitudes | ✅ | `sql/10_v2_planificacion.sql`, coordinación planifica; el dispatch pide permiso por día (campanas en ambos roles) |
+| 9. Animaciones | ✅ | Tablero: FLIP al mover, entrada + destello del caso nuevo, pop del contador, realce de la columna (`ui/motion.ts`) |
+
+**Bases de datos (revisado con el conector el 19/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
+DEV = `DEV` (`bofqefbxziqxzrdujihd`).
+- DEV y PROD: 04, 05 y 06 aplicadas; la **07, 08, 09 y 10 aún no** (las ejecuta el usuario, en orden). Cron 05:59 funcionando.
+- 19/11/2026, a pedido del usuario: se **vaciaron todas las tablas** de `public` en DEV y PROD (casos, jornadas,
+  técnicos, perfiles, traspasos, notificaciones, snapshots y bitácora). Se conservan los usuarios de `auth` y
+  `entorno_dev` en DEV. El usuario las poblará al terminar la nueva arquitectura: sin perfiles nadie entra.
+- PROD: la app publicada (`main`, que aún usa `incidentes`) **no funciona** hasta publicar la v2.
+
+**Configuración pendiente (la hace el usuario):** en Supabase DEV y PROD agregar `/restablecer/` a
+*Authentication → URL Configuration → Redirect URLs* y configurar SMTP propio (el correo incluido solo envía al
+equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
+
+**No verificado en navegador contra Supabase real:** fases 2 y 4 (solo pruebas con backend simulado). El login y
+`/restablecer/` sí se revisaron visualmente en `bun run dev` (sin enviar nada).
+
+## Lo que falta
+
+### Fase 5 — Casos + Traspasos ✅ (qué quedó)
+- `sql/07_v2_traspasos.sql`: áreas fijas (`areas_de_caso()` = `domain/areas.ts`), el técnico edita área y empresa
+  (`cliente`), `casos.actividad_tecnico_en` (la escribe el trigger con cualquier edición del técnico), recordatorio
+  (`traspaso_items` → `casos.recordatorio_*`, `generar_recordatorios()` por pg_cron cada 5 min, aviso tipo
+  `recordatorio` al inicio del turno del responsable), `traspaso_items.fecha_destino`, vista `casos_abiertos` +3 columnas.
+- Dominio: `handoverBalance.ts` (reparto con candados), `handoverReport.ts` (Outlook/texto/TSV, todo escapado),
+  `handoverDraft.ts` (receptores, borrador precargado, problemas para cerrar turno). `services/traspasosRepo.ts`.
+- Pestaña **Traspaso** (`scripts/handover/handoverView.ts`): el borrador se crea al primer cambio y se guarda solo;
+  repartir sin receptor / rebalancear / deshacer, vista previa en `iframe sandbox`, copiar (Outlook usa el evento
+  `copy`, sin `innerHTML`), **Cerrar turno** guarda y llama a `enviar_traspaso`.
+- Pestaña **Mis traspasos** (`myHandoversView.ts`): entregados y recibidos de un día, con el reporte para copiar.
+- Mi seguimiento: área (lista), empresa, chip de recordatorio y la nota de quien entregó.
+- Límite conocido: un traspaso por técnico y día; si llegan casos después de enviarlo, la pestaña lo avisa y el
+  dispatch debe reasignarlos.
+
+### Fase 6 — Coordinador ✅ (qué quedó)
+- `sql/08_v2_coordinador.sql`: rol `coordinador` (por SQL, sin `tecnico_id`) + `es_coordinador()`; lee traspasos e
+  ítems de todos; `buscar_casos(termino, limite)` (código, empresa, área, nota, etiqueta, actualización, técnico actual
+  o del historial; `%`/`_` literales; cerrados al final); `estadisticas_del_dia(fecha)`; tabla `alertas_coordinacion`
+  (RLS solo coordinador, solo puede marcar `leida`, Realtime) que llena `generar_alertas_coordinacion()` (cron cada
+  5 min): 2/4/6 h sin actividad, contando solo dentro del turno del responsable (`fin_de_turno()`); una actualización
+  o un cierre deja leídas las anteriores. `generar_recordatorios()` ahora también avisa a coordinación si el
+  responsable no tiene jornada ese día.
+- Dominio `coordination.ts` (estadísticas, alertas activas: una por caso, la más grave). `coordinacionRepo.ts`,
+  `traspasosRepo.listarTraspasosDelCaso`.
+- Pestaña **Panel** (`scripts/coordination/coordinatorPanel.ts`, vista por defecto del coordinador): tickets del día
+  por estado (se relee al cambiar los casos) y alertas por atender. Campana propia (`alertsBell.ts`): al abrir una
+  alerta se atienden las del caso y se abre en el buscador.
+- Pestaña **Buscar casos** (`scripts/caseSearch/caseSearchView.ts`, coordinador y dispatch): ficha con responsables y
+  traspasos (nota de quien entregó).
+- CSS: `body.rol-coordinador` + `[data-coordinador-only]`; `[data-supervision-only]` = dispatch o coordinador.
+
+### Fase 7 — Ronda ✅ (qué quedó)
+- `sql/09_v2_ronda.sql`: `ronda_estado` (puntero por día operativo y turno; leen dispatch y coordinación; Realtime),
+  `hora_en_rango`, `turno_en_curso`, `clave_de_ronda` (= `domain/round.ts`, comparada con `collate "C"`),
+  `tecnicos_de_la_ronda(ahora)` (jornada hoy, activo, en horario, fuera de almuerzo) y
+  `asignar_a_ronda(codigo, nota)`: solo dispatch, rechaza códigos existentes (23505), bloquea el puntero, crea el caso
+  (origen `dispatch`, notifica) y anota `asignado_por_ronda` en la bitácora. Asignar a mano no mueve el puntero.
+- `domain/round.ts` (`siguienteEnRonda`, `turnoEnCurso`), `services/rondaRepo.ts`, `asignarIncidenteARonda`.
+- Modal **Nuevo caso**: botón **Asignar a la ronda** (además de "Asignar al técnico") y "Siguiente en la ronda: X"
+  (vista previa; decide la base). Un código ya en el tablero o en el historial se asigna a un técnico concreto.
+
+### Fase 8 — Planificación con solicitudes ✅ (qué quedó)
+- `sql/10_v2_planificacion.sql`: `solicitudes_planificacion` (una pendiente por día; leen dispatch y coordinación; el
+  dispatch solo puede marcar `respuesta_vista`; Realtime), `fin_del_dia_operativo()`, `puede_planificar(fecha)`,
+  `solicitar_edicion_planificacion(fecha, motivo)` (dispatch) y `resolver_solicitud_planificacion(id, aprobar,
+  respuesta)` (coordinación; la aprobación vence al terminar el día operativo en que se aprueba). `jornadas`: RLS
+  (dispatch o coordinación, de hoy en adelante) + trigger `jornadas_validar_permiso` con mensajes claros. Sin usuario
+  (SQL Editor, cron) no se limita. Todo en la bitácora.
+- Dominio `planningRequests.ts` (`diaEditable` = `puede_planificar`, `estadoDelDia`, `problemaDeSolicitud`, textos,
+  novedades para avisar). `services/solicitudesRepo.ts`, `actions/planningRequestActions.ts`.
+- Planificación (`planningView.ts`): pestaña para dispatch y coordinación. Coordinación edita y copia la semana y
+  responde las solicitudes ("Por responder", con respuesta opcional). El dispatch ve la grilla bloqueada salvo los
+  días habilitados, y pide permiso (día de la semana visible + motivo). Chips en el encabezado
+  ("Solicitud pendiente", "Editable hasta 06:00"), lista de recientes e insignia en la pestaña.
+- Campanas: la de coordinación (`alertsBell.ts`) suma las solicitudes por responder; el dispatch tiene la suya
+  (`planning/requestsBell.ts`) con las respuestas. `planningRequestsSync.ts` relee con Realtime y avisa.
+- El almuerzo también es planificación: el dispatch lo cambia solo con permiso del día.
+
+### Fase 9 — Animaciones ✅ (qué quedó)
+- `domain/boardChanges.ts`: compara el **estado** de dos dibujos (no el DOM): casos nuevos, movidos, técnicos que
+  reciben y contadores que cambian. Sin dibujo anterior o con cambio de día operativo no anima; colapsar, buscar o
+  filtrar tampoco.
+- `scripts/ui/motion.ts`: mide las tarjetas antes de `replaceChildren` y anima después: FLIP (Web Animations, se
+  omite con movimiento reducido) y clases `is-entering`, `is-moved`, `is-receiving`, `is-popping`. Si se redibuja a
+  media animación la retoma con `animation-delay` negativo. Lo usa `board/renderBoard.ts`.
+- `styles/components/_motion.scss` (máx. 900 ms = `DURACION_ANIMACION_MS`); `_base.scss` las apaga con
+  `prefers-reduced-motion`. Se animan también los cambios que llegan de otros usuarios (Realtime).
+
+### Otros pendientes conocidos
+- `03_datos_demo_dev.sql` no crea perfiles: para probar el rol técnico, enlazar un perfil a un técnico demo
+  (`insert into perfiles (id, nombre, rol, tecnico_id) ...`).
+- Las alertas de escritorio solo salen si el técnico las activa y la pestaña no está a la vista.
+
+---
+
 ## Comandos
 
 ```bash
-bun run dev         # local, usa .env.development (base Supabase DEV)
+bun run dev         # local, usa .env.development (base Supabase DEV); http://localhost:4321
 bun run check       # tipos (astro check)
 bun run test:unit   # solo tests/domain, rápido, sin build
 bun run test        # build + todas las pruebas (igual que el CI)
 ```
+`.claude/launch.json` tiene `panel-dev` para levantar el servidor desde el panel de vista previa.
 
 ## Arquitectura (cada capa solo conoce la de abajo)
 
 ```
 pages/ + components/   Marcado Astro sin lógica. Lo dinámico son <template> que scripts/ clona.
+  index.astro          Panel · Tablero · Buscar casos · Mi seguimiento · Traspaso · Mis traspasos ·
+                       Planificación · Historial · Bitácora (según rol)
+  login.astro          Entrar + recuperar contraseña   ·   restablecer.astro: contraseña nueva
         │
 scripts/               Comportamiento en el navegador
-  main.ts              Arranque: sesión → iniciar módulos → store.subscribe(render) → sync
-  board/               Vistas del tablero, eventos, drag & drop, renderScheduler
+  main.ts              Arranque: sesión → perfil/rol → iniciar módulos → store.subscribe(render) → sync
+  auth/                loginPage, resetPage, authUi (mostrar contraseña, Bloq Mayús, carga, sacudida)
+  board/               Vistas del tablero (+ franja "por reasignar"), eventos, drag & drop, renderScheduler
+  planning/            Planificación semanal (coordinación edita; dispatch pide permiso por día), solicitudes y su campana
+  followUp/            Mi seguimiento del técnico (estado, etiqueta, última actualización, historial)
+  notifications/       Campana del técnico: lista, no leídas, tiempo real, alertas de escritorio
   modals/              Un controlador por modal + assignFlow (reglas de asignación compartidas)
-  features/            Pestañas, buscador, Modo Consulta, sesión, estado de conexión
+  features/            Pestañas (según rol), buscador, filtro por técnico, sesión, estado de conexión
   history/ audit/      Vistas de Historial y Bitácora
   actions/             Casos de uso: service → recarga (cargarDatos) → aviso/sonido
   ui/                  toast, sonido, portapapeles, tablas, formato
@@ -33,9 +166,12 @@ scripts/               Comportamiento en el navegador
 state/                 appStore (createStore: get/set/subscribe) + sync.ts (Realtime + respaldo)
         │
 services/              ÚNICO lugar que habla con Supabase. Repos devuelven Resultado<T>, nunca lanzan.
+                       authService, perfilRepo, tecnicosRepo (catálogo), jornadasRepo, casosRepo,
+                       notificacionesRepo, historialRepo, bitacoraRepo, realtime
         │
-domain/                Reglas puras (sin DOM ni Supabase): turnos, tiempo, disponibilidad, almuerzo,
-                       métricas, búsqueda, asignaciones, bitácora
+domain/                Reglas puras (sin DOM ni Supabase): time (día operativo, semanas), shifts, availability,
+                       lunch, planning, handover (traspasos), followUp (seguimiento/notificaciones), credentials,
+                       metrics, search, assignments, audit
 types/                 noc.ts (modelo) y result.ts (Resultado, exito, falla)
 styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variables.scss
 ```
@@ -43,12 +179,15 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 ### Flujo de datos
 
 1. Acción del usuario → `scripts/actions/*` → `services/*Repo` (Supabase) → `Resultado`.
-2. Si ok → `cargarDatos()` relee técnicos + incidentes → `appStore.set()`.
-3. El store notifica → `solicitarRender()` redibuja tablero y métricas (se pospone si hay drag o
-   escritura en un formulario de tarjeta).
-4. Otros clientes: Realtime (`services/realtime.ts`) solo avisa "hubo cambios" → `solicitarSincronizacion()`
-   (debounce 150 ms). Respaldo: relectura cada 60 s, al volver a la pestaña y al recuperar red.
-5. Cada 30 s se re-renderiza solo para refrescar estados dependientes de la hora.
+2. Si ok → `cargarDatos()` relee catálogo + jornadas de la fecha operativa + `casos_abiertos` → `appStore.set()`:
+   `tecnicos` (catálogo + jornada, vía `tecnicosDelDia()`), `incidentes` (tablero de hoy, `casosDelTablero()`) y
+   `casosAbiertos` (todos, base de Mi seguimiento: incluye lo recibido para el próximo turno).
+3. El store notifica → `solicitarRender()` redibuja tablero y métricas; Mi seguimiento y la campana también se
+   suscriben. Ambos posponen el redibujo mientras se escribe o se arrastra.
+4. Otros clientes: Realtime (tecnicos, jornadas, casos, caso_responsables) solo avisa "hubo cambios" →
+   `solicitarSincronizacion()` (debounce 150 ms). Respaldo: relectura cada 60 s, al volver a la pestaña y al
+   recuperar red. Las notificaciones llegan por su propio canal (`suscribirNotificaciones`, filtro por técnico).
+5. Cada 30 s se re-renderiza por la hora; si cambió la fecha operativa (06:00) se vuelve a leer todo.
 
 ## Reglas del proyecto (respetar siempre)
 
@@ -56,37 +195,68 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - Solo `services/` importa `supabaseClient`. Errores → `errorDeBaseDeDatos()` → `falla(...)` con mensaje en español.
 - `.astro` = solo marcado; la lógica en `scripts/`, un archivo por responsabilidad.
 - Texto de usuario (código, nota, nombre) siempre vía `textContent`. **Nunca `innerHTML` con datos.**
-- Mapeo snake_case (BD) ↔ camelCase (TS) se hace en cada repo (`aIncidente`, etc.).
-- Los horarios de turnos viven solo en `src/domain/shifts.ts` (`TURNOS`).
+- Mapeo snake_case (BD) ↔ camelCase (TS) se hace en cada repo (`aIncidente`, `aJornada`, `aNotificacion`…).
+- Los permisos los impone la BD (RLS + triggers); la UI solo oculta: `body.solo-lectura` + `[data-edit-only]`
+  (sin rol dispatch) y `body.rol-tecnico` + `[data-tecnico-only]` (solo técnicos enlazados).
+- Casos y técnicos **no se borran**: los casos se cierran, los técnicos se desactivan.
+- Reglas duplicadas a propósito en SQL y TS, con prueba que verifica que coincidan:
+  `desfase_traspaso()` = `domain/handover.ts`; horarios de comodín (`jornada_horario_comodin`) = `HORARIOS_COMODIN`.
+- Navegar con `irA()` (`scripts/routes.ts`), no con `window.location.replace` directo (las pruebas lo sustituyen).
 
 ## Dominio clave
 
-- Turnos: A 06–14, B 14–22, C 22–06 (cruza medianoche). **Comodín**: horario propio, aparece en todos los
-  turnos que su horario toca.
+- **Día operativo** 06:00 → 06:00 (Honduras): `fechaOperativa()` / `public.fecha_operativa()`. A las 06:00 el
+  tablero queda limpio sin borrar nada; los casos abiertos de un responsable que no trabaja hoy salen en
+  "Por reasignar".
+- Turnos: A 06–14, B 14–22, C 22–06. **Comodín**: 06–16, 07–17 u 08–18; aparece en los turnos que toca.
+  El turno es **por día** (tabla `jornadas`), lo planifica el dispatch por semana; el almuerzo también.
+- Destinos de traspaso: A → B/Comodín (mismo día) · B y Comodín → C (mismo día) o A/Comodín (día siguiente) ·
+  C → A/Comodín (día siguiente).
 - Un técnico recibe casos solo si está `disponible` (en horario y fuera de almuerzo) → `domain/availability.ts`.
-- Un INC solo puede estar con un técnico: índice único en BD sobre `codigo` normalizado (trigger).
-  Duplicado → `Resultado` con `motivo: 'duplicado'`.
+- Un código de caso existe una sola vez en todo el historial. Asignar uno cerrado ofrece reabrirlo.
+- Estados: En curso · Pausado · Resuelto · Cerrado. Al cerrar turno todo lo no cerrado se traspasa (fase 5).
+- El técnico solo puede cambiar estado, etiqueta, nota y última actualización de **sus** casos (trigger
+  `casos_antes_de_guardar` + RLS); la BD registra quién y cuándo escribió la última actualización.
 
-## Base de datos (`sql/`, se ejecutan a mano en el SQL Editor de Supabase)
+## Base de datos (`sql/`, se ejecutan a mano en el SQL Editor de Supabase, en orden)
 
-- `01_schema_inicial.sql`: `tecnicos`, `incidentes`, `historial_snapshots`, RLS (usuarios autenticados), Realtime.
-- `02_migracion_v3.sql`: comodín (`horario_inicio/fin`), `bitacora` (la escriben **triggers**, la app solo lee),
-  `generar_snapshot_diario()`, `buscar_en_historial()`, `buscar_en_bitacora()`, pg_cron 23:59 Honduras (05:59 UTC).
-- `03_datos_demo_dev.sql`: solo DEV; se niega a correr si no existe la tabla marcadora `public.entorno_dev`.
-- Cambios de esquema → nuevo archivo `sql/0N_*.sql` idempotente + actualizar `tests/sql/`.
+- `01_schema_inicial.sql`, `02_migracion_v3.sql`: modelo anterior (histórico; la 05 lo retira).
+- `04_v2_modelo_base.sql` (aditiva): día operativo, `perfiles` + roles (`es_dispatch()`, `mi_tecnico_id()`),
+  `jornadas`, `casos` + `caso_responsables` (historial, lo escriben triggers), `notificaciones` (las crea un
+  trigger al asignar/traspasar), `traspasos` + `traspaso_items` + `enviar_traspaso()`, `generar_snapshot_operativo()`.
+- `05_v2_corte.sql`: resincroniza lo hecho con la app anterior, **borra** `incidentes` y el turno fijo de
+  `tecnicos`, RLS de técnicos solo dispatch, vista `casos_abiertos` (security_invoker), cron 05:59.
+  Rompe la app anterior: se ejecuta justo antes de publicar la v2 (ver `docs/DISENO_V2.md` §9).
+- `06_v2_seguimiento.sql`: `casos_abiertos` suma `origen_responsable` y `ultima_actualizacion_por`.
+- `07_v2_traspasos.sql`: áreas fijas, área/empresa del técnico, actividad del técnico, recordatorios (+ cron cada
+  5 min), `fecha_destino` de los ítems, `enviar_traspaso` actualizado y `casos_abiertos` +3 columnas.
+- `08_v2_coordinador.sql`: rol coordinador, `buscar_casos`, `estadisticas_del_dia`, `alertas_coordinacion` (+ cron
+  `alertas-coordinacion` cada 5 min). Coordinador: `insert into perfiles (id, nombre, rol) ... 'coordinador'`.
+- `09_v2_ronda.sql`: `ronda_estado` y `asignar_a_ronda()` (rotativa alfabética por turno, D10). Sin cron.
+- `10_v2_planificacion.sql`: solicitudes de planificación y permisos de `jornadas` por día (D14, D15). Sin cron.
+- `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`); no toca `perfiles`.
+- Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
+  **con** `tecnico_id`; sin él no tiene seguimiento ni notificaciones.
+- Cambios de esquema → nuevo archivo `sql/0N_*.sql` idempotente + prueba en `tests/sql/` + agregarlo a
+  `MIGRACIONES` en `tests/helpers/baseSql.ts`. Una vista solo admite columnas nuevas **al final**.
 
 ## Entornos
 
 - `PUBLIC_APP_ENV` debe ser `development` en `astro dev` y `production` en `astro build`;
   `services/environment.ts` aborta si no coincide. DEV muestra insignia y título `[DEV]`.
 - Variables: `PUBLIC_SUPABASE_URL`, `PUBLIC_SUPABASE_PUBLISHABLE_KEY` (solo la clave publicable, nunca service_role).
+  `.env*` está bloqueado para lectura (`.claude/settings.json`).
 - Rutas siempre vía `RUTAS` (`scripts/routes.ts`), que respeta `BASE_PATH` de GitHub Pages.
-- CI: `ci.yml` (ramas/PR, solo verifica) y `deploy.yml` (push a `main` → verifica, compila, publica `gh-pages`).
-  Detalle en `docs/ENTORNOS_Y_DESPLIEGUE.md`.
+- CI: `ci.yml` (ramas/PR, solo verifica) y `deploy.yml` (push a `main` → verifica, compila, comprueba que existan
+  `/`, `/login/` y `/restablecer/`, publica `gh-pages`). Detalle en `docs/ENTORNOS_Y_DESPLIEGUE.md`.
 
 ## Pruebas (`tests/`, ninguna toca una base real)
 
 - `domain/`: funciones puras.
 - `app/`: la app real con jsdom (`// @vitest-environment jsdom`) contra `helpers/backendSimulado.ts`
-  (stub de `fetch` que imita PostgREST). Usa `helpers/app.ts` (`iniciarApp`, `fijarHora`, `esperar`).
-- `sql/`: ejecuta los `.sql` en PGlite con un Supabase mínimo simulado (sin el bloque pg_cron).
+  (stub de `fetch` que imita PostgREST: casos con `_fecha`/`_origen`, jornadas con upsert, vista casos_abiertos,
+  notificaciones, caso_responsables). `helpers/app.ts`: `iniciarApp(datos, { rol, tecnicoId })`, `fijarHora`
+  (lunes 9/11/2026), `esperar`. Páginas de acceso: `tests/app/acceso.test.ts` (simula `authService` e `irA`).
+- `sql/`: ejecuta los `.sql` en PGlite con un Supabase mínimo simulado (`helpers/baseSql.ts`: roles, auth,
+  `actuarComo(uid)` para probar RLS; sin los bloques pg_cron).
+- Usan `dist/` compilado: `bun run test` compila primero; si corres vitest suelto, haz `bun run build` antes.

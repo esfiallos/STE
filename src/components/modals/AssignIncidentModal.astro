@@ -11,18 +11,22 @@ import Modal from './Modal.astro';
     <div class="form-group">
       <label for="selectTechnician">Técnico</label>
       <select id="selectTechnician" required></select>
-      <span class="form-hint">técnicos disponibles</span>
+      <span class="form-hint">técnicos disponibles · o usa <strong>Asignar a la ronda</strong> para el siguiente en orden alfabético</span>
+      <span class="form-hint round-hint" id="roundHint" aria-live="polite"></span>
     </div>
     <div class="form-group">
-      <label for="inputIncNote">Comentario</label>
-      <input type="text" id="inputIncNote" placeholder="Ej: P2 - Monitoreo enlace fibra" autocomplete="off" />
+      <label for="inputIncNote">Nota</label>
+      <input type="text" id="inputIncNote" placeholder="Ej: ACME · ID de enlace 4410" autocomplete="off" />
     </div>
 
     <p id="incidentError" class="form-error hidden" role="alert"></p>
 
     <div class="modal-actions">
       <button type="button" class="btn" data-close-modal>Cancelar</button>
-      <button type="submit" id="btnSubmitIncident" class="btn btn-primary">Asignar</button>
+      <button type="button" id="btnAssignRound" class="btn">
+        <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Asignar a la ronda
+      </button>
+      <button type="submit" id="btnSubmitIncident" class="btn btn-primary">Asignar al técnico</button>
     </div>
   </form>
 </Modal>

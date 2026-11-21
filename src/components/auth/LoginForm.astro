@@ -1,26 +1,49 @@
 ---
-const esDesarrollo = import.meta.env.PUBLIC_APP_ENV === 'development';
+import AuthBrand from './AuthBrand.astro';
+import PasswordField from './PasswordField.astro';
 ---
 
-<section class="login-card">
-  <h1>
-    Panel de Traspasos
-    {esDesarrollo && <span class="env-badge">DESARROLLO</span>}
-  </h1>
-  <p class="login-subtitle">Inicia sesión para continuar</p>
+<section class="login-card" id="loginCard">
+  <AuthBrand subtitulo="Inicia sesión para continuar" />
 
-  <form id="loginForm" class="noc-form">
+  <!-- Iniciar sesión -->
+  <form id="loginForm" class="noc-form auth-panel" data-panel="entrar" novalidate>
     <div class="form-group">
       <label for="loginEmail">Correo</label>
       <input type="email" id="loginEmail" autocomplete="username" required />
     </div>
-    <div class="form-group">
-      <label for="loginPassword">Contraseña</label>
-      <input type="password" id="loginPassword" autocomplete="current-password" required />
-    </div>
+    <PasswordField id="loginPassword" etiqueta="Contraseña" autocomplete="current-password" />
 
     <p id="loginError" class="form-error hidden" role="alert"></p>
 
-    <button type="submit" id="loginSubmit" class="btn-primary btn-block">Entrar</button>
+    <button type="submit" id="loginSubmit" class="btn-primary btn-block">
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span data-ref="texto">Entrar</span>
+    </button>
+
+    <button type="button" id="btnForgot" class="link-button">¿Olvidaste tu contraseña?</button>
+  </form>
+
+  <!-- Recuperar contraseña -->
+  <form id="recoverForm" class="noc-form auth-panel hidden" data-panel="recuperar" novalidate>
+    <p class="auth-help">
+      Escribe tu correo y te enviaremos un enlace para crear una contraseña nueva. El enlace sirve una sola vez.
+    </p>
+    <div class="form-group">
+      <label for="recoverEmail">Correo</label>
+      <input type="email" id="recoverEmail" autocomplete="username" required />
+    </div>
+
+    <p id="recoverError" class="form-error hidden" role="alert"></p>
+    <p id="recoverDone" class="form-success hidden" role="status"></p>
+
+    <button type="submit" id="recoverSubmit" class="btn-primary btn-block">
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span data-ref="texto">Enviar enlace</span>
+    </button>
+
+    <button type="button" id="btnBackToLogin" class="link-button">
+      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Volver a iniciar sesión
+    </button>
   </form>
 </section>

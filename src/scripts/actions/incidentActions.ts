@@ -1,9 +1,6 @@
 import { describirNoDisponibilidad, estadoDelTecnico } from '../../domain/availability';
-import {
-  actualizarTecnicoDeIncidente,
-  borrarIncidente,
-  crearIncidente
-} from '../../services/incidentesRepo';
+import { asignarCaso, cerrarCaso, crearCaso } from '../../services/casosRepo';
+import { asignarARonda as asignarARondaEnBase, type AsignacionPorRonda } from '../../services/rondaRepo';
 import { appStore } from '../../state/appStore';
 import { cargarDatos } from '../../state/sync';
 import type { Resultado } from '../../types/result';
@@ -12,7 +9,7 @@ import { reproducirSonido } from '../ui/sound';
 import { avisarSiFalla, mostrarAviso } from '../ui/toast';
 
 export async function asignarIncidente(codigo: string, nota: string, tecnicoId: string): Promise<Resultado> {
-  const resultado = await crearIncidente(codigo, nota, tecnicoId);
+  const resultado = await crearCaso(codigo, nota, tecnicoId);
   if (resultado.ok) {
     reproducirSonido('asignar');
     await cargarDatos();
@@ -20,8 +17,20 @@ export async function asignarIncidente(codigo: string, nota: string, tecnicoId: 
   return resultado;
 }
 
-export async function reasignarIncidente(incidenteId: string, tecnicoId: string): Promise<Resultado> {
-  const resultado = await actualizarTecnicoDeIncidente(incidenteId, tecnicoId);
+/** Crea el caso y lo asigna al siguiente técnico de la ronda (lo decide la base de datos). */
+export async function asignarIncidenteARonda(codigo: string, nota: string): Promise<Resultado<AsignacionPorRonda>> {
+  const resultado = await asignarARondaEnBase(codigo, nota);
+  if (resultado.ok) {
+    reproducirSonido('asignar');
+    mostrarAviso(`${codigo.trim().toUpperCase()} asignado por ronda a ${resultado.data.tecnicoNombre}.`, 'exito');
+    await cargarDatos();
+  }
+  return resultado;
+}
+
+/** Cambia el responsable de un caso; con `reabrir`, además lo saca de "Cerrado". */
+export async function reasignarIncidente(incidenteId: string, tecnicoId: string, reabrir = false): Promise<Resultado> {
+  const resultado = await asignarCaso(incidenteId, tecnicoId, reabrir);
   if (resultado.ok) {
     reproducirSonido('asignar');
     await cargarDatos();
@@ -31,7 +40,9 @@ export async function reasignarIncidente(incidenteId: string, tecnicoId: string)
 
 /** Reasignación por arrastre: sin formulario, así que los avisos se muestran aquí. */
 export async function moverIncidente(incidenteId: string, tecnicoDestinoId: string): Promise<void> {
-  const { incidentes, tecnicos } = appStore.get();
+  const { incidentes, tecnicos, soloLectura } = appStore.get();
+  if (soloLectura) return;
+
   const incidente = incidentes.find((i) => i.id === incidenteId);
   const destino = tecnicos.find((t) => t.id === tecnicoDestinoId);
   if (!incidente || !destino || incidente.tecnicoId === tecnicoDestinoId) return;
@@ -45,13 +56,14 @@ export async function moverIncidente(incidenteId: string, tecnicoDestinoId: stri
   avisarSiFalla(await reasignarIncidente(incidenteId, tecnicoDestinoId));
 }
 
-export async function quitarIncidente(incidenteId: string): Promise<void> {
+/** Los casos ya no se borran: se cierran y quedan en el historial y la búsqueda. */
+export async function cerrarIncidente(incidenteId: string): Promise<void> {
   const incidente = appStore.get().incidentes.find((i) => i.id === incidenteId);
 
-  if (!avisarSiFalla(await borrarIncidente(incidenteId))) return;
+  if (!avisarSiFalla(await cerrarCaso(incidenteId))) return;
 
   await cargarDatos();
-  mostrarAviso(`${incidente?.codigo ?? 'Incidente'} eliminado.`);
+  mostrarAviso(`${incidente?.codigo ?? 'Caso'} cerrado.`);
 }
 
 export async function copiarCodigo(codigo: string): Promise<void> {

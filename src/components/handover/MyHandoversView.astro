@@ -1,0 +1,36 @@
+---
+// "Mis traspasos": lo que el técnico entregó y recibió un día operativo. Lo dibuja scripts/handover/myHandoversView.ts
+---
+
+<section class="panel-card handover" id="myHandoversView" aria-labelledby="myHandoversTitle">
+  <div class="followup-toolbar">
+    <div>
+      <h2 id="myHandoversTitle" class="planning-title">Mis traspasos</h2>
+      <p class="planning-help">Consulta lo que entregaste y lo que recibiste en un día operativo.</p>
+    </div>
+    <label class="handover-inline">
+      Día operativo
+      <input type="date" id="myHandoversDate" />
+    </label>
+  </div>
+
+  <p id="myHandoversStatus" class="board-status hidden" role="status"></p>
+
+  <div class="followup-section">
+    <div class="handover-preview__head">
+      <h3 class="followup-section__title"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i> Entregados</h3>
+      <div class="handover-copy" id="myHandoversCopy">
+        <button type="button" class="btn btn-sm" data-copiar="outlook"><i class="fa-regular fa-envelope" aria-hidden="true"></i> Outlook</button>
+        <button type="button" class="btn btn-sm" data-copiar="texto"><i class="fa-regular fa-file-lines" aria-hidden="true"></i> Texto</button>
+        <button type="button" class="btn btn-sm" data-copiar="tsv"><i class="fa-solid fa-table" aria-hidden="true"></i> Excel</button>
+      </div>
+    </div>
+    <p id="mySentMeta" class="planning-help"></p>
+    <div id="mySent"></div>
+  </div>
+
+  <div class="followup-section">
+    <h3 class="followup-section__title"><i class="fa-solid fa-arrow-right-to-bracket" aria-hidden="true"></i> Recibidos</h3>
+    <div id="myReceived"></div>
+  </div>
+</section>
