@@ -15,6 +15,7 @@ export const MIGRACIONES = {
   seguimiento: () => leerSql('06_v2_seguimiento.sql'),
   traspasos: () => sinCron(leerSql('07_v2_traspasos.sql'), '-- 6. Recordatorios'),
   coordinador: () => sinCron(leerSql('08_v2_coordinador.sql'), '-- 6. Alertas cada 5 minutos'),
+  ronda: () => leerSql('09_v2_ronda.sql'),
   demo: () => leerSql('03_datos_demo_dev.sql')
 };
 

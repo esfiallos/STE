@@ -1,5 +1,6 @@
 import { describirNoDisponibilidad, estadoDelTecnico } from '../../domain/availability';
 import { asignarCaso, cerrarCaso, crearCaso } from '../../services/casosRepo';
+import { asignarARonda as asignarARondaEnBase, type AsignacionPorRonda } from '../../services/rondaRepo';
 import { appStore } from '../../state/appStore';
 import { cargarDatos } from '../../state/sync';
 import type { Resultado } from '../../types/result';
@@ -11,6 +12,17 @@ export async function asignarIncidente(codigo: string, nota: string, tecnicoId: 
   const resultado = await crearCaso(codigo, nota, tecnicoId);
   if (resultado.ok) {
     reproducirSonido('asignar');
+    await cargarDatos();
+  }
+  return resultado;
+}
+
+/** Crea el caso y lo asigna al siguiente técnico de la ronda (lo decide la base de datos). */
+export async function asignarIncidenteARonda(codigo: string, nota: string): Promise<Resultado<AsignacionPorRonda>> {
+  const resultado = await asignarARondaEnBase(codigo, nota);
+  if (resultado.ok) {
+    reproducirSonido('asignar');
+    mostrarAviso(`${codigo.trim().toUpperCase()} asignado por ronda a ${resultado.data.tecnicoNombre}.`, 'exito');
     await cargarDatos();
   }
   return resultado;

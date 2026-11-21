@@ -1,7 +1,8 @@
 import type { EstadoConexion } from '../types/noc';
 import { supabase } from './supabaseClient';
 
-const TABLAS = ['tecnicos', 'jornadas', 'casos', 'caso_responsables'] as const;
+/** ronda_estado solo llega a dispatch y coordinación (RLS): mantiene al día el "siguiente en la ronda". */
+const TABLAS = ['tecnicos', 'jornadas', 'casos', 'caso_responsables', 'ronda_estado'] as const;
 
 /**
  * Escucha cambios en técnicos, jornadas y casos (Supabase Realtime).

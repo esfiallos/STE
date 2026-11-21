@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { siguienteEnRonda, turnoEnCurso } from '../../src/domain/round';
 import { fechaOperativa } from '../../src/domain/time';
 
 type Fila = Record<string, unknown>;
@@ -69,7 +70,8 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
     caso_responsables: datos.caso_responsables ?? [],
     traspasos: datos.traspasos ?? [],
     traspaso_items: datos.traspaso_items ?? [],
-    alertas_coordinacion: datos.alertas_coordinacion ?? []
+    alertas_coordinacion: datos.alertas_coordinacion ?? [],
+    ronda_estado: []
   };
   const escrituras: string[] = [];
   let secuencia = 100;
@@ -128,6 +130,25 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
             .filter((c) => termino && [c.codigo, c.cliente, c.nota, c.area, nombre(c.tecnico_actual_id)].some((v) => String(v ?? '').toLowerCase().includes(termino)))
             .map((c) => ({ descripcion: null, etiqueta: null, cliente: null, area: null, ...c, tecnico_actual: nombre(c.tecnico_actual_id) }))
         );
+      }
+      if (tabla === 'asignar_a_ronda') {
+        // Imita la ronda: candidatos = técnicos con jornada hoy (sin revisar horario), siguiente en orden alfabético.
+        const codigo = String(parametros.p_codigo).trim().toUpperCase();
+        if (db.casos!.some((c) => c.codigo === codigo)) return json({ code: '23505', message: `El caso ${codigo} ya existe: asígnalo a un técnico concreto.` }, 409);
+        const hoy = fechaOperativa(new Date());
+        const turno = turnoEnCurso(new Date());
+        const candidatos = db.jornadas!
+          .filter((j) => j.fecha_operativa === hoy)
+          .map((j) => db.tecnicos!.find((t) => t.id === j.tecnico_id)!)
+          .map((t) => ({ id: String(t.id), nombre: String(t.nombre) }));
+        let puntero = db.ronda_estado!.find((r) => r.fecha_operativa === hoy && r.turno === turno);
+        const elegido = siguienteEnRonda(candidatos, (puntero?.ultimo_nombre as string | undefined) ?? null);
+        if (!elegido) return json({ code: 'P0001', message: 'No hay técnicos disponibles ahora para la ronda.' }, 400);
+        if (!puntero) db.ronda_estado!.push((puntero = { fecha_operativa: hoy, turno }));
+        Object.assign(puntero, { ultimo_tecnico_id: elegido.id, ultimo_nombre: elegido.nombre });
+        const id = nuevoId();
+        db.casos!.push({ id, codigo, nota: parametros.p_nota, estado: 'en_curso', tecnico_actual_id: elegido.id, creado_en: new Date().toISOString(), _fecha: hoy });
+        return json([{ caso_id: id, tecnico_id: elegido.id, tecnico_nombre: elegido.nombre }]);
       }
       if (tabla === 'estadisticas_del_dia') {
         const totales = new Map<string, number>();

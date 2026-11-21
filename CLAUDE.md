@@ -16,9 +16,9 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
    §8 decisiones D1–D15, §9 despliegue, §10 requerimientos v2.1). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 23 archivos, 167 pruebas). En una máquina cargada
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 26 archivos, 180 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Siguiente trabajo: **Fase 7 — Ronda** (detalle en §10.2 del diseño).
+4. Siguiente trabajo: **Fase 8 — Planificación con solicitudes** (detalle en §10.7 del diseño).
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
@@ -34,13 +34,13 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 4. Técnico | ✅ | `sql/06_v2_seguimiento.sql`, pestaña **Mi seguimiento**, campana de notificaciones + alertas, su columna resaltada |
 | 5. Casos + Traspasos | ✅ | `sql/07_v2_traspasos.sql`, pestañas **Traspaso** y **Mis traspasos**, área/empresa en Mi seguimiento, etiqueta VM, recordatorios |
 | 6. Coordinador | ✅ | `sql/08_v2_coordinador.sql`, pestañas **Panel** y **Buscar casos**, campana de alertas 2/4/6 h |
-| 7. Ronda | ⏳ siguiente | "Crear y asignar a la ronda", rotativa alfabética por turno (§10.2) |
-| 8. Planificación con solicitudes | ⏳ | Dispatch solo lectura + solicitud por día; coordinación planifica (§10.7) |
+| 7. Ronda | ✅ | `sql/09_v2_ronda.sql`, botón **Asignar a la ronda** en Nuevo caso con vista previa del siguiente |
+| 8. Planificación con solicitudes | ⏳ siguiente | Dispatch solo lectura + solicitud por día; coordinación planifica (§10.7) |
 | 9. Animaciones | 🟡 parcial | Login, seguimiento y campana ya animan; falta el tablero (mover/asignar) |
 
 **Bases de datos (revisado con el conector el 19/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
 DEV = `DEV` (`bofqefbxziqxzrdujihd`).
-- DEV y PROD: 04, 05 y 06 aplicadas; la **07 y la 08 aún no** (las ejecuta el usuario, en orden). Cron 05:59 funcionando.
+- DEV y PROD: 04, 05 y 06 aplicadas; la **07, 08 y 09 aún no** (las ejecuta el usuario, en orden). Cron 05:59 funcionando.
 - 19/11/2026, a pedido del usuario: se **vaciaron todas las tablas** de `public` en DEV y PROD (casos, jornadas,
   técnicos, perfiles, traspasos, notificaciones, snapshots y bitácora). Se conservan los usuarios de `auth` y
   `entorno_dev` en DEV. El usuario las poblará al terminar la nueva arquitectura: sin perfiles nadie entra.
@@ -87,8 +87,18 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
   traspasos (nota de quien entregó).
 - CSS: `body.rol-coordinador` + `[data-coordinador-only]`; `[data-supervision-only]` = dispatch o coordinador.
 
-### Fases 7–8 — Ronda, Planificación con solicitudes
-Detalle completo en `docs/DISENO_V2.md` §10.2 y §10.7 (decisiones D10, D14, D15).
+### Fase 7 — Ronda ✅ (qué quedó)
+- `sql/09_v2_ronda.sql`: `ronda_estado` (puntero por día operativo y turno; leen dispatch y coordinación; Realtime),
+  `hora_en_rango`, `turno_en_curso`, `clave_de_ronda` (= `domain/round.ts`, comparada con `collate "C"`),
+  `tecnicos_de_la_ronda(ahora)` (jornada hoy, activo, en horario, fuera de almuerzo) y
+  `asignar_a_ronda(codigo, nota)`: solo dispatch, rechaza códigos existentes (23505), bloquea el puntero, crea el caso
+  (origen `dispatch`, notifica) y anota `asignado_por_ronda` en la bitácora. Asignar a mano no mueve el puntero.
+- `domain/round.ts` (`siguienteEnRonda`, `turnoEnCurso`), `services/rondaRepo.ts`, `asignarIncidenteARonda`.
+- Modal **Nuevo caso**: botón **Asignar a la ronda** (además de "Asignar al técnico") y "Siguiente en la ronda: X"
+  (vista previa; decide la base). Un código ya en el tablero o en el historial se asigna a un técnico concreto.
+
+### Fase 8 — Planificación con solicitudes
+Detalle completo en `docs/DISENO_V2.md` §10.7 (decisiones D14, D15).
 
 ### Fase 9 — Animaciones
 Tablero: entrada/destello al asignar o mover un caso (FLIP), "pop" del contador de la tarjeta, realce de la
@@ -202,6 +212,7 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
   5 min), `fecha_destino` de los ítems, `enviar_traspaso` actualizado y `casos_abiertos` +3 columnas.
 - `08_v2_coordinador.sql`: rol coordinador, `buscar_casos`, `estadisticas_del_dia`, `alertas_coordinacion` (+ cron
   `alertas-coordinacion` cada 5 min). Coordinador: `insert into perfiles (id, nombre, rol) ... 'coordinador'`.
+- `09_v2_ronda.sql`: `ronda_estado` y `asignar_a_ronda()` (rotativa alfabética por turno, D10). Sin cron.
 - `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`); no toca `perfiles`.
 - Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
   **con** `tecnico_id`; sin él no tiene seguimiento ni notificaciones.

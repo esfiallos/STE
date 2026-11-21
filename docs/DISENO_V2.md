@@ -220,7 +220,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **4. Técnico** ✅ | Mi día, Seguimiento, última actualización, notificaciones + alertas (`06`) | 1, 2 |
 | **5. Casos + Traspasos** ✅ | §10.1 (áreas, campos del técnico, actividad) + armado, balanceo, etiquetas (+VM), recordatorio por fecha, export Outlook/TSV, envío transaccional, **Mis traspasos** (§10.4–10.6) | 4 |
 | **6. Coordinador** ✅ | Rol nuevo, buscador global (absorbe la antigua fase "Búsqueda global"), panel de estadísticas, alertas 2/4/6 h (§10.3) | 5 |
-| **7. Ronda** | Botón "Asignar a la ronda" del dispatch, rotativa alfabética por turno (§10.2) | 5 |
+| **7. Ronda** ✅ | Botón "Asignar a la ronda" del dispatch, rotativa alfabética por turno (§10.2) | 5 |
 | **8. Planificación con solicitudes** | Dispatch en solo lectura + solicitud de edición por día; planificación completa para coordinación (§10.7) | 6 |
 | **9. Animaciones** | Capa de efectos y pulido | 2, 4 |
 
@@ -287,7 +287,7 @@ Lo marcado como **Supuesto** es criterio propio para completar la regla; confirm
   última actualización) cuenta como actualización. Columna nueva `casos.actividad_tecnico_en`, que escribe el
   trigger. Es la referencia de las alertas (§10.3).
 
-### 10.2 Asignar a la ronda (fase 7)
+### 10.2 Asignar a la ronda (fase 7) — ✅ `sql/09_v2_ronda.sql`
 - Junto al botón actual (asignar a un técnico concreto), el dispatch tiene **"Crear y asignar a la ronda"**:
   crea el caso y lo asigna al **siguiente técnico de la ronda**.
 - **D10. Ronda rotativa alfabética por turno:** candidatos = técnicos **disponibles ahora** (en horario y fuera
@@ -299,6 +299,10 @@ Lo marcado como **Supuesto** es criterio propio para completar la regla; confirm
   mismo técnico. Misma regla pura en `domain/` con prueba de coincidencia.
 - **Supuesto:** la asignación manual a un técnico concreto **no** mueve el puntero. Los comodines participan
   mientras estén en horario. Si nadie está disponible, error claro y no se crea el caso.
+- Implementado: el puntero guarda el **nombre** del último; si esa persona ya no está disponible (almuerzo, fin de
+  turno), el caso va a quien sigue después de ella en el orden. La ronda solo crea casos nuevos: un código que ya
+  existe (abierto o cerrado) se asigna o reabre con "Asignar al técnico". El modal muestra el siguiente como vista
+  previa; la elección real la hace `asignar_a_ronda()` en la base (con el puntero bloqueado).
 
 ### 10.3 Rol Coordinador (fase 6) — ✅ `sql/08_v2_coordinador.sql`
 - **D11.** Tercer rol `coordinador` (se otorga por SQL, igual que dispatch; sin `tecnico_id`). Helper
