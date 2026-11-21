@@ -221,7 +221,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **5. Casos + Traspasos** ✅ | §10.1 (áreas, campos del técnico, actividad) + armado, balanceo, etiquetas (+VM), recordatorio por fecha, export Outlook/TSV, envío transaccional, **Mis traspasos** (§10.4–10.6) | 4 |
 | **6. Coordinador** ✅ | Rol nuevo, buscador global (absorbe la antigua fase "Búsqueda global"), panel de estadísticas, alertas 2/4/6 h (§10.3) | 5 |
 | **7. Ronda** ✅ | Botón "Asignar a la ronda" del dispatch, rotativa alfabética por turno (§10.2) | 5 |
-| **8. Planificación con solicitudes** | Dispatch en solo lectura + solicitud de edición por día; planificación completa para coordinación (§10.7) | 6 |
+| **8. Planificación con solicitudes** ✅ | Dispatch en solo lectura + solicitud de edición por día; planificación completa para coordinación (§10.7) | 6 |
 | **9. Animaciones** | Capa de efectos y pulido | 2, 4 |
 
 > Orden revisado el 19/11/2026 al sumar los requerimientos de §10. Cada fase con su migración `sql/0N_*.sql`.
@@ -347,7 +347,7 @@ Lo marcado como **Supuesto** es criterio propio para completar la regla; confirm
   estado, etiqueta, nota y última actualización) y los que **recibió**. Desde ahí puede volver a copiar el
   reporte (Outlook, texto, TSV). Solo lectura.
 
-### 10.7 Planificación con solicitudes (fase 8)
+### 10.7 Planificación con solicitudes (fase 8) — ✅ `sql/10_v2_planificacion.sql`
 - **D14.** Para el **dispatch** la planificación pasa a **solo lectura**. Para editar un día concreto envía una
   **solicitud a coordinación** con fecha y **motivo** (p. ej. falta de un técnico). Si coordinación la aprueba,
   ese día (solo ese) queda editable para el dispatch. Tabla `solicitudes_planificacion` (fecha_operativa,
@@ -357,3 +357,8 @@ Lo marcado como **Supuesto** es criterio propio para completar la regla; confirm
 - **D15.** Nadie edita días pasados: solo **hoy en adelante**. Una semana ya pasada es inmutable (sus casos ya
   se traspasaron). Lo impone la BD (RLS + trigger en `jornadas`), no solo la UI.
 - **Supuesto:** una aprobación vence al terminar ese día operativo.
+- Implementado: "ese día operativo" = el día en que coordinación **aprueba** (vence a las 06:00 siguientes), así una
+  aprobación para un día futuro no queda abierta varios días. El almuerzo cuenta como planificación (necesita el
+  permiso). La aprobación habilita al rol dispatch (cualquier usuario dispatch). Una solicitud pendiente de un día
+  que ya pasó queda como "Sin responder". Avisos: la campana de coordinación suma las solicitudes por responder; el
+  dispatch tiene una campana propia con las respuestas (y aviso en pantalla al llegar).

@@ -102,6 +102,10 @@ body:not(.rol-dispatch):not(.rol-coordinador) [data-supervision-only] {
     border-left-color: $color-peligro !important;
     background-color: $color-peligro-suave;
   }
+  // Solicitud del dispatch para editar la planificación
+  &--solicitud {
+    border-left-color: $color-acento !important;
+  }
 }
 
 // ------------------------------------------------------------- Buscador de casos

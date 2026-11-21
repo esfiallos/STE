@@ -261,3 +261,23 @@ export interface TraspasoDelCaso {
   ultimaActualizacion: string | null;
   enviadoEn: string | null;
 }
+
+export type EstadoSolicitud = 'pendiente' | 'aprobada' | 'rechazada';
+
+/** Permiso que el dispatch pide a coordinación para editar la planificación de un día (D14). */
+export interface SolicitudPlanificacion {
+  id: string;
+  /** Día operativo que se quiere editar (YYYY-MM-DD). */
+  fecha: string;
+  motivo: string;
+  solicitanteNombre: string | null;
+  estado: EstadoSolicitud;
+  respuesta: string | null;
+  resueltaPorNombre: string | null;
+  resueltaEn: string | null;
+  /** Hasta cuándo el dispatch puede editar ese día (solo las aprobadas). */
+  venceEn: string | null;
+  /** El dispatch ya vio la respuesta. */
+  respuestaVista: boolean;
+  creadaEn: string;
+}

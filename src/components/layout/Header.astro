@@ -71,6 +71,30 @@ const esDesarrollo = import.meta.env.PUBLIC_APP_ENV === 'development';
       </div>
     </div>
 
+    <!-- Respuestas de coordinación a las solicitudes de planificación (scripts/planning/requestsBell.ts) -->
+    <div class="notif" data-edit-only>
+      <button
+        id="btnRequests"
+        type="button"
+        class="btn-topbar notif__bell"
+        title="Respuestas de coordinación"
+        aria-label="Respuestas de coordinación"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="requestsPanel"
+      >
+        <i class="fa-regular fa-bell" aria-hidden="true"></i>
+        <span id="requestsCount" class="notif__count hidden" aria-live="polite"></span>
+      </button>
+      <div id="requestsPanel" class="notif__panel hidden" role="dialog" aria-label="Respuestas de coordinación">
+        <div class="notif__head">
+          <strong>Solicitudes de planificación</strong>
+          <button id="btnRequestsReadAll" type="button" class="link-button">Marcar todas como vistas</button>
+        </div>
+        <ul id="requestsList" class="notif__list"></ul>
+      </div>
+    </div>
+
     <i class="fa-regular fa-circle-user" aria-hidden="true"></i>
     <span class="user-email" id="userEmail"></span>
     <span class="role-badge hidden" id="userRole"></span>

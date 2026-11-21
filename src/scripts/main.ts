@@ -31,7 +31,10 @@ import { iniciarSeguimiento, renderizarSeguimiento, resaltarCaso } from './follo
 import { abrirTraspaso, iniciarTraspaso } from './handover/handoverView';
 import { cargarMisTraspasos, iniciarMisTraspasos } from './handover/myHandoversView';
 import { iniciarNotificaciones } from './notifications/notificationsPanel';
-import { cargarPlanificacion, iniciarPlanificacion } from './planning/planningView';
+import { cargarSolicitudes } from './actions/planningRequestActions';
+import { cargarPlanificacion, iniciarPlanificacion, mostrarSemanaDe } from './planning/planningView';
+import { iniciarAvisoDeSolicitudes } from './planning/planningRequestsSync';
+import { iniciarCampanaDeSolicitudes } from './planning/requestsBell';
 import { RUTAS } from './routes';
 import { mostrarAviso } from './ui/toast';
 
@@ -86,7 +89,15 @@ async function iniciar(): Promise<void> {
   iniciarDragAndDrop(aplicarRenderPendiente);
   iniciarHistorial();
   iniciarBitacora();
-  if (esDispatch) iniciarPlanificacion();
+  if (esDispatch || esCoordinador) {
+    iniciarPlanificacion();
+    iniciarAvisoDeSolicitudes();
+  }
+  const abrirPlanificacionEn = (fecha: string) => {
+    window.location.hash = 'planificacion';
+    mostrarSemanaDe(fecha);
+  };
+  if (esDispatch) iniciarCampanaDeSolicitudes(abrirPlanificacionEn);
   if (miTecnicoId) {
     iniciarSeguimiento(miTecnicoId);
     iniciarTraspaso(miTecnicoId);
@@ -102,10 +113,13 @@ async function iniciar(): Promise<void> {
   if (esDispatch || esCoordinador) iniciarBuscadorDeCasos();
   if (esCoordinador) {
     iniciarPanelDeCoordinacion();
-    iniciarCampanaDeAlertas((alerta) => {
-      window.location.hash = 'busqueda';
-      void buscarCaso(codigoDeAlerta(alerta));
-    });
+    iniciarCampanaDeAlertas(
+      (alerta) => {
+        window.location.hash = 'busqueda';
+        void buscarCaso(codigoDeAlerta(alerta));
+      },
+      (solicitud) => abrirPlanificacionEn(solicitud.fecha)
+    );
   }
 
   appStore.subscribe(solicitarRender);
@@ -123,7 +137,14 @@ async function iniciar(): Promise<void> {
       ...(miTecnicoId
         ? { seguimiento: renderizarSeguimiento, traspaso: abrirTraspaso, misTraspasos: () => void cargarMisTraspasos() }
         : {}),
-      ...(esDispatch ? { planificacion: () => void cargarPlanificacion() } : {}),
+      ...(esDispatch || esCoordinador
+        ? {
+            planificacion: () => {
+              void cargarPlanificacion();
+              void cargarSolicitudes();
+            }
+          }
+        : {}),
       historial: () => void cargarHistorial(),
       bitacora: () => void cargarBitacora()
     },

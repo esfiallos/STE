@@ -15,7 +15,11 @@ export const ETIQUETA_ACCION: Record<string, string> = {
   estado_cambiado: 'Estado cambiado',
   etiqueta_cambiada: 'Etiqueta cambiada',
   ultima_actualizacion: 'Última actualización',
-  traspaso_enviado: 'Traspaso enviado'
+  traspaso_enviado: 'Traspaso enviado',
+  asignado_por_ronda: 'Asignado por ronda',
+  solicitud_planificacion: 'Permiso de planificación pedido',
+  solicitud_planificacion_aprobada: 'Permiso de planificación aprobado',
+  solicitud_planificacion_rechazada: 'Permiso de planificación rechazado'
 };
 
 export function describirAccion(accion: string): string {

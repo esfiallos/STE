@@ -16,9 +16,9 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
    §8 decisiones D1–D15, §9 despliegue, §10 requerimientos v2.1). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 26 archivos, 180 pruebas). En una máquina cargada
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 28 archivos, 197 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Siguiente trabajo: **Fase 8 — Planificación con solicitudes** (detalle en §10.7 del diseño).
+4. Siguiente trabajo: **Fase 9 — Animaciones del tablero** (ver "Lo que falta").
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
@@ -35,12 +35,12 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 5. Casos + Traspasos | ✅ | `sql/07_v2_traspasos.sql`, pestañas **Traspaso** y **Mis traspasos**, área/empresa en Mi seguimiento, etiqueta VM, recordatorios |
 | 6. Coordinador | ✅ | `sql/08_v2_coordinador.sql`, pestañas **Panel** y **Buscar casos**, campana de alertas 2/4/6 h |
 | 7. Ronda | ✅ | `sql/09_v2_ronda.sql`, botón **Asignar a la ronda** en Nuevo caso con vista previa del siguiente |
-| 8. Planificación con solicitudes | ⏳ siguiente | Dispatch solo lectura + solicitud por día; coordinación planifica (§10.7) |
-| 9. Animaciones | 🟡 parcial | Login, seguimiento y campana ya animan; falta el tablero (mover/asignar) |
+| 8. Planificación con solicitudes | ✅ | `sql/10_v2_planificacion.sql`, coordinación planifica; el dispatch pide permiso por día (campanas en ambos roles) |
+| 9. Animaciones | ⏳ siguiente (🟡 parcial) | Login, seguimiento y campana ya animan; falta el tablero (mover/asignar) |
 
 **Bases de datos (revisado con el conector el 19/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
 DEV = `DEV` (`bofqefbxziqxzrdujihd`).
-- DEV y PROD: 04, 05 y 06 aplicadas; la **07, 08 y 09 aún no** (las ejecuta el usuario, en orden). Cron 05:59 funcionando.
+- DEV y PROD: 04, 05 y 06 aplicadas; la **07, 08, 09 y 10 aún no** (las ejecuta el usuario, en orden). Cron 05:59 funcionando.
 - 19/11/2026, a pedido del usuario: se **vaciaron todas las tablas** de `public` en DEV y PROD (casos, jornadas,
   técnicos, perfiles, traspasos, notificaciones, snapshots y bitácora). Se conservan los usuarios de `auth` y
   `entorno_dev` en DEV. El usuario las poblará al terminar la nueva arquitectura: sin perfiles nadie entra.
@@ -97,8 +97,22 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
 - Modal **Nuevo caso**: botón **Asignar a la ronda** (además de "Asignar al técnico") y "Siguiente en la ronda: X"
   (vista previa; decide la base). Un código ya en el tablero o en el historial se asigna a un técnico concreto.
 
-### Fase 8 — Planificación con solicitudes
-Detalle completo en `docs/DISENO_V2.md` §10.7 (decisiones D14, D15).
+### Fase 8 — Planificación con solicitudes ✅ (qué quedó)
+- `sql/10_v2_planificacion.sql`: `solicitudes_planificacion` (una pendiente por día; leen dispatch y coordinación; el
+  dispatch solo puede marcar `respuesta_vista`; Realtime), `fin_del_dia_operativo()`, `puede_planificar(fecha)`,
+  `solicitar_edicion_planificacion(fecha, motivo)` (dispatch) y `resolver_solicitud_planificacion(id, aprobar,
+  respuesta)` (coordinación; la aprobación vence al terminar el día operativo en que se aprueba). `jornadas`: RLS
+  (dispatch o coordinación, de hoy en adelante) + trigger `jornadas_validar_permiso` con mensajes claros. Sin usuario
+  (SQL Editor, cron) no se limita. Todo en la bitácora.
+- Dominio `planningRequests.ts` (`diaEditable` = `puede_planificar`, `estadoDelDia`, `problemaDeSolicitud`, textos,
+  novedades para avisar). `services/solicitudesRepo.ts`, `actions/planningRequestActions.ts`.
+- Planificación (`planningView.ts`): pestaña para dispatch y coordinación. Coordinación edita y copia la semana y
+  responde las solicitudes ("Por responder", con respuesta opcional). El dispatch ve la grilla bloqueada salvo los
+  días habilitados, y pide permiso (día de la semana visible + motivo). Chips en el encabezado
+  ("Solicitud pendiente", "Editable hasta 06:00"), lista de recientes e insignia en la pestaña.
+- Campanas: la de coordinación (`alertsBell.ts`) suma las solicitudes por responder; el dispatch tiene la suya
+  (`planning/requestsBell.ts`) con las respuestas. `planningRequestsSync.ts` relee con Realtime y avisa.
+- El almuerzo también es planificación: el dispatch lo cambia solo con permiso del día.
 
 ### Fase 9 — Animaciones
 Tablero: entrada/destello al asignar o mover un caso (FLIP), "pop" del contador de la tarjeta, realce de la
@@ -134,7 +148,7 @@ scripts/               Comportamiento en el navegador
   main.ts              Arranque: sesión → perfil/rol → iniciar módulos → store.subscribe(render) → sync
   auth/                loginPage, resetPage, authUi (mostrar contraseña, Bloq Mayús, carga, sacudida)
   board/               Vistas del tablero (+ franja "por reasignar"), eventos, drag & drop, renderScheduler
-  planning/            Planificación semanal (grilla técnico × día), solo dispatch
+  planning/            Planificación semanal (coordinación edita; dispatch pide permiso por día), solicitudes y su campana
   followUp/            Mi seguimiento del técnico (estado, etiqueta, última actualización, historial)
   notifications/       Campana del técnico: lista, no leídas, tiempo real, alertas de escritorio
   modals/              Un controlador por modal + assignFlow (reglas de asignación compartidas)
@@ -213,6 +227,7 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - `08_v2_coordinador.sql`: rol coordinador, `buscar_casos`, `estadisticas_del_dia`, `alertas_coordinacion` (+ cron
   `alertas-coordinacion` cada 5 min). Coordinador: `insert into perfiles (id, nombre, rol) ... 'coordinador'`.
 - `09_v2_ronda.sql`: `ronda_estado` y `asignar_a_ronda()` (rotativa alfabética por turno, D10). Sin cron.
+- `10_v2_planificacion.sql`: solicitudes de planificación y permisos de `jornadas` por día (D14, D15). Sin cron.
 - `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`); no toca `perfiles`.
 - Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
   **con** `tecnico_id`; sin él no tiene seguimiento ni notificaciones.

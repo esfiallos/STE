@@ -5,6 +5,7 @@ import type {
   Notificacion,
   AlertaCoordinacion,
   Perfil,
+  SolicitudPlanificacion,
   Tecnico,
   TecnicoCatalogo,
   TurnoId,
@@ -33,6 +34,8 @@ export interface AppState {
   notificaciones: Notificacion[];
   /** Alertas de coordinación (vacío si no es coordinador). */
   alertas: AlertaCoordinacion[];
+  /** Solicitudes de edición de la planificación (dispatch y coordinación). */
+  solicitudes: SolicitudPlanificacion[];
   carga: EstadoCarga;
   errorCarga: string | null;
   conexion: EstadoConexion;
@@ -58,6 +61,7 @@ export const appStore = createStore<AppState>({
   incidentes: [],
   casosAbiertos: [],
   notificaciones: [],
+  solicitudes: [],
   alertas: [],
   carga: 'cargando',
   errorCarga: null,

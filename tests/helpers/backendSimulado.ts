@@ -15,6 +15,7 @@ export interface Datos {
   traspasos?: Fila[];
   traspaso_items?: Fila[];
   alertas_coordinacion?: Fila[];
+  solicitudes_planificacion?: Fila[];
 }
 
 /** Día de las pruebas: lunes 9 de noviembre de 2026 (ver fijarHora). */
@@ -71,7 +72,8 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
     traspasos: datos.traspasos ?? [],
     traspaso_items: datos.traspaso_items ?? [],
     alertas_coordinacion: datos.alertas_coordinacion ?? [],
-    ronda_estado: []
+    ronda_estado: [],
+    solicitudes_planificacion: datos.solicitudes_planificacion ?? []
   };
   const escrituras: string[] = [];
   let secuencia = 100;
@@ -149,6 +151,26 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
         const id = nuevoId();
         db.casos!.push({ id, codigo, nota: parametros.p_nota, estado: 'en_curso', tecnico_actual_id: elegido.id, creado_en: new Date().toISOString(), _fecha: hoy });
         return json([{ caso_id: id, tecnico_id: elegido.id, tecnico_nombre: elegido.nombre }]);
+      }
+      if (tabla === 'solicitar_edicion_planificacion') {
+        if (db.solicitudes_planificacion!.some((s) => s.fecha_operativa === parametros.p_fecha && s.estado === 'pendiente')) {
+          return json({ code: '23505', message: 'Ya hay una solicitud pendiente para ese día.' }, 409);
+        }
+        const id = nuevoId();
+        db.solicitudes_planificacion!.push({
+          id, fecha_operativa: parametros.p_fecha, motivo: String(parametros.p_motivo).trim(), solicitante_nombre: 'Prueba', estado: 'pendiente',
+          respuesta: null, resuelta_por_nombre: null, resuelta_en: null, vence_en: null, respuesta_vista: false, creada_en: new Date().toISOString()
+        });
+        return json(id);
+      }
+      if (tabla === 'resolver_solicitud_planificacion') {
+        const solicitud = db.solicitudes_planificacion!.find((s) => s.id === parametros.p_id);
+        if (!solicitud || solicitud.estado !== 'pendiente') return json({ code: 'P0001', message: 'Esa solicitud ya fue respondida.' }, 400);
+        Object.assign(solicitud, {
+          estado: parametros.p_aprobar ? 'aprobada' : 'rechazada', respuesta: parametros.p_respuesta, resuelta_por_nombre: 'Prueba',
+          resuelta_en: new Date().toISOString(), vence_en: parametros.p_aprobar ? new Date(Date.now() + 3_600_000).toISOString() : null, respuesta_vista: false
+        });
+        return json(null);
       }
       if (tabla === 'estadisticas_del_dia') {
         const totales = new Map<string, number>();
