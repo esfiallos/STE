@@ -1,7 +1,17 @@
 import { appStore } from '../../state/appStore';
 import type { Vista } from '../../types/noc';
 
-const VISTAS: readonly Vista[] = ['tablero', 'seguimiento', 'traspaso', 'misTraspasos', 'planificacion', 'historial', 'bitacora'];
+const VISTAS: readonly Vista[] = [
+  'panel',
+  'tablero',
+  'busqueda',
+  'seguimiento',
+  'traspaso',
+  'misTraspasos',
+  'planificacion',
+  'historial',
+  'bitacora'
+];
 
 /**
  * Pestañas Tablero / Planificación / Historial / Bitácora. La vista activa vive en la dirección (#historial),

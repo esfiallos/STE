@@ -11,10 +11,19 @@ export type Hora = string;
 
 export type EstadoConexion = 'conectando' | 'conectado' | 'desconectado';
 
-export type Vista = 'tablero' | 'seguimiento' | 'traspaso' | 'misTraspasos' | 'planificacion' | 'historial' | 'bitacora';
+export type Vista =
+  | 'panel'
+  | 'tablero'
+  | 'busqueda'
+  | 'seguimiento'
+  | 'traspaso'
+  | 'misTraspasos'
+  | 'planificacion'
+  | 'historial'
+  | 'bitacora';
 
-/** Rol del usuario (tabla perfiles). El dispatch edita; el técnico solo consulta el tablero. */
-export type Rol = 'dispatch' | 'tecnico';
+/** Rol del usuario (tabla perfiles). El dispatch edita; el técnico gestiona sus casos; el coordinador supervisa (solo lee). */
+export type Rol = 'dispatch' | 'tecnico' | 'coordinador';
 
 export interface Perfil {
   nombre: string;
@@ -196,4 +205,59 @@ export interface TraspasoEnviado {
   turnoOrigen: TurnoTecnico | null;
   enviadoEn: string | null;
   items: ItemTraspasoEnviado[];
+}
+
+export type TipoAlerta = 'sin_actualizacion' | 'recordatorio_sin_jornada';
+
+/** Aviso para coordinación (tabla alertas_coordinacion). */
+export interface AlertaCoordinacion {
+  id: string;
+  tipo: TipoAlerta;
+  casoId: string;
+  tecnicoId: string | null;
+  tecnicoNombre: string | null;
+  /** Horas sin actualización (2, 4 o 6); null en los recordatorios. */
+  nivel: 2 | 4 | 6 | null;
+  /** Desde cuándo se cuenta (última actividad, recepción del caso o inicio del turno). */
+  referencia: string;
+  /** Código del caso (y texto del recordatorio). */
+  detalle: string | null;
+  leida: boolean;
+  creadoEn: string;
+}
+
+/** Un caso del buscador global (abierto o cerrado). */
+export interface CasoEncontrado {
+  id: string;
+  codigo: string;
+  cliente: string | null;
+  area: string | null;
+  nota: string | null;
+  descripcion: string | null;
+  estado: EstadoCaso;
+  etiqueta: string | null;
+  ultimaActualizacion: string | null;
+  ultimaActualizacionEn: string | null;
+  ultimaActualizacionPor: string | null;
+  actividadTecnicoEn: string | null;
+  tecnicoActualId: string | null;
+  tecnicoActual: string | null;
+  creadoEn: string;
+  creadoPor: string | null;
+  cerradoEn: string | null;
+  recordatorioFecha: string | null;
+  recordatorioTexto: string | null;
+}
+
+/** Un paso de un caso por un traspaso (ficha del buscador). */
+export interface TraspasoDelCaso {
+  fecha: string;
+  deTecnicoId: string;
+  paraTecnicoId: string | null;
+  fechaDestino: string | null;
+  estado: EstadoCaso;
+  etiqueta: string | null;
+  notaPersonalizada: string | null;
+  ultimaActualizacion: string | null;
+  enviadoEn: string | null;
 }

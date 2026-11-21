@@ -14,6 +14,7 @@ export const MIGRACIONES = {
   corte: () => sinCron(leerSql('05_v2_corte.sql'), '-- 5. Snapshot diario'),
   seguimiento: () => leerSql('06_v2_seguimiento.sql'),
   traspasos: () => sinCron(leerSql('07_v2_traspasos.sql'), '-- 6. Recordatorios'),
+  coordinador: () => sinCron(leerSql('08_v2_coordinador.sql'), '-- 6. Alertas cada 5 minutos'),
   demo: () => leerSql('03_datos_demo_dev.sql')
 };
 

@@ -1,0 +1,53 @@
+---
+// Panel principal del coordinador: estadísticas del día y alertas por atender.
+// Lo dibuja scripts/coordination/coordinatorPanel.ts
+---
+
+<section class="panel-card coord" id="coordinatorPanel" aria-labelledby="coordTitle">
+  <div class="followup-toolbar">
+    <div>
+      <h2 id="coordTitle" class="planning-title">Panel de coordinación</h2>
+      <p id="coordDate" class="planning-help"></p>
+    </div>
+    <button id="btnCoordRefresh" type="button" class="btn btn-sm">
+      <i class="fa-solid fa-rotate" aria-hidden="true"></i> Actualizar
+    </button>
+  </div>
+
+  <p id="coordStatus" class="board-status hidden" role="status"></p>
+
+  <div class="coord-stats" id="coordStats">
+    <div class="coord-stat coord-stat--total">
+      <span class="coord-stat__label">Tickets del día</span>
+      <strong class="coord-stat__value" data-stat="total">0</strong>
+    </div>
+    <div class="coord-stat" data-estado="en_curso">
+      <span class="coord-stat__label">En curso</span>
+      <strong class="coord-stat__value" data-stat="en_curso">0</strong>
+      <span class="coord-stat__bar"><span data-barra="en_curso"></span></span>
+    </div>
+    <div class="coord-stat" data-estado="pausado">
+      <span class="coord-stat__label">Pausados</span>
+      <strong class="coord-stat__value" data-stat="pausado">0</strong>
+      <span class="coord-stat__bar"><span data-barra="pausado"></span></span>
+    </div>
+    <div class="coord-stat" data-estado="resuelto">
+      <span class="coord-stat__label">Resueltos</span>
+      <strong class="coord-stat__value" data-stat="resuelto">0</strong>
+      <span class="coord-stat__bar"><span data-barra="resuelto"></span></span>
+    </div>
+    <div class="coord-stat" data-estado="cerrado">
+      <span class="coord-stat__label">Cerrados</span>
+      <strong class="coord-stat__value" data-stat="cerrado">0</strong>
+      <span class="coord-stat__bar"><span data-barra="cerrado"></span></span>
+    </div>
+  </div>
+
+  <div class="followup-section">
+    <h3 class="followup-section__title">
+      <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Alertas por atender
+      <small>(casos sin actualización del técnico a las 2, 4 y 6 h de su turno)</small>
+    </h3>
+    <ul id="coordAlerts" class="coord-alerts"></ul>
+  </div>
+</section>

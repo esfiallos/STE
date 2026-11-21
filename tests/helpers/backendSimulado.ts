@@ -13,6 +13,7 @@ export interface Datos {
   caso_responsables?: Fila[];
   traspasos?: Fila[];
   traspaso_items?: Fila[];
+  alertas_coordinacion?: Fila[];
 }
 
 /** Día de las pruebas: lunes 9 de noviembre de 2026 (ver fijarHora). */
@@ -67,7 +68,8 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
     notificaciones: datos.notificaciones ?? [],
     caso_responsables: datos.caso_responsables ?? [],
     traspasos: datos.traspasos ?? [],
-    traspaso_items: datos.traspaso_items ?? []
+    traspaso_items: datos.traspaso_items ?? [],
+    alertas_coordinacion: datos.alertas_coordinacion ?? []
   };
   const escrituras: string[] = [];
   let secuencia = 100;
@@ -116,7 +118,22 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
     const cabeceras = new Headers(init?.headers);
     if (url.pathname.includes('/rpc/')) {
       escrituras.push(`RPC ${tabla} ${init?.body ?? ''}`);
-      if (tabla === 'enviar_traspaso') return enviarTraspaso(JSON.parse(String(init?.body)).p_traspaso);
+      const parametros = JSON.parse(String(init?.body ?? '{}'));
+      if (tabla === 'enviar_traspaso') return enviarTraspaso(parametros.p_traspaso);
+      if (tabla === 'buscar_casos') {
+        const termino = String(parametros.p_termino).trim().toLowerCase();
+        const nombre = (id: unknown) => db.tecnicos!.find((t) => t.id === id)?.nombre ?? null;
+        return json(
+          db.casos!
+            .filter((c) => termino && [c.codigo, c.cliente, c.nota, c.area, nombre(c.tecnico_actual_id)].some((v) => String(v ?? '').toLowerCase().includes(termino)))
+            .map((c) => ({ descripcion: null, etiqueta: null, cliente: null, area: null, ...c, tecnico_actual: nombre(c.tecnico_actual_id) }))
+        );
+      }
+      if (tabla === 'estadisticas_del_dia') {
+        const totales = new Map<string, number>();
+        for (const c of db.casos!) if (c._fecha === parametros.p_fecha) totales.set(String(c.estado), (totales.get(String(c.estado)) ?? 0) + 1);
+        return json([...totales].map(([estado, total]) => ({ estado, total })));
+      }
       return json(null);
     }
     const origen: Fila[] = tabla === 'casos_abiertos' ? casosAbiertos() : (db[tabla] ?? []);

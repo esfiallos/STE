@@ -33,7 +33,7 @@ export const esperar = (ms = 40) => new Promise((resolver) => setTimeout(resolve
  */
 export async function iniciarApp(
   datos: Datos = datosBase(),
-  { rol = 'dispatch', tecnicoId = null }: { rol?: 'dispatch' | 'tecnico'; tecnicoId?: string | null } = {}
+  { rol = 'dispatch', tecnicoId = null }: { rol?: 'dispatch' | 'tecnico' | 'coordinador'; tecnicoId?: string | null } = {}
 ) {
   vi.resetModules();
   cargarPaginaCompilada();
@@ -56,6 +56,8 @@ export async function iniciarApp(
   appStore.set({ perfil: { nombre: 'Prueba', rol, tecnicoId }, soloLectura: rol !== 'dispatch' });
   document.body.classList.toggle('solo-lectura', rol !== 'dispatch');
   document.body.classList.toggle('rol-tecnico', rol === 'tecnico' && tecnicoId !== null);
+  document.body.classList.toggle('rol-dispatch', rol === 'dispatch');
+  document.body.classList.toggle('rol-coordinador', rol === 'coordinador');
 
   iniciarModalAsignar();
   iniciarFiltroPorTecnico();

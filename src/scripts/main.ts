@@ -8,6 +8,10 @@ import { obtenerMiPerfil } from '../services/perfilRepo';
 import { appStore } from '../state/appStore';
 import { cargarDatos, iniciarSincronizacion } from '../state/sync';
 import { cargarBitacora, iniciarBitacora } from './audit/auditView';
+import { codigoDeAlerta } from './actions/coordinationActions';
+import { buscarCaso, iniciarBuscadorDeCasos } from './caseSearch/caseSearchView';
+import { iniciarCampanaDeAlertas } from './coordination/alertsBell';
+import { cargarPanel, iniciarPanelDeCoordinacion } from './coordination/coordinatorPanel';
 import { iniciarEventosDelTablero } from './board/boardEvents';
 import { iniciarDragAndDrop } from './board/dragAndDrop';
 import { aplicarRenderPendiente, solicitarRender } from './board/renderScheduler';
@@ -58,11 +62,15 @@ async function iniciar(): Promise<void> {
   }
 
   const esDispatch = perfil.data.rol === 'dispatch';
-  /** Técnico enlazado a su fila de `tecnicos`: tiene Seguimiento y notificaciones. */
-  const miTecnicoId = esDispatch ? null : perfil.data.tecnicoId;
+  const esCoordinador = perfil.data.rol === 'coordinador';
+  const esTecnico = perfil.data.rol === 'tecnico';
+  /** Técnico enlazado a su fila de `tecnicos`: tiene Seguimiento, Traspaso y notificaciones. */
+  const miTecnicoId = esTecnico ? perfil.data.tecnicoId : null;
   appStore.set({ perfil: perfil.data, soloLectura: !esDispatch });
   document.body.classList.toggle('solo-lectura', !esDispatch);
   document.body.classList.toggle('rol-tecnico', miTecnicoId !== null);
+  document.body.classList.toggle('rol-dispatch', esDispatch);
+  document.body.classList.toggle('rol-coordinador', esCoordinador);
   byId('appRoot').classList.remove('hidden');
 
   iniciarSesionDeUsuario(sesion.user.email, perfil.data);
@@ -87,8 +95,17 @@ async function iniciar(): Promise<void> {
       window.location.hash = 'seguimiento';
       window.setTimeout(() => resaltarCaso(casoId), 50);
     });
-  } else if (!esDispatch) {
+  } else if (esTecnico) {
     mostrarAviso('Tu usuario técnico no está enlazado a un técnico: pide al administrador que complete tu perfil.', 'error');
+  }
+
+  if (esDispatch || esCoordinador) iniciarBuscadorDeCasos();
+  if (esCoordinador) {
+    iniciarPanelDeCoordinacion();
+    iniciarCampanaDeAlertas((alerta) => {
+      window.location.hash = 'busqueda';
+      void buscarCaso(codigoDeAlerta(alerta));
+    });
   }
 
   appStore.subscribe(solicitarRender);
@@ -100,7 +117,9 @@ async function iniciar(): Promise<void> {
 
   iniciarPestanas(
     {
+      ...(esCoordinador ? { panel: () => void cargarPanel() } : {}),
       tablero: () => undefined,
+      ...(esDispatch || esCoordinador ? { busqueda: () => byId('caseSearchInput').focus() } : {}),
       ...(miTecnicoId
         ? { seguimiento: renderizarSeguimiento, traspaso: abrirTraspaso, misTraspasos: () => void cargarMisTraspasos() }
         : {}),
@@ -108,7 +127,7 @@ async function iniciar(): Promise<void> {
       historial: () => void cargarHistorial(),
       bitacora: () => void cargarBitacora()
     },
-    miTecnicoId ? 'seguimiento' : 'tablero'
+    miTecnicoId ? 'seguimiento' : esCoordinador ? 'panel' : 'tablero'
   );
 }
 

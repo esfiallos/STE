@@ -2,7 +2,8 @@
 
 Panel web en tiempo real para un NOC: casos (INC/SCTASK…) asignados a técnicos según su turno **del día**,
 planificación semanal, almuerzos, seguimiento del técnico con notificaciones, historial diario (snapshots) y
-bitácora. Roles: **dispatch** (asigna y planifica) y **técnico** (tablero en solo lectura + su seguimiento).
+bitácora. Roles: **dispatch** (asigna y planifica), **técnico** (tablero en solo lectura + su seguimiento y
+traspaso) y **coordinador** (panel con estadísticas y alertas, buscador global; solo lee).
 Todo el código, nombres y mensajes están **en español**; mantén ese idioma.
 
 **Stack:** Astro 7 (sitio estático, sin SSR) · TypeScript estricto · SCSS · Supabase (Auth, Postgres, RLS,
@@ -15,9 +16,9 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
    §8 decisiones D1–D15, §9 despliegue, §10 requerimientos v2.1). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 20 archivos, 151 pruebas). En una máquina cargada
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 23 archivos, 167 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Siguiente trabajo: **Fase 6 — Coordinador** (detalle en §10.3 del diseño).
+4. Siguiente trabajo: **Fase 7 — Ronda** (detalle en §10.2 del diseño).
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
@@ -32,14 +33,14 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 3. Login | ✅ | Recuperar contraseña (panel en `/login/`), página `/restablecer/`, mejoras visuales |
 | 4. Técnico | ✅ | `sql/06_v2_seguimiento.sql`, pestaña **Mi seguimiento**, campana de notificaciones + alertas, su columna resaltada |
 | 5. Casos + Traspasos | ✅ | `sql/07_v2_traspasos.sql`, pestañas **Traspaso** y **Mis traspasos**, área/empresa en Mi seguimiento, etiqueta VM, recordatorios |
-| 6. Coordinador | ⏳ siguiente | Rol nuevo, buscador global, estadísticas, alertas 2/4/6 h (§10.3) |
-| 7. Ronda | ⏳ | "Crear y asignar a la ronda", rotativa alfabética por turno (§10.2) |
+| 6. Coordinador | ✅ | `sql/08_v2_coordinador.sql`, pestañas **Panel** y **Buscar casos**, campana de alertas 2/4/6 h |
+| 7. Ronda | ⏳ siguiente | "Crear y asignar a la ronda", rotativa alfabética por turno (§10.2) |
 | 8. Planificación con solicitudes | ⏳ | Dispatch solo lectura + solicitud por día; coordinación planifica (§10.7) |
 | 9. Animaciones | 🟡 parcial | Login, seguimiento y campana ya animan; falta el tablero (mover/asignar) |
 
 **Bases de datos (revisado con el conector el 19/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
 DEV = `DEV` (`bofqefbxziqxzrdujihd`).
-- DEV y PROD: 04, 05 y 06 aplicadas; la **07 aún no** (la ejecuta el usuario). Cron 05:59 funcionando.
+- DEV y PROD: 04, 05 y 06 aplicadas; la **07 y la 08 aún no** (las ejecuta el usuario, en orden). Cron 05:59 funcionando.
 - 19/11/2026, a pedido del usuario: se **vaciaron todas las tablas** de `public` en DEV y PROD (casos, jornadas,
   técnicos, perfiles, traspasos, notificaciones, snapshots y bitácora). Se conservan los usuarios de `auth` y
   `entorno_dev` en DEV. El usuario las poblará al terminar la nueva arquitectura: sin perfiles nadie entra.
@@ -69,9 +70,25 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
 - Límite conocido: un traspaso por técnico y día; si llegan casos después de enviarlo, la pestaña lo avisa y el
   dispatch debe reasignarlos.
 
-### Fases 6–8 — Coordinador, Ronda, Planificación con solicitudes
-Detalle completo en `docs/DISENO_V2.md` §10.2, §10.3 y §10.7 (decisiones D10–D15). La antigua fase
-"Búsqueda global" (`buscar_casos(termino)`) queda dentro de la fase 6 (Coordinador).
+### Fase 6 — Coordinador ✅ (qué quedó)
+- `sql/08_v2_coordinador.sql`: rol `coordinador` (por SQL, sin `tecnico_id`) + `es_coordinador()`; lee traspasos e
+  ítems de todos; `buscar_casos(termino, limite)` (código, empresa, área, nota, etiqueta, actualización, técnico actual
+  o del historial; `%`/`_` literales; cerrados al final); `estadisticas_del_dia(fecha)`; tabla `alertas_coordinacion`
+  (RLS solo coordinador, solo puede marcar `leida`, Realtime) que llena `generar_alertas_coordinacion()` (cron cada
+  5 min): 2/4/6 h sin actividad, contando solo dentro del turno del responsable (`fin_de_turno()`); una actualización
+  o un cierre deja leídas las anteriores. `generar_recordatorios()` ahora también avisa a coordinación si el
+  responsable no tiene jornada ese día.
+- Dominio `coordination.ts` (estadísticas, alertas activas: una por caso, la más grave). `coordinacionRepo.ts`,
+  `traspasosRepo.listarTraspasosDelCaso`.
+- Pestaña **Panel** (`scripts/coordination/coordinatorPanel.ts`, vista por defecto del coordinador): tickets del día
+  por estado (se relee al cambiar los casos) y alertas por atender. Campana propia (`alertsBell.ts`): al abrir una
+  alerta se atienden las del caso y se abre en el buscador.
+- Pestaña **Buscar casos** (`scripts/caseSearch/caseSearchView.ts`, coordinador y dispatch): ficha con responsables y
+  traspasos (nota de quien entregó).
+- CSS: `body.rol-coordinador` + `[data-coordinador-only]`; `[data-supervision-only]` = dispatch o coordinador.
+
+### Fases 7–8 — Ronda, Planificación con solicitudes
+Detalle completo en `docs/DISENO_V2.md` §10.2 y §10.7 (decisiones D10, D14, D15).
 
 ### Fase 9 — Animaciones
 Tablero: entrada/destello al asignar o mover un caso (FLIP), "pop" del contador de la tarjeta, realce de la
@@ -99,7 +116,8 @@ bun run test        # build + todas las pruebas (igual que el CI)
 
 ```
 pages/ + components/   Marcado Astro sin lógica. Lo dinámico son <template> que scripts/ clona.
-  index.astro          Tablero · Mi seguimiento · Planificación · Historial · Bitácora (según rol)
+  index.astro          Panel · Tablero · Buscar casos · Mi seguimiento · Traspaso · Mis traspasos ·
+                       Planificación · Historial · Bitácora (según rol)
   login.astro          Entrar + recuperar contraseña   ·   restablecer.astro: contraseña nueva
         │
 scripts/               Comportamiento en el navegador
@@ -182,6 +200,8 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - `06_v2_seguimiento.sql`: `casos_abiertos` suma `origen_responsable` y `ultima_actualizacion_por`.
 - `07_v2_traspasos.sql`: áreas fijas, área/empresa del técnico, actividad del técnico, recordatorios (+ cron cada
   5 min), `fecha_destino` de los ítems, `enviar_traspaso` actualizado y `casos_abiertos` +3 columnas.
+- `08_v2_coordinador.sql`: rol coordinador, `buscar_casos`, `estadisticas_del_dia`, `alertas_coordinacion` (+ cron
+  `alertas-coordinacion` cada 5 min). Coordinador: `insert into perfiles (id, nombre, rol) ... 'coordinador'`.
 - `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`); no toca `perfiles`.
 - Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
   **con** `tecnico_id`; sin él no tiene seguimiento ni notificaciones.

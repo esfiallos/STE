@@ -47,6 +47,30 @@ const esDesarrollo = import.meta.env.PUBLIC_APP_ENV === 'development';
       </div>
     </div>
 
+    <!-- Alertas de coordinación (scripts/coordination/alertsBell.ts) -->
+    <div class="notif" data-coordinador-only>
+      <button
+        id="btnAlerts"
+        type="button"
+        class="btn-topbar notif__bell"
+        title="Alertas de coordinación"
+        aria-label="Alertas de coordinación"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="alertsPanel"
+      >
+        <i class="fa-regular fa-bell" aria-hidden="true"></i>
+        <span id="alertsCount" class="notif__count hidden" aria-live="polite"></span>
+      </button>
+      <div id="alertsPanel" class="notif__panel hidden" role="dialog" aria-label="Alertas de coordinación">
+        <div class="notif__head">
+          <strong>Alertas</strong>
+          <button id="btnAlertsReadAll" type="button" class="link-button">Marcar todas como atendidas</button>
+        </div>
+        <ul id="alertsList" class="notif__list"></ul>
+      </div>
+    </div>
+
     <i class="fa-regular fa-circle-user" aria-hidden="true"></i>
     <span class="user-email" id="userEmail"></span>
     <span class="role-badge hidden" id="userRole"></span>

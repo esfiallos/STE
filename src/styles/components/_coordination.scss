@@ -1,0 +1,160 @@
+@use '../abstracts/variables' as *;
+
+// Solo coordinación (body.rol-coordinador) / dispatch y coordinación (data-supervision-only)
+body:not(.rol-coordinador) [data-coordinador-only] {
+  display: none !important;
+}
+
+body:not(.rol-dispatch):not(.rol-coordinador) [data-supervision-only] {
+  display: none !important;
+}
+
+.role-badge[data-rol='coordinador'] {
+  background-color: $color-almuerzo-borde;
+  color: $color-marca-oscuro;
+}
+
+// ------------------------------------------------------------- Panel de coordinación
+.coord-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.coord-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid $color-borde;
+  border-top: 4px solid $color-acento;
+  border-radius: $radio-md;
+  background-color: $color-superficie;
+  box-shadow: $sombra-tarjeta;
+
+  &--total {
+    border-top-color: $color-marca;
+    background-color: $color-acento-suave;
+  }
+  &[data-estado='pausado'] {
+    border-top-color: $color-almuerzo-borde;
+  }
+  &[data-estado='resuelto'] {
+    border-top-color: $color-exito;
+  }
+  &[data-estado='cerrado'] {
+    border-top-color: $color-texto-suave;
+  }
+}
+
+.coord-stat__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $color-texto-suave;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.coord-stat__value {
+  font-size: 1.9rem;
+  line-height: 1;
+  color: $color-texto;
+}
+
+.coord-stat__bar {
+  height: 0.35rem;
+  border-radius: $radio-pildora;
+  background-color: $color-superficie-alta;
+  overflow: hidden;
+
+  span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background-color: currentColor;
+    color: $color-acento;
+    transition: width 0.4s ease;
+  }
+}
+
+.coord-alerts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.coord-alerts__item .notif__link {
+  border: 1px solid $color-borde;
+  border-radius: $radio-md;
+}
+
+// Gravedad de la alerta (campana y panel)
+.alerta {
+  border-left: 4px solid $color-almuerzo-borde !important;
+
+  &--alta {
+    border-left-color: #e07b22 !important;
+  }
+  &--critica {
+    border-left-color: $color-peligro !important;
+    background-color: $color-peligro-suave;
+  }
+}
+
+// ------------------------------------------------------------- Buscador de casos
+.case-results {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.case-result {
+  &[data-estado='cerrado'] {
+    border-left-color: $color-texto-suave;
+    background-color: $color-superficie-alta;
+  }
+}
+
+.case-result__data {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+
+  div {
+    min-width: 0;
+  }
+  dt {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: $color-texto-suave;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  dd {
+    margin: 0;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+  }
+}
+
+.case-result__wide {
+  grid-column: 1 / -1;
+}
+
+.case-result__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed $color-borde;
+
+  h4 {
+    margin: 0;
+    font-size: 0.8rem;
+    color: $color-texto-suave;
+  }
+}

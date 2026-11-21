@@ -1,0 +1,59 @@
+---
+// Buscador global de casos (coordinación y dispatch, solo lectura). Lo dibuja scripts/caseSearch/caseSearchView.ts
+---
+
+<section class="panel-card" id="caseSearchView" aria-labelledby="caseSearchTitle">
+  <header class="panel-card__head">
+    <h2 id="caseSearchTitle">Buscar casos</h2>
+    <p>Todos los casos alguna vez creados: quién lo tiene, en qué estado está y por quiénes pasó.</p>
+  </header>
+
+  <form id="caseSearchForm" class="search-form">
+    <input
+      type="search"
+      id="caseSearchInput"
+      placeholder="Ej: INC009842, empresa, área, técnico o texto de la última actualización"
+      aria-label="Buscar casos"
+      autocomplete="off"
+      required
+    />
+    <button type="submit" class="btn btn-primary">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <span>Buscar</span>
+    </button>
+  </form>
+
+  <p id="caseSearchStatus" class="board-status hidden" role="status"></p>
+  <div id="caseSearchResults" class="case-results"></div>
+
+  <!-- Un caso encontrado (lo completa scripts/caseSearch/caseSearchView.ts) -->
+  <template id="tpl-caso-encontrado">
+    <article class="followup-card case-result" data-ref="tarjeta">
+      <header class="followup-card__head">
+        <span class="followup-code" data-ref="codigo"></span>
+        <span class="followup-chip" data-ref="estado"></span>
+        <span class="followup-chip followup-chip--fecha hidden" data-ref="etiqueta"></span>
+        <span class="followup-chip followup-chip--recordatorio hidden" data-ref="recordatorio"></span>
+      </header>
+      <dl class="case-result__data">
+        <div><dt>Responsable</dt><dd data-ref="responsable"></dd></div>
+        <div><dt>Empresa</dt><dd data-ref="empresa"></dd></div>
+        <div><dt>Área</dt><dd data-ref="area"></dd></div>
+        <div><dt>Nota</dt><dd data-ref="nota"></dd></div>
+        <div class="case-result__wide"><dt>Última actualización</dt><dd data-ref="actualizacion"></dd></div>
+        <div><dt>Creado</dt><dd data-ref="creado"></dd></div>
+        <div><dt>Última actividad del técnico</dt><dd data-ref="actividad"></dd></div>
+      </dl>
+      <footer class="followup-card__foot">
+        <span class="followup-meta" data-ref="cerrado"></span>
+        <button type="button" class="btn btn-sm" data-action="ver-ficha" aria-expanded="false">Historial y traspasos</button>
+      </footer>
+      <div class="case-result__detail hidden" data-ref="ficha">
+        <h4>Responsables</h4>
+        <ol class="followup-history" data-ref="responsables"></ol>
+        <h4>Traspasos</h4>
+        <ol class="followup-history" data-ref="traspasos"></ol>
+      </div>
+    </article>
+  </template>
+</section>

@@ -1,4 +1,4 @@
-import type { EstadoCaso, ItemTraspaso, ItemTraspasoEnviado, Traspaso, TraspasoEnviado, TurnoTecnico } from '../types/noc';
+import type { EstadoCaso, ItemTraspaso, ItemTraspasoEnviado, Traspaso, TraspasoDelCaso, TraspasoEnviado, TurnoTecnico } from '../types/noc';
 import { exito, type Resultado } from '../types/result';
 import { errorDeBaseDeDatos } from './dbErrors';
 import { supabase } from './supabaseClient';
@@ -216,4 +216,40 @@ export async function notasDeTraspasosRecibidos(tecnicoId: string, casoIds: stri
     if (!notas.has(i.caso_id)) notas.set(i.caso_id, { deTecnicoId: emisor.get(i.traspaso_id) ?? '', nota: i.nota_personalizada!.trim() });
   }
   return exito(notas);
+}
+
+/** Todos los traspasos en los que viajó un caso (ficha del buscador; dispatch y coordinación). */
+export async function listarTraspasosDelCaso(casoId: string): Promise<Resultado<TraspasoDelCaso[]>> {
+  const respuesta = await supabase.from('traspaso_items').select(COLUMNAS_ITEM).eq('caso_id', casoId);
+  if (respuesta.error) return errorDeBaseDeDatos(respuesta.error, 'No se pudieron cargar los traspasos del caso');
+  const items = respuesta.data as FilaItem[];
+  if (items.length === 0) return exito([]);
+
+  const { data, error } = await supabase
+    .from('traspasos')
+    .select(COLUMNAS_TRASPASO)
+    .in('id', [...new Set(items.map((i) => i.traspaso_id))])
+    .eq('estado', 'enviado');
+  if (error) return errorDeBaseDeDatos(error, 'No se pudieron cargar los traspasos del caso');
+  const traspasos = new Map((data as FilaTraspaso[]).map((t) => [t.id, t]));
+
+  return exito(
+    items
+      .filter((i) => traspasos.has(i.traspaso_id))
+      .map((i) => {
+        const t = traspasos.get(i.traspaso_id)!;
+        return {
+          fecha: t.fecha_operativa,
+          deTecnicoId: t.de_tecnico_id,
+          paraTecnicoId: i.para_tecnico_id,
+          fechaDestino: i.fecha_destino,
+          estado: i.estado,
+          etiqueta: i.etiqueta,
+          notaPersonalizada: i.nota_personalizada,
+          ultimaActualizacion: i.ultima_actualizacion,
+          enviadoEn: t.enviado_en
+        };
+      })
+      .sort((a, b) => (a.enviadoEn ?? '').localeCompare(b.enviadoEn ?? ''))
+  );
 }

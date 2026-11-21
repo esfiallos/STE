@@ -3,6 +3,7 @@ import type {
   EstadoConexion,
   Incidente,
   Notificacion,
+  AlertaCoordinacion,
   Perfil,
   Tecnico,
   TecnicoCatalogo,
@@ -30,6 +31,8 @@ export interface AppState {
   casosAbiertos: Incidente[];
   /** Notificaciones del técnico con sesión (vacío para el dispatch). */
   notificaciones: Notificacion[];
+  /** Alertas de coordinación (vacío si no es coordinador). */
+  alertas: AlertaCoordinacion[];
   carga: EstadoCarga;
   errorCarga: string | null;
   conexion: EstadoConexion;
@@ -55,6 +58,7 @@ export const appStore = createStore<AppState>({
   incidentes: [],
   casosAbiertos: [],
   notificaciones: [],
+  alertas: [],
   carga: 'cargando',
   errorCarga: null,
   conexion: 'conectando',

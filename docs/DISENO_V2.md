@@ -219,7 +219,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **3. Login** ✅ | Recuperar/restablecer contraseña, pulido visual | — (paralelo) |
 | **4. Técnico** ✅ | Mi día, Seguimiento, última actualización, notificaciones + alertas (`06`) | 1, 2 |
 | **5. Casos + Traspasos** ✅ | §10.1 (áreas, campos del técnico, actividad) + armado, balanceo, etiquetas (+VM), recordatorio por fecha, export Outlook/TSV, envío transaccional, **Mis traspasos** (§10.4–10.6) | 4 |
-| **6. Coordinador** | Rol nuevo, buscador global (absorbe la antigua fase "Búsqueda global"), panel de estadísticas, alertas 2/4/6 h (§10.3) | 5 |
+| **6. Coordinador** ✅ | Rol nuevo, buscador global (absorbe la antigua fase "Búsqueda global"), panel de estadísticas, alertas 2/4/6 h (§10.3) | 5 |
 | **7. Ronda** | Botón "Asignar a la ronda" del dispatch, rotativa alfabética por turno (§10.2) | 5 |
 | **8. Planificación con solicitudes** | Dispatch en solo lectura + solicitud de edición por día; planificación completa para coordinación (§10.7) | 6 |
 | **9. Animaciones** | Capa de efectos y pulido | 2, 4 |
@@ -300,7 +300,7 @@ Lo marcado como **Supuesto** es criterio propio para completar la regla; confirm
 - **Supuesto:** la asignación manual a un técnico concreto **no** mueve el puntero. Los comodines participan
   mientras estén en horario. Si nadie está disponible, error claro y no se crea el caso.
 
-### 10.3 Rol Coordinador (fase 6)
+### 10.3 Rol Coordinador (fase 6) — ✅ `sql/08_v2_coordinador.sql`
 - **D11.** Tercer rol `coordinador` (se otorga por SQL, igual que dispatch; sin `tecnico_id`). Helper
   `es_coordinador()`. Lee todo: casos, responsables, jornadas, traspasos e ítems, notificaciones de sistema y bitácora.
 - **Buscador global:** todos los casos alguna vez creados (código, empresa, área, nota, estado, etiqueta, última
@@ -316,6 +316,11 @@ Lo marcado como **Supuesto** es criterio propio para completar la regla; confirm
   campana del coordinador (Realtime + sonido + alerta de escritorio opcional).
   **Supuesto:** solo cuentan los casos no cerrados cuyo responsable **está en su turno**; las horas fuera de
   turno no suman (un caso recibido para el turno siguiente no alerta antes de que ese turno empiece).
+- Implementado así: referencia = lo más reciente entre `actividad_tecnico_en`, la recepción del caso y el inicio del
+  turno de hoy; solo se evalúa entre `inicio_de_turno()` y `fin_de_turno()`. Una actualización nueva (o cerrar o
+  reasignar el caso) deja leídas las alertas anteriores. "Leída" es compartida por todos los coordinadores.
+  La campana y el panel muestran una alerta por caso (la de más horas); abrirla atiende las del caso y lo abre en
+  el buscador.
 
 ### 10.4 Etiqueta VM (fase 5) — ✅
 - Se suma **VM** a las etiquetas sugeridas (`ETIQUETAS_SUGERIDAS`): indica que al caso se le programó una VM.

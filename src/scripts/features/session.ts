@@ -5,7 +5,7 @@ import { RUTAS } from '../routes';
 
 const irAlLogin = () => window.location.replace(RUTAS.login);
 
-const ETIQUETA_ROL: Record<Perfil['rol'], string> = { dispatch: 'Dispatch', tecnico: 'Técnico' };
+const ETIQUETA_ROL: Record<Perfil['rol'], string> = { dispatch: 'Dispatch', tecnico: 'Técnico', coordinador: 'Coordinación' };
 
 /** Muestra el usuario conectado y su rol, habilita "Cerrar sesión" y expulsa al login si la sesión termina. */
 export function iniciarSesionDeUsuario(correo: string | undefined, perfil: Perfil): void {

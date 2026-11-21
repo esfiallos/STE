@@ -12,6 +12,8 @@ import HandoverView from '../components/handover/HandoverView.astro';
 import MyHandoversView from '../components/handover/MyHandoversView.astro';
 import NoProfileNotice from '../components/auth/NoProfileNotice.astro';
 import AuditView from '../components/audit/AuditView.astro';
+import CoordinatorPanel from '../components/coordination/CoordinatorPanel.astro';
+import CaseSearchView from '../components/caseSearch/CaseSearchView.astro';
 import AssignIncidentModal from '../components/modals/AssignIncidentModal.astro';
 import LunchModal from '../components/modals/LunchModal.astro';
 import TechniciansModal from '../components/modals/TechniciansModal.astro';
@@ -25,10 +27,18 @@ import ToastHost from '../components/ui/ToastHost.astro';
     <TabNav />
 
     <main class="noc-main-content">
+      <section data-vista="panel" class="view hidden">
+        <CoordinatorPanel />
+      </section>
+
       <section data-vista="tablero" class="view">
         <BoardToolbar />
         <MetricBar />
         <IncidentBoard />
+      </section>
+
+      <section data-vista="busqueda" class="view hidden">
+        <CaseSearchView />
       </section>
 
       <section data-vista="seguimiento" class="view hidden">
