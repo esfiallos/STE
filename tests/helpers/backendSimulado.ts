@@ -1,5 +1,7 @@
 import { vi } from 'vitest';
+import { ORIGENES_DEL_TABLERO } from '../../src/domain/assignments';
 import { siguienteEnRonda, turnoEnCurso } from '../../src/domain/round';
+import type { OrigenResponsable } from '../../src/types/noc';
 import { fechaOperativa } from '../../src/domain/time';
 
 type Fila = Record<string, unknown>;
@@ -8,7 +10,11 @@ type Fila = Record<string, unknown>;
 export interface Datos {
   tecnicos: Fila[];
   jornadas: Fila[];
-  /** `_fecha`: día operativo del responsable vigente (casos_abiertos.fecha_responsable); `_origen`: cómo le llegó. */
+  /**
+   * `_fecha`: día operativo del responsable vigente (casos_abiertos.fecha_responsable); `_origen`: cómo le llegó.
+   * Si el dispatch lo asignó (`_origen` dispatch/reasignación/reapertura o sin `_origen`), está en el tablero de `_fecha`.
+   * `_tableroFecha`/`_tableroTecnico`: la asignación del dispatch cuando después se traspasó.
+   */
   casos: Fila[];
   notificaciones?: Fila[];
   caso_responsables?: Fila[];
@@ -79,6 +85,17 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
   let secuencia = 100;
   const nuevoId = () => `n${secuencia++}`;
 
+  /** Imita la vista tablero_del_dia (D16): la asignación del dispatch, aunque después se haya traspasado. */
+  const tableroDelDia = (): Fila[] =>
+    db.casos!.flatMap((c) => {
+      const origen = (c._origen ?? 'dispatch') as OrigenResponsable;
+      const delDispatch = ORIGENES_DEL_TABLERO.includes(origen) && c.tecnico_actual_id;
+      const fecha = delDispatch ? c._fecha : c._tableroFecha;
+      const tecnico = delDispatch ? c.tecnico_actual_id : c._tableroTecnico;
+      if (!fecha) return [];
+      return [{ ...c, fecha_operativa: fecha, tecnico_asignado_id: tecnico, asignado_en: c.creado_en, origen: delDispatch ? origen : 'dispatch' }];
+    });
+
   const casosAbiertos = () =>
     db.casos!
       .filter((c) => c.estado !== 'cerrado')
@@ -104,6 +121,9 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
         continue;
       }
       const destino = db.jornadas!.find((j) => j.tecnico_id === item.para_tecnico_id)?.fecha_operativa ?? traspaso.fecha_operativa;
+      if (ORIGENES_DEL_TABLERO.includes((caso._origen ?? 'dispatch') as OrigenResponsable)) {
+        Object.assign(caso, { _tableroFecha: caso._fecha, _tableroTecnico: caso.tecnico_actual_id });
+      }
       Object.assign(caso, {
         tecnico_actual_id: item.para_tecnico_id, estado: item.estado, etiqueta: item.etiqueta, ultima_actualizacion: item.ultima_actualizacion,
         recordatorio_fecha: item.recordatorio_fecha, recordatorio_texto: item.recordatorio_texto, _origen: 'traspaso', _fecha: destino
@@ -149,7 +169,7 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
         if (!puntero) db.ronda_estado!.push((puntero = { fecha_operativa: hoy, turno }));
         Object.assign(puntero, { ultimo_tecnico_id: elegido.id, ultimo_nombre: elegido.nombre });
         const id = nuevoId();
-        db.casos!.push({ id, codigo, nota: parametros.p_nota, estado: 'en_curso', tecnico_actual_id: elegido.id, creado_en: new Date().toISOString(), _fecha: hoy });
+        db.casos!.push({ id, codigo, cliente: parametros.p_empresa ?? null, nota: null, estado: 'en_curso', tecnico_actual_id: elegido.id, creado_en: new Date().toISOString(), _fecha: hoy });
         return json([{ caso_id: id, tecnico_id: elegido.id, tecnico_nombre: elegido.nombre }]);
       }
       if (tabla === 'solicitar_edicion_planificacion') {
@@ -172,14 +192,27 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
         });
         return json(null);
       }
+      if (tabla === 'cancelar_caso') {
+        const caso = db.casos!.find((c) => c.id === parametros.p_caso);
+        if (!caso) return json({ code: 'P0001', message: 'El caso ya no existe.' }, 400);
+        if (!tableroDelDia().some((t) => t.id === caso.id && t.fecha_operativa === fechaOperativa(new Date()))) {
+          return json({ code: 'P0001', message: `Solo se cancelan casos asignados hoy desde el tablero (${caso.codigo}).` }, 400);
+        }
+        db.casos = db.casos!.filter((c) => c !== caso);
+        if (caso.tecnico_actual_id) {
+          db.notificaciones!.push({ id: nuevoId(), tecnico_id: caso.tecnico_actual_id, tipo: 'cancelado', caso_id: null, detalle: caso.codigo, leida: false, creado_en: new Date().toISOString() });
+        }
+        return json(caso.codigo);
+      }
       if (tabla === 'estadisticas_del_dia') {
         const totales = new Map<string, number>();
-        for (const c of db.casos!) if (c._fecha === parametros.p_fecha) totales.set(String(c.estado), (totales.get(String(c.estado)) ?? 0) + 1);
+        for (const c of tableroDelDia()) if (c.fecha_operativa === parametros.p_fecha) totales.set(String(c.estado), (totales.get(String(c.estado)) ?? 0) + 1);
         return json([...totales].map(([estado, total]) => ({ estado, total })));
       }
       return json(null);
     }
-    const origen: Fila[] = tabla === 'casos_abiertos' ? casosAbiertos() : (db[tabla] ?? []);
+    const origen: Fila[] =
+      tabla === 'casos_abiertos' ? casosAbiertos() : tabla === 'tablero_del_dia' ? tableroDelDia() : (db[tabla] ?? []);
     const filas = origen.filter((fila) => cumpleFiltros(fila, url.searchParams));
 
     if (metodo !== 'GET') escrituras.push(`${metodo} ${tabla} ${init?.body ?? ''}`);

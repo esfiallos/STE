@@ -1,6 +1,6 @@
-import { casosDelTablero, tecnicosDelDia } from '../domain/assignments';
+import { tecnicosDelDia } from '../domain/assignments';
 import { fechaOperativa } from '../domain/time';
-import { listarCasosAbiertos } from '../services/casosRepo';
+import { listarCasosAbiertos, listarTableroDelDia } from '../services/casosRepo';
 import { listarJornadas } from '../services/jornadasRepo';
 import { suscribirCambios } from '../services/realtime';
 import { listarTecnicos } from '../services/tecnicosRepo';
@@ -12,18 +12,24 @@ const INTERVALO_RESPALDO_MS = 60_000;
 let ultimaCarga = 0;
 
 /**
- * Lee el catálogo, las jornadas del día operativo en curso y los casos abiertos, y actualiza el store.
- * A las 06:00 cambia la fecha operativa y el tablero queda limpio solo (sin borrar nada).
+ * Lee el catálogo, las jornadas del día operativo en curso, el tablero del día (lo que asignó el dispatch hoy)
+ * y los casos abiertos (base de Mi seguimiento y de "Por reasignar"), y actualiza el store.
+ * A las 06:00 cambia la fecha operativa y el tablero queda vacío solo (sin borrar nada).
  * Si llegan respuestas desordenadas, gana la más reciente.
  */
 export async function cargarDatos(): Promise<void> {
   const numeroDeCarga = ++ultimaCarga;
   const fecha = fechaOperativa(new Date());
-  const [catalogo, jornadas, casos] = await Promise.all([listarTecnicos(), listarJornadas(fecha, fecha), listarCasosAbiertos()]);
+  const [catalogo, jornadas, tablero, casos] = await Promise.all([
+    listarTecnicos(),
+    listarJornadas(fecha, fecha),
+    listarTableroDelDia(fecha),
+    listarCasosAbiertos()
+  ]);
   if (numeroDeCarga !== ultimaCarga) return;
 
-  if (!catalogo.ok || !jornadas.ok || !casos.ok) {
-    const motivo = [catalogo, jornadas, casos].map((r) => (r.ok ? '' : r.error)).find(Boolean) ?? '';
+  if (!catalogo.ok || !jornadas.ok || !tablero.ok || !casos.ok) {
+    const motivo = [catalogo, jornadas, tablero, casos].map((r) => (r.ok ? '' : r.error)).find(Boolean) ?? '';
     appStore.set({ carga: 'error', errorCarga: `No se pudo actualizar el tablero. ${motivo}` });
     return;
   }
@@ -32,7 +38,7 @@ export async function cargarDatos(): Promise<void> {
     fechaOperativa: fecha,
     catalogo: catalogo.data,
     tecnicos: tecnicosDelDia(catalogo.data, jornadas.data),
-    incidentes: casosDelTablero(casos.data, fecha),
+    incidentes: tablero.data,
     casosAbiertos: casos.data,
     carga: 'listo',
     errorCarga: null

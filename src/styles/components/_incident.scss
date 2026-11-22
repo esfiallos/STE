@@ -2,7 +2,7 @@
 
 .incident-item-card {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   column-gap: 0.6rem;
   padding: 0.45rem 0.5rem 0.45rem 0.6rem;
@@ -39,10 +39,49 @@
     background-color: $color-borde;
   }
 
+  .inc-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
   .inc-code {
     font-size: 0.9rem;
     font-weight: 700;
     user-select: text;
+  }
+
+  .inc-company {
+    font-size: 0.75rem;
+    color: $color-texto-suave;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Estado distinto de "En curso" (lo cambia el técnico en su seguimiento)
+  .inc-state {
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    background-color: $color-borde;
+    color: $color-texto-suave;
+
+    &[data-estado='resuelto'] {
+      background-color: $color-exito-suave;
+      color: $color-exito;
+    }
+  }
+
+  // Cerrado: sigue en el tablero del día como registro, atenuado y sin arrastre
+  &.is-closed {
+    cursor: default;
+    opacity: 0.6;
+
+    .inc-code {
+      text-decoration: line-through;
+    }
   }
 
   .inc-actions {

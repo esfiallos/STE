@@ -1,14 +1,18 @@
 ---
-// Plantilla de un incidente. La completa scripts/board/incidentView.ts
-// Copiar y ver el comentario son botones distintos y explícitos.
+// Plantilla de un caso del tablero. La completa scripts/board/incidentView.ts
+// El dispatch no cierra casos (D18): edita (código y empresa) o cancela un caso asignado por error (D25).
 ---
 
 <template id="tpl-incidente">
   <div class="incident-item-card" draggable="true" data-ref="incidente">
     <span class="inc-index" data-ref="indice"></span>
-    <span class="inc-code font-mono" data-ref="codigo"></span>
+    <div class="inc-main">
+      <span class="inc-code font-mono" data-ref="codigo"></span>
+      <span class="inc-company" data-ref="empresa"></span>
+    </div>
+    <span class="inc-state" data-ref="estado"></span>
 
-    <div class="inc-actions">
+    <div class="inc-actions" data-ref="acciones">
       <button type="button" class="btn-inc-action" data-action="copiar-codigo" title="Copiar número" aria-label="Copiar número">
         <i class="fa-regular fa-copy"></i>
       </button>
@@ -25,13 +29,25 @@
       </button>
       <button
         type="button"
-        class="btn-inc-action btn-danger"
-        data-action="quitar-incidente"
+        class="btn-inc-action"
+        data-ref="botonEditar"
+        data-action="editar-incidente"
         data-edit-only
-        title="Cerrar caso"
-        aria-label="Cerrar caso"
+        title="Editar código o empresa"
+        aria-label="Editar código o empresa"
       >
-        <i class="fa-solid fa-check"></i>
+        <i class="fa-solid fa-pen"></i>
+      </button>
+      <button
+        type="button"
+        class="btn-inc-action btn-danger"
+        data-ref="botonCancelar"
+        data-action="cancelar-incidente"
+        data-edit-only
+        title="Cancelar (asignado por error)"
+        aria-label="Cancelar caso asignado por error"
+      >
+        <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
 

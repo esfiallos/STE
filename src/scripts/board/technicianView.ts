@@ -29,7 +29,9 @@ export function crearVistaTecnico(tecnico: TecnicoConIncidentes, turnoId: TurnoI
 
   ref(fragmento, 'avatar').textContent = obtenerIniciales(tecnico.nombre);
   ref(fragmento, 'nombre').textContent = tecnico.nombre;
-  ref(fragmento, 'conteo').textContent = `${tecnico.incidentes.length} caso(s)`;
+  const cerrados = tecnico.incidentes.filter((i) => i.estado === 'cerrado').length;
+  ref(fragmento, 'conteo').textContent =
+    `${tecnico.incidentes.length} caso(s)` + (cerrados > 0 ? ` · ${cerrados} cerrado(s)` : '');
 
   // Etiqueta de estado (solo tablero vivo) y horario propio del comodín
   const etiquetaEstado = ref(fragmento, 'estado');
@@ -59,7 +61,7 @@ export function crearVistaTecnico(tecnico: TecnicoConIncidentes, turnoId: TurnoI
   if (vivo && estado === 'disponible' && claveFormulario === clave) {
     if (borrador?.clave === clave) {
       formulario.querySelector<HTMLInputElement>('[name="codigo"]')!.value = borrador.codigo;
-      formulario.querySelector<HTMLInputElement>('[name="nota"]')!.value = borrador.nota;
+      formulario.querySelector<HTMLInputElement>('[name="empresa"]')!.value = borrador.empresa;
     }
   } else {
     formulario.remove();
@@ -74,7 +76,8 @@ export function crearVistaTecnico(tecnico: TecnicoConIncidentes, turnoId: TurnoI
         coincideConBusqueda: incidenteCoincide(incidente, termino),
         notaFija: !vivo,
         notaAbierta: notasAbiertas.has(incidente.id),
-        arrastrable: vivo
+        arrastrable: vivo && incidente.estado !== 'cerrado',
+        conAcciones: vivo
       })
     );
   });

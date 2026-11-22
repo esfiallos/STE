@@ -72,7 +72,10 @@ export interface Incidente {
   id: string;
   codigo: string;
   nota: string | null;
-  /** Responsable actual; null si quedó sin asignar. */
+  /**
+   * Técnico del caso. En el tablero del día es a quién lo asignó el dispatch (su columna, D16);
+   * en los casos abiertos (seguimiento) es el responsable actual. Null si quedó sin asignar.
+   */
   tecnicoId: string | null;
   creadoEn: string;
   estado?: EstadoCaso;
@@ -107,12 +110,13 @@ export interface ResponsableCaso {
   asignadoPor: string;
 }
 
-export type TipoNotificacion = 'asignado' | 'reasignado' | 'traspaso' | 'recordatorio';
+export type TipoNotificacion = 'asignado' | 'reasignado' | 'traspaso' | 'recordatorio' | 'cancelado';
 
 export interface Notificacion {
   id: string;
   tipo: TipoNotificacion;
-  casoId: string;
+  /** Null en los avisos de "cancelado": el caso ya no existe. */
+  casoId: string | null;
   /** Código del caso. */
   detalle: string | null;
   leida: boolean;
@@ -127,7 +131,7 @@ export interface TecnicoConIncidentes extends Tecnico {
 export interface BorradorAsignacion {
   clave: string;
   codigo: string;
-  nota: string;
+  empresa: string;
 }
 
 export interface EntradaBitacora {

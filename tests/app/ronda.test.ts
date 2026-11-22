@@ -25,11 +25,11 @@ describe('asignar a la ronda (modal Nuevo caso)', () => {
     expect(app.q('#roundHint').textContent).toBe('Siguiente en la ronda: Ana Pérez');
 
     escribir('inputIncNumber', ' inc50 ');
-    escribir('inputIncNote', 'ACME · enlace 4410');
+    escribir('inputIncCompany', 'ACME');
     app.click(app.q('#btnAssignRound'));
     await esperar(80);
 
-    expect(app.db.casos!.find((c) => c.codigo === 'INC50')).toMatchObject({ tecnico_actual_id: 'ana', nota: 'ACME · enlace 4410' });
+    expect(app.db.casos!.find((c) => c.codigo === 'INC50')).toMatchObject({ tecnico_actual_id: 'ana', cliente: 'ACME' });
     expect(app.escrituras.some((e) => e.startsWith('RPC asignar_a_ronda'))).toBe(true);
 
     // Después de Ana sigue Marta (Luis no está disponible a esta hora)

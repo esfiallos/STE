@@ -8,6 +8,7 @@ export function incidenteCoincide(incidente: Incidente, termino: string): boolea
   if (!termino) return false;
   return (
     incidente.codigo.toLowerCase().includes(termino) ||
+    (incidente.cliente?.toLowerCase().includes(termino) ?? false) ||
     (incidente.nota?.toLowerCase().includes(termino) ?? false)
   );
 }

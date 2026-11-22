@@ -26,7 +26,7 @@ export interface AppState {
   catalogo: TecnicoCatalogo[];
   /** Técnicos con jornada en la fecha operativa (turno y almuerzo de ese día). */
   tecnicos: Tecnico[];
-  /** Casos abiertos que pertenecen al tablero de la fecha operativa. */
+  /** Tablero del día (D16): lo que el dispatch asignó en la fecha operativa, incluidos los cerrados. */
   incidentes: Incidente[];
   /** Todos los casos abiertos (incluye los traspasados para el próximo turno): base del Seguimiento. */
   casosAbiertos: Incidente[];

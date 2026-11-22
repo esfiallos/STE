@@ -39,7 +39,7 @@ function pintar(): void {
         const boton = crearElemento('button', 'notif__link');
         boton.type = 'button';
         boton.dataset.notificacionId = n.id;
-        boton.dataset.casoId = n.casoId;
+        if (n.casoId) boton.dataset.casoId = n.casoId;
         boton.append(crearElemento('span', 'notif__text', describirNotificacion(n)), crearElemento('span', 'notif__time', formatearFechaHora(n.creadoEn)));
         item.append(boton);
         return item;
@@ -98,8 +98,10 @@ export function iniciarNotificaciones(tecnicoId: string, abrirCaso: (casoId: str
 
   byId('notifList').addEventListener('click', (evento) => {
     const boton = evento.target instanceof Element ? evento.target.closest<HTMLElement>('[data-notificacion-id]') : null;
-    if (!boton?.dataset.notificacionId || !boton.dataset.casoId) return;
+    if (!boton?.dataset.notificacionId) return;
     void leerNotificacion(boton.dataset.notificacionId);
+    // Un caso cancelado ya no existe: solo se marca como leída.
+    if (!boton.dataset.casoId) return;
     alternarPanel(false);
     alAbrirCaso(boton.dataset.casoId);
   });

@@ -68,7 +68,8 @@ const TEXTO_NOTIFICACION: Record<TipoNotificacion, string> = {
   asignado: 'Te asignaron',
   reasignado: 'Te reasignaron',
   traspaso: 'Recibiste en traspaso',
-  recordatorio: 'Recordatorio:'
+  recordatorio: 'Recordatorio:',
+  cancelado: 'El dispatch canceló'
 };
 
 export function describirNotificacion(notificacion: Pick<Notificacion, 'tipo' | 'detalle'>): string {

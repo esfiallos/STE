@@ -1,0 +1,47 @@
+---
+// Corrección del dispatch (D26) y cancelación de un caso asignado por error (D25).
+// Los controla scripts/modals/editIncidentModal.ts
+import Modal from './Modal.astro';
+---
+
+<Modal id="modalEditIncident" titulo="Editar caso">
+  <form id="formEditIncident" class="noc-form" autocomplete="off">
+    <input type="hidden" id="editIncidentId" />
+    <div class="form-row">
+      <div class="form-group">
+        <label for="editIncidentCode">Número de caso</label>
+        <input type="text" id="editIncidentCode" class="font-mono" required maxlength="60" />
+      </div>
+      <div class="form-group">
+        <label for="editIncidentCompany">Empresa</label>
+        <input type="text" id="editIncidentCompany" placeholder="Sin empresa" maxlength="120" />
+      </div>
+    </div>
+    <p class="form-hint">Para cambiar de técnico, arrastra el caso a otra columna.</p>
+    <p id="editIncidentError" class="form-error hidden" role="alert"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close-modal>Cerrar</button>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+</Modal>
+
+<Modal id="modalCancelIncident" titulo="Cancelar caso">
+  <form id="formCancelIncident" class="noc-form" autocomplete="off">
+    <input type="hidden" id="cancelIncidentId" />
+    <p class="modal-subtitle">
+      <strong id="cancelIncidentCode" class="font-mono">--</strong> dejará de existir: sale del tablero y del seguimiento de
+      <strong id="cancelIncidentTech">--</strong>, y su número queda libre. Queda registrado en la bitácora.
+    </p>
+    <p id="cancelIncidentWorked" class="form-warning hidden" role="note"></p>
+    <div class="form-group">
+      <label for="cancelIncidentReason">Motivo (opcional)</label>
+      <input type="text" id="cancelIncidentReason" placeholder="Ej: número mal escrito" maxlength="200" />
+    </div>
+    <p id="cancelIncidentError" class="form-error hidden" role="alert"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close-modal>Volver</button>
+      <button type="submit" class="btn btn-danger">Cancelar caso</button>
+    </div>
+  </form>
+</Modal>

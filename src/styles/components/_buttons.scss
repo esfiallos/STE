@@ -43,6 +43,17 @@
   }
 }
 
+.btn.btn-danger {
+  background-color: $color-peligro;
+  border-color: $color-peligro;
+  color: #fff;
+
+  &:hover {
+    background-color: $color-peligro-hover;
+    border-color: $color-peligro-hover;
+  }
+}
+
 .btn-sm {
   padding: 0.3rem 0.65rem;
   font-size: 0.8rem;

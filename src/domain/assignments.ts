@@ -1,4 +1,4 @@
-import type { Incidente, Jornada, Tecnico, TecnicoCatalogo, TecnicoConIncidentes } from '../types/noc';
+import type { Incidente, Jornada, OrigenResponsable, Tecnico, TecnicoCatalogo, TecnicoConIncidentes } from '../types/noc';
 
 /** Misma normalización que aplica la base de datos al guardar el código. */
 export function normalizarCodigo(codigo: string): string {
@@ -47,15 +47,44 @@ export function tecnicosDelDia(catalogo: TecnicoCatalogo[], jornadas: Jornada[])
 }
 
 /**
- * Casos que pertenecen al tablero del día `fecha`: los que su responsable tiene hasta ese día.
- * Los traspasados para el día siguiente (ej. B → A de mañana) aparecen recién al empezar ese día.
+ * Cómo llega un caso a un técnico cuando lo hace el dispatch (= `origenes_del_tablero()` en SQL, D16).
+ * El tablero de un día solo muestra estas asignaciones: lo traspasado vive en Mi seguimiento.
  */
-export function casosDelTablero(casos: Incidente[], fecha: string): Incidente[] {
+export const ORIGENES_DEL_TABLERO: readonly OrigenResponsable[] = ['dispatch', 'reasignacion', 'reapertura'];
+
+/** Una asignación de un caso a un técnico en un día operativo (fila de `caso_responsables`). */
+export interface AsignacionDeCaso {
+  casoId: string;
+  tecnicoId: string | null;
+  fechaOperativa: string;
+  origen: OrigenResponsable;
+  desde: string;
+}
+
+/**
+ * Casos del tablero del día `fecha` (D16, = vista `tablero_del_dia`): por caso, la última asignación del
+ * dispatch de ese día. Un traspaso posterior no lo cambia de columna. Devuelve caso → técnico asignado.
+ */
+export function asignacionesDelDia(asignaciones: AsignacionDeCaso[], fecha: string): Map<string, AsignacionDeCaso> {
+  const porCaso = new Map<string, AsignacionDeCaso>();
+  for (const a of asignaciones) {
+    if (a.fechaOperativa !== fecha || !ORIGENES_DEL_TABLERO.includes(a.origen)) continue;
+    const previa = porCaso.get(a.casoId);
+    if (!previa || a.desde > previa.desde) porCaso.set(a.casoId, a);
+  }
+  return porCaso;
+}
+
+/**
+ * Casos abiertos que el responsable tiene hasta el día `fecha` (sin lo recibido para un día siguiente).
+ * Es la base de "Por reasignar"; el tablero se lee aparte (`tablero_del_dia`).
+ */
+export function casosHastaElDia(casos: Incidente[], fecha: string): Incidente[] {
   return casos.filter((caso) => !caso.fechaResponsable || caso.fechaResponsable <= fecha);
 }
 
 /** Casos abiertos sin responsable, o cuyo responsable no trabaja hoy: el dispatch debe reasignarlos. */
 export function casosPorReasignar(casos: Incidente[], tecnicosDeHoy: Tecnico[]): Incidente[] {
   const deHoy = new Set(tecnicosDeHoy.map((t) => t.id));
-  return casos.filter((caso) => caso.tecnicoId === null || !deHoy.has(caso.tecnicoId));
+  return casos.filter((caso) => caso.estado !== 'cerrado' && (caso.tecnicoId === null || !deHoy.has(caso.tecnicoId)));
 }

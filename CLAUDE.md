@@ -15,17 +15,18 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
-   §8 decisiones D1–D15, §9 despliegue, §10 requerimientos v2.1). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 30 archivos, 206 pruebas). En una máquina cargada
+   §8 decisiones D1–D28, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 31 archivos, 221 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Las 9 fases del diseño v2 están hechas. Siguiente: aplicar 07–10 en Supabase, poblar perfiles, probar contra
-   DEV en el navegador y publicar (`docs/DISENO_V2.md` §9). Pendientes menores en "Otros pendientes conocidos".
+4. Fases 1–10 hechas. Siguiente: **fases 11–13 de calidad de vida** (`docs/DISENO_V2.md` §11, reglas
+   D16–D28, todas decididas). Después: aplicar 07–12 en Supabase, poblar perfiles, probar contra
+   DEV y publicar (§9, §11.13).
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
    usuario lo pide; nunca ejecutes migraciones ni escrituras en PROD sin su confirmación explícita.
 
-## Estado (al 19/11/2026)
+## Estado (al 21/11/2026)
 
 | Fase | Estado | Qué quedó |
 |---|---|---|
@@ -38,10 +39,14 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 7. Ronda | ✅ | `sql/09_v2_ronda.sql`, botón **Asignar a la ronda** en Nuevo caso con vista previa del siguiente |
 | 8. Planificación con solicitudes | ✅ | `sql/10_v2_planificacion.sql`, coordinación planifica; el dispatch pide permiso por día (campanas en ambos roles) |
 | 9. Animaciones | ✅ | Tablero: FLIP al mover, entrada + destello del caso nuevo, pop del contador, realce de la columna (`ui/motion.ts`) |
+| 10. Tablero del día | ✅ | §11.1–11.2, §11.12: tablero/panel solo con lo asignado hoy por dispatch (vacío a las 06:00), **Cancelar** (borra el caso) y **Editar** código/empresa del dispatch en lugar de cerrar, Empresa al crear, Bitácora solo dispatch/coordinación · `sql/11` |
+| 11. Base visual | ⏳ | §11.7–11.10: Inter + navy, `ui/confirmar.ts` (adiós `window.confirm`), `ui/fecha.ts`, combobox, `@formkit/auto-animate` + `motion` |
+| 12. Seguimiento v2 | ⏳ | §11.3–11.6: descripción única, última actualización = fecha + botón, filas horizontales, etiquetas propias locales (localStorage) con combobox, nota del traspaso = descripción · `sql/12` |
+| 13. Filtros | ⏳ | §11.11: tipo de caso (FRESH `#SR`/`#INC` · Tarea `SCTASK` · Incidente `INC`) + filtros técnico/área/estado/tipo |
 
 **Bases de datos (revisado con el conector el 19/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
 DEV = `DEV` (`bofqefbxziqxzrdujihd`).
-- DEV y PROD: 04, 05 y 06 aplicadas; la **07, 08, 09 y 10 aún no** (las ejecuta el usuario, en orden). Cron 05:59 funcionando.
+- DEV y PROD: 04, 05 y 06 aplicadas; la **07, 08, 09, 10 y 11 aún no** (al 19/11; revisar antes de probar) (las ejecuta el usuario, en orden). Cron 05:59 funcionando.
 - 19/11/2026, a pedido del usuario: se **vaciaron todas las tablas** de `public` en DEV y PROD (casos, jornadas,
   técnicos, perfiles, traspasos, notificaciones, snapshots y bitácora). Se conservan los usuarios de `auth` y
   `entorno_dev` en DEV. El usuario las poblará al terminar la nueva arquitectura: sin perfiles nadie entra.
@@ -125,6 +130,21 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
 - `styles/components/_motion.scss` (máx. 900 ms = `DURACION_ANIMACION_MS`); `_base.scss` las apaga con
   `prefers-reduced-motion`. Se animan también los cambios que llegan de otros usuarios (Realtime).
 
+### Fase 10 — Tablero del día ✅ (qué quedó)
+- `sql/11_v2_tablero_del_dia.sql`: `origenes_del_tablero()` (= `ORIGENES_DEL_TABLERO`) y vista `tablero_del_dia`
+  (por caso y día, la última asignación del dispatch: dispatch/reasignación/reapertura; incluye cerrados). La usan
+  `estadisticas_del_dia` y `generar_snapshot_operativo`. Trigger: el dispatch no puede cerrar. `cancelar_caso(caso,
+  motivo)` (solo dispatch, solo casos del tablero de hoy y sin traspaso enviado; copia a la bitácora, borra en
+  cascada y avisa al técnico con notificación `cancelado`, `caso_id` null). Corrección de código → bitácora
+  `codigo_corregido`. `asignar_a_ronda(codigo, empresa)`. Bitácora: lectura solo dispatch/coordinación.
+- App: `sync.ts` lee `listarTableroDelDia(fecha)` → `incidentes` (columna = a quién lo asignó el dispatch; un
+  traspaso no lo mueve). "Por reasignar" sale de `casosAbiertos` (`casosHastaElDia`) y solo la ve el dispatch.
+  Tarjeta: empresa, chip de estado si no es "En curso", cerrado atenuado y sin arrastre; botones **Editar** y
+  **Cancelar** (`modals/editIncidentModal.ts`, modal con motivo y aviso si el técnico ya lo trabajó). "Nuevo caso"
+  y el formulario rápido piden **Empresa** (`casos.cliente`). Métrica "Casos asignados hoy". Pestaña Bitácora solo
+  supervisión. El buscador del tablero también busca por empresa.
+- No verificado en el navegador: necesita la 11 (y antes 07–10) aplicada en DEV.
+
 ### Otros pendientes conocidos
 - `03_datos_demo_dev.sql` no crea perfiles: para probar el rol técnico, enlazar un perfil a un técnico demo
   (`insert into perfiles (id, nombre, rol, tecnico_id) ...`).
@@ -198,7 +218,8 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - Mapeo snake_case (BD) ↔ camelCase (TS) se hace en cada repo (`aIncidente`, `aJornada`, `aNotificacion`…).
 - Los permisos los impone la BD (RLS + triggers); la UI solo oculta: `body.solo-lectura` + `[data-edit-only]`
   (sin rol dispatch) y `body.rol-tecnico` + `[data-tecnico-only]` (solo técnicos enlazados).
-- Casos y técnicos **no se borran**: los casos se cierran, los técnicos se desactivan.
+- Casos y técnicos **no se borran**: los casos se cierran, los técnicos se desactivan. Única excepción (D25, fase
+  10): **Cancelar** del dispatch borra un caso asignado por error, vía RPC y con copia en la bitácora.
 - Reglas duplicadas a propósito en SQL y TS, con prueba que verifica que coincidan:
   `desfase_traspaso()` = `domain/handover.ts`; horarios de comodín (`jornada_horario_comodin`) = `HORARIOS_COMODIN`.
 - Navegar con `irA()` (`scripts/routes.ts`), no con `window.location.replace` directo (las pruebas lo sustituyen).
@@ -207,7 +228,11 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 
 - **Día operativo** 06:00 → 06:00 (Honduras): `fechaOperativa()` / `public.fecha_operativa()`. A las 06:00 el
   tablero queda limpio sin borrar nada; los casos abiertos de un responsable que no trabaja hoy salen en
-  "Por reasignar".
+  "Por reasignar" (solo dispatch). **D16:** el tablero y el panel muestran solo lo que el dispatch asignó en el día
+  (vista `tablero_del_dia`, incluye cerrados); lo traspasado y lo de días anteriores vive en Mi seguimiento.
+- El dispatch **no cierra** casos: edita código/empresa o **cancela** (D25, el caso deja de existir).
+- **Fase 12 (aún no implementada):** "Última actualización" pasa a ser una fecha (cualquier edición del técnico o el
+  botón Actualizado) y el texto del caso es la **descripción**, que es también la nota del traspaso (D19–D21).
 - Turnos: A 06–14, B 14–22, C 22–06. **Comodín**: 06–16, 07–17 u 08–18; aparece en los turnos que toca.
   El turno es **por día** (tabla `jornadas`), lo planifica el dispatch por semana; el almuerzo también.
 - Destinos de traspaso: A → B/Comodín (mismo día) · B y Comodín → C (mismo día) o A/Comodín (día siguiente) ·
@@ -234,6 +259,8 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
   `alertas-coordinacion` cada 5 min). Coordinador: `insert into perfiles (id, nombre, rol) ... 'coordinador'`.
 - `09_v2_ronda.sql`: `ronda_estado` y `asignar_a_ronda()` (rotativa alfabética por turno, D10). Sin cron.
 - `10_v2_planificacion.sql`: solicitudes de planificación y permisos de `jornadas` por día (D14, D15). Sin cron.
+- `11_v2_tablero_del_dia.sql`: vista `tablero_del_dia`, estadísticas y snapshot por D16, el dispatch no cierra,
+  `cancelar_caso()`, ronda con empresa, bitácora solo supervisión (D16–D18, D25, D26, D28). Sin cron.
 - `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`); no toca `perfiles`.
 - Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
   **con** `tecnico_id`; sin él no tiene seguimiento ni notificaciones.

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { esperar, fijarHora, iniciarApp } from '../helpers/app';
-import { datosBase } from '../helpers/backendSimulado';
+import { datosBase, HOY } from '../helpers/backendSimulado';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -96,8 +96,12 @@ describe('rol técnico: solo lectura', () => {
 
     expect(document.body.classList.contains('solo-lectura')).toBe(true);
     app.click(app.tarjeta('turnoA', 'marta').querySelector('[data-action="asignar"]')!);
-    app.click(app.tarjeta('turnoA', 'ana').querySelector('[data-action="quitar-incidente"]')!);
+    expect(app.tarjeta('turnoA', 'ana').querySelector('[data-action="cancelar-incidente"]')).not.toBeNull(); // oculto por CSS
+    app.click(app.tarjeta('turnoA', 'ana').querySelector('[data-action="cancelar-incidente"]')!);
+    app.click(app.tarjeta('turnoA', 'ana').querySelector('[data-action="editar-incidente"]')!);
     await esperar();
+    expect(app.q('#modalCancelIncident').classList.contains('hidden')).toBe(true);
+    expect(app.q('#modalEditIncident').classList.contains('hidden')).toBe(true);
 
     expect(JSON.stringify(app.db.casos)).toBe(antes);
     expect(app.escrituras).toHaveLength(0);
@@ -144,6 +148,55 @@ describe('día operativo (06:00 → 06:00)', () => {
     const app = await iniciarApp(datos);
 
     expect(app.tarjeta('turnoA', 'ana').querySelectorAll('.incident-item-card')).toHaveLength(1);
+  });
+});
+
+describe('tablero del día (D16): solo lo que asignó el dispatch hoy', () => {
+  const columna = (app: Awaited<ReturnType<typeof iniciarApp>>, turno: string, tecnico: string) =>
+    [...app.tarjeta(turno, tecnico).querySelectorAll('.inc-code')].map((c) => c.textContent);
+
+  it('lo recibido en traspaso y lo de días anteriores no está en el tablero ni cuenta en las métricas', async () => {
+    const datos = datosBase();
+    datos.casos.push(
+      { id: 'i2', codigo: 'INC2', nota: null, estado: 'en_curso', tecnico_actual_id: 'ana', creado_en: '', _fecha: HOY, _origen: 'traspaso' },
+      { id: 'i3', codigo: 'INC3', nota: null, estado: 'en_curso', tecnico_actual_id: 'ana', creado_en: '', _fecha: '2026-11-08' }
+    );
+    const app = await iniciarApp(datos);
+
+    expect(columna(app, 'turnoA', 'ana')).toEqual(['INC1']);
+    expect(app.q('#statTotalIncidents').textContent).toBe('1');
+    // Ana trabaja hoy: lo de ayer sigue en su seguimiento, no "por reasignar"
+    expect(app.qa('.reassign-strip')).toHaveLength(0);
+  });
+
+  it('un cerrado sigue en su columna, atenuado y sin acciones; un traspasado sigue donde lo puso el dispatch', async () => {
+    const datos = datosBase();
+    datos.casos.push(
+      { id: 'i2', codigo: 'INC2', cliente: 'ACME', nota: null, estado: 'cerrado', tecnico_actual_id: 'marta', creado_en: '', _fecha: HOY },
+      { id: 'i3', codigo: 'INC3', nota: null, estado: 'pausado', tecnico_actual_id: 'luis', creado_en: '', _fecha: HOY, _origen: 'traspaso', _tableroFecha: HOY, _tableroTecnico: 'marta' }
+    );
+    const app = await iniciarApp(datos);
+
+    expect(columna(app, 'turnoA', 'marta')).toEqual(['INC2', 'INC3']);
+    const cerrado = app.tarjeta('turnoA', 'marta').querySelector<HTMLElement>('[data-incidente-id="i2"]')!;
+    expect(cerrado.classList.contains('is-closed')).toBe(true);
+    expect(cerrado.draggable).toBe(false);
+    expect(cerrado.querySelector('[data-action="cancelar-incidente"]')).toBeNull();
+    expect(cerrado.querySelector('.inc-state')!.textContent).toBe('Cerrado');
+    expect(cerrado.querySelector('.inc-company')!.textContent).toBe('ACME');
+    expect(app.tarjeta('turnoA', 'marta').querySelector('.tech-case-count')!.textContent).toBe('2 caso(s) · 1 cerrado(s)');
+    expect(columna(app, 'turnoB', 'luis')).toEqual([]);
+  });
+
+  it('"Por reasignar" solo lo ve el dispatch', async () => {
+    const datos = () => {
+      const d = datosBase();
+      d.casos.push({ id: 'i9', codigo: 'INC9', nota: null, estado: 'en_curso', tecnico_actual_id: 'pedro', creado_en: '', _fecha: '2026-11-08' });
+      return d;
+    };
+    expect((await iniciarApp(datos())).qa('.reassign-strip')).toHaveLength(1);
+    vi.unstubAllGlobals();
+    expect((await iniciarApp(datos(), { rol: 'coordinador' })).qa('.reassign-strip')).toHaveLength(0);
   });
 });
 

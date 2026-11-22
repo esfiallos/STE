@@ -47,6 +47,15 @@
   color: $color-texto-suave;
 }
 
+.form-warning {
+  padding: 0.5rem 0.75rem;
+  border-radius: $radio-sm;
+  border: 1px solid $color-almuerzo-borde;
+  background-color: $color-almuerzo-fondo;
+  color: $color-almuerzo-texto;
+  font-size: 0.85rem;
+}
+
 .form-error {
   padding: 0.5rem 0.75rem;
   border-radius: $radio-sm;

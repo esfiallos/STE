@@ -24,6 +24,7 @@ import { iniciarPestanas } from './features/tabs';
 import { iniciarFiltroPorTecnico } from './features/techFilter';
 import { cargarHistorial, iniciarHistorial } from './history/historyView';
 import { iniciarModalAsignar } from './modals/assignIncidentModal';
+import { iniciarModalEdicionDeCaso } from './modals/editIncidentModal';
 import { iniciarModalAlmuerzo } from './modals/lunchModal';
 import { iniciarModales } from './modals/modal';
 import { iniciarModalTecnicos } from './modals/techniciansModal';
@@ -80,6 +81,7 @@ async function iniciar(): Promise<void> {
   iniciarModales();
   iniciarModalAsignar();
   iniciarModalAlmuerzo();
+  iniciarModalEdicionDeCaso();
   iniciarModalTecnicos();
   iniciarAccionesDeLaBarra();
   iniciarBuscador();
@@ -146,7 +148,8 @@ async function iniciar(): Promise<void> {
           }
         : {}),
       historial: () => void cargarHistorial(),
-      bitacora: () => void cargarBitacora()
+      // La bitácora es solo de supervisión (D28); la base también se la niega al técnico.
+      ...(esDispatch || esCoordinador ? { bitacora: () => void cargarBitacora() } : {})
     },
     miTecnicoId ? 'seguimiento' : esCoordinador ? 'panel' : 'tablero'
   );
