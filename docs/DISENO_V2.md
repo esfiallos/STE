@@ -227,7 +227,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **9. Animaciones** ✅ | Capa de efectos y pulido | 2, 4 |
 
 | **10. Tablero del día** ✅ | Tablero y panel = solo lo asignado hoy por dispatch (vacío a las 06:00), Cancelar y Editar del dispatch en lugar de cerrar, empresa al crear, bitácora solo supervisión (§11.1–11.2, §11.12) · `11` | 9 |
-| **11. Base visual** | Inter + paleta navy, panel de confirmación, selector de fecha rápido, combobox, auto-animate + Motion (§11.7–11.10) | — (paralelo a 10) |
+| **11. Base visual** ✅ | Inter + paleta navy, panel de confirmación, selector de fecha rápido, combobox, auto-animate + Motion (§11.7–11.10) | — (paralelo a 10) |
 | **12. Seguimiento v2** | Descripción única + "Última actualización" como fecha y botón, filas horizontales, etiquetas locales con combobox, nota del traspaso = descripción, verificación traspaso → seguimiento (§11.3–11.6) · `12` | 10, 11 |
 | **13. Filtros** | Tipo de caso (FRESH · Tarea · Incidente) y filtros por técnico, área, estado y tipo en todas las vistas de casos (§11.11) | 12 |
 
@@ -470,7 +470,7 @@ usuario al empezar la fase que lo usa.
 - Sugeridas fijas con su color (`ETIQUETAS_SUGERIDAS` en `domain/`): Crítico / VIP · Seguimiento · Pendiente
   cliente · Escalar · VM · Monitoreo. Las propias usan un color neutro.
 
-### 11.7 Confirmaciones sin `window.confirm` (fase 11)
+### 11.7 Confirmaciones sin `window.confirm` (fase 11) — ✅
 - **D23.** Ningún `window.confirm/alert/prompt` (hoy hay 6: cerrar caso, cerrar turno, reasignar/reabrir ×2,
   desactivar técnico, copiar semana). Se reemplazan por `scripts/ui/confirmar.ts`
   (`confirmar(opciones): Promise<boolean>`):
@@ -479,7 +479,7 @@ usuario al empezar la fase que lo usa.
     receptor, cuáles se cierran y los recordatorios; Copiar semana muestra qué se reemplaza.
   - Botón peligroso en rojo, Esc cancela, Enter confirma, foco atrapado y devuelto, texto vía `textContent`.
 
-### 11.8 Fechas rápidas (fase 11)
+### 11.8 Fechas rápidas (fase 11) — ✅
 - **D24.** Los `<input type="date">` (recordatorio del traspaso, Mis traspasos, Historial, solicitud de
   planificación) pasan a un selector propio `scripts/ui/fecha.ts`:
   - **Chips de un clic:** Hoy · Mañana · Pasado mañana · próximos días de la semana (lun, mar…) según el contexto
@@ -488,8 +488,11 @@ usuario al empezar la fase que lo usa.
     `+1`, `+3`, `lun`, `vie`, `25`, `25/11`, `h` (hoy), `m` (mañana). ↑/↓ suman o restan un día.
   - Mini calendario en popover para lo demás. Formato visible `sáb 21/11`, valor ISO.
   - El intérprete es puro: `domain/dateInput.ts`, con pruebas.
+  - Implementado: no hay campos de fecha en Historial ni en la solicitud de planificación (usan listas),
+    así que hoy se aplica al recordatorio del traspaso y a Mis traspasos. El `<input type="date">` original queda
+    oculto con el valor ISO, así el resto del código no cambió.
 
-### 11.9 Estilo visual (fase 11)
+### 11.9 Estilo visual (fase 11) — ✅
 - Se adopta el lenguaje de `traspasos-noc` (referencia del usuario): tipografía **Inter** (empaquetada con
   `@fontsource-variable/inter`, sin CDN), paleta **navy** (`#081829 · #0F2942 · #163B5E · #1E4E79 · #E8F0F8 ·
   #F4F8FC`) sobre grises *slate*, botones primarios navy oscuros, radios de 12 px, sombras mínimas, chips en
@@ -497,7 +500,7 @@ usuario al empezar la fase que lo usa.
 - Todo vía tokens en `abstracts/_variables.scss` (regla del proyecto): primero tokens, luego botones, campos,
   combos, pestañas y tarjetas. No se agrega Tailwind.
 
-### 11.10 Dinamismo (fase 11)
+### 11.10 Dinamismo (fase 11) — ✅
 - La capa propia (`ui/motion.ts`, FLIP del tablero) se mantiene.
 - **D27 (P2 resuelto, 21/11): se usan ambas.** **`@formkit/auto-animate`** para altas/bajas/reordenamientos de
   listas (filas de seguimiento, resultados de filtros, notificaciones, ítems del traspaso) y **Motion** (`motion`,

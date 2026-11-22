@@ -1,6 +1,6 @@
 ---
 // "Traspaso" del técnico: armar la entrega de fin de turno y cerrar turno. Lo dibuja scripts/handover/handoverView.ts
-import { ETIQUETAS_SUGERIDAS, LARGO_MAXIMO_ACTUALIZACION, LARGO_MAXIMO_ETIQUETA } from '../../domain/followUp';
+import { LARGO_MAXIMO_ACTUALIZACION, LARGO_MAXIMO_ETIQUETA } from '../../domain/followUp';
 import { ESTADOS_DE_SEGUIMIENTO } from '../../domain/followUp';
 import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
 ---
@@ -68,10 +68,6 @@ import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
     </div>
   </div>
 
-  <datalist id="etiquetasTraspaso">
-    {ETIQUETAS_SUGERIDAS.map((etiqueta) => <option value={etiqueta} />)}
-  </datalist>
-
   <!-- Un caso del traspaso (lo completa scripts/handover/handoverView.ts) -->
   <template id="tpl-traspaso-item">
     <article class="handover-item" data-ref="item">
@@ -96,7 +92,7 @@ import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
         </label>
         <label class="followup-field">
           <span>Etiqueta</span>
-          <input type="text" list="etiquetasTraspaso" maxlength={LARGO_MAXIMO_ETIQUETA} data-campo="etiqueta" placeholder="Sin etiqueta" />
+          <input type="text" maxlength={LARGO_MAXIMO_ETIQUETA} data-campo="etiqueta" placeholder="Sin etiqueta" />
         </label>
         <label class="followup-field">
           <span>Recordar el día</span>

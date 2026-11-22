@@ -1,0 +1,107 @@
+@use '../abstracts/variables' as *;
+
+// Confirmaciones propias (scripts/ui/confirmar.ts, D23): popover anclado o panel centrado.
+// Por encima de los modales (100) y de la campana (150); los avisos (200) siguen arriba de todo.
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background-color: $color-overlay;
+  backdrop-filter: blur(2px);
+}
+
+.confirm {
+  z-index: 180;
+  background-color: $color-superficie;
+  border: 1px solid $color-borde;
+  border-radius: $radio-md;
+  box-shadow: $sombra-flotante;
+  color: $color-texto;
+  transform-origin: top right;
+
+  &--panel {
+    width: min(26rem, 100%);
+    box-shadow: $sombra-modal;
+    transform-origin: center;
+
+    .confirm__body {
+      padding: 1.25rem 1.35rem 1.1rem;
+    }
+
+    .confirm__title {
+      font-size: 1.05rem;
+    }
+  }
+
+  &--popover {
+    position: fixed;
+    width: 19rem;
+    max-width: calc(100vw - 1rem);
+
+    .confirm__body {
+      padding: 0.85rem 0.95rem 0.8rem;
+    }
+  }
+
+  // Borde de color: rojo en lo destructivo, navy en lo demás
+  border-top: 3px solid $color-acento;
+
+  &--danger {
+    border-top-color: $color-peligro;
+  }
+}
+
+.confirm__title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: $navy-900;
+}
+
+.confirm__message {
+  margin-top: 0.35rem;
+  font-size: 0.84rem;
+  color: $color-texto-suave;
+}
+
+.confirm__summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.3rem 1rem;
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: $radio-sm;
+  background-color: $color-superficie-alta;
+  border: 1px solid $color-borde;
+  font-size: 0.82rem;
+
+  dt {
+    color: $color-texto-etiqueta;
+  }
+
+  dd {
+    font-weight: 600;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+
+  .confirm--popover & {
+    margin-top: 0.75rem;
+
+    .btn {
+      min-height: 1.95rem;
+      padding: 0.25rem 0.75rem;
+    }
+  }
+}

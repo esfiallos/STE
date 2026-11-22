@@ -16,9 +16,9 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
    §8 decisiones D1–D28, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 31 archivos, 221 pruebas). En una máquina cargada
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 33 archivos, 239 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Fases 1–10 hechas. Siguiente: **fases 11–13 de calidad de vida** (`docs/DISENO_V2.md` §11, reglas
+4. Fases 1–11 hechas. Siguiente: **fases 12–13 de calidad de vida** (`docs/DISENO_V2.md` §11, reglas
    D16–D28, todas decididas). Después: aplicar 07–12 en Supabase, poblar perfiles, probar contra
    DEV y publicar (§9, §11.13).
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
@@ -26,7 +26,7 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
    usuario lo pide; nunca ejecutes migraciones ni escrituras en PROD sin su confirmación explícita.
 
-## Estado (al 21/11/2026)
+## Estado (al 22/11/2026)
 
 | Fase | Estado | Qué quedó |
 |---|---|---|
@@ -40,14 +40,17 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 8. Planificación con solicitudes | ✅ | `sql/10_v2_planificacion.sql`, coordinación planifica; el dispatch pide permiso por día (campanas en ambos roles) |
 | 9. Animaciones | ✅ | Tablero: FLIP al mover, entrada + destello del caso nuevo, pop del contador, realce de la columna (`ui/motion.ts`) |
 | 10. Tablero del día | ✅ | §11.1–11.2, §11.12: tablero/panel solo con lo asignado hoy por dispatch (vacío a las 06:00), **Cancelar** (borra el caso) y **Editar** código/empresa del dispatch en lugar de cerrar, Empresa al crear, Bitácora solo dispatch/coordinación · `sql/11` |
-| 11. Base visual | ⏳ | §11.7–11.10: Inter + navy, `ui/confirmar.ts` (adiós `window.confirm`), `ui/fecha.ts`, combobox, `@formkit/auto-animate` + `motion` |
+| 11. Base visual | ✅ | §11.7–11.10: Inter + navy, `ui/confirmar.ts` (adiós `window.confirm`), `ui/fecha.ts`, combobox, `@formkit/auto-animate` + `motion` |
 | 12. Seguimiento v2 | ⏳ | §11.3–11.6: descripción única, última actualización = fecha + botón, filas horizontales, etiquetas propias locales (localStorage) con combobox, nota del traspaso = descripción · `sql/12` |
 | 13. Filtros | ⏳ | §11.11: tipo de caso (FRESH `#SR`/`#INC` · Tarea `SCTASK` · Incidente `INC`) + filtros técnico/área/estado/tipo |
 
-**Bases de datos (revisado con el conector el 19/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
+**Bases de datos (revisado con el conector el 22/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
 DEV = `DEV` (`bofqefbxziqxzrdujihd`).
-- DEV y PROD: 04, 05 y 06 aplicadas; la **07, 08, 09, 10 y 11 aún no** (al 19/11; revisar antes de probar) (las ejecuta el usuario, en orden). Cron 05:59 funcionando.
-- 19/11/2026, a pedido del usuario: se **vaciaron todas las tablas** de `public` en DEV y PROD (casos, jornadas,
+- DEV y PROD: **04 a 11 aplicadas** (vista `tablero_del_dia`, `cancelar_caso`, ronda con `p_empresa`, política
+  `bitacora_leer_supervision`). Crons: `snapshot-operativo` 11:59 UTC (= 05:59 Honduras), `recordatorios-traspaso`
+  y `alertas-coordinacion` cada 5 min. DEV tiene perfiles dispatch, técnico y coordinador; PROD aún no tiene
+  coordinador ni casos/jornadas.
+- 19/11/2026, a pedido del usuario: se vaciaron todas las tablas de `public` en DEV y PROD (casos, jornadas,
   técnicos, perfiles, traspasos, notificaciones, snapshots y bitácora). Se conservan los usuarios de `auth` y
   `entorno_dev` en DEV. El usuario las poblará al terminar la nueva arquitectura: sin perfiles nadie entra.
 - PROD: la app publicada (`main`, que aún usa `incidentes`) **no funciona** hasta publicar la v2.
@@ -145,6 +148,28 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
   supervisión. El buscador del tablero también busca por empresa.
 - No verificado en el navegador: necesita la 11 (y antes 07–10) aplicada en DEV.
 
+### Fase 11 — Base visual ✅ (qué quedó)
+- Tokens (`abstracts/_variables.scss`): paleta navy (`$navy-950…50`) sobre slate, Inter Variable empaquetada
+  (`@fontsource-variable/inter`, importada en `layouts/Layout.astro`), radios 8/12 px, `$alto-campo`, `$color-foco`,
+  `$sombra-flotante`. `_base.scss` da un aspecto único a todos los campos con `:where()` (los componentes ajustan).
+- `scripts/ui/animacion.ts`: único lugar que importa **Motion** (`animarEntrada/Salida/Fondo/Pulso/Sacudida`) y
+  **auto-animate** (`animarLista`, solo listas que cambian de a un elemento: avisos, resultados del buscador). Sin
+  soporte o con movimiento reducido no anima. Usado por modales, campana, confirmaciones, fecha y combobox.
+- `scripts/ui/confirmar.ts`: `confirmar(opciones): Promise<boolean>`; con `ancla` = popover junto al botón, sin
+  ancla = panel con fondo y `resumen`. Enter acepta, Esc/clic fuera cancelan, foco atrapado y devuelto. Reemplazó
+  los 6 `window.confirm` (cerrar caso, cerrar turno con resumen por receptor, reasignar/reabrir, desactivar técnico,
+  copiar semana con cuántas se reemplazan). En las pruebas de app lo sustituye un mock (`app.confirmar` recibe el
+  texto del panel).
+- `domain/dateInput.ts` (intérprete puro: h, m, pm, ayer, ±N, lun…dom, D, D/M[/AA], ISO; chips; calendario) +
+  `scripts/ui/fecha.ts` (`mejorarCampoDeFecha(input, { direccion })`: oculta el `<input type="date">`, que sigue
+  teniendo el valor y recibe `change`; chips, mini calendario, vista previa, ↑/↓). Usado en el recordatorio del
+  traspaso (futuro, mín. hoy) y en Mis traspasos (pasado, máx. hoy).
+- `scripts/ui/combobox.ts` (`mejorarCombobox(input, { opciones, permitirCrear, alCrear, vacio })`) +
+  `filtrarOpciones`/`mismoTexto` en `domain/search.ts`. Usado en las etiquetas de Mi seguimiento y Traspaso (sin
+  datalist). Las etiquetas propias locales (localStorage) llegan en la fase 12 vía `alCrear`.
+- Pruebas: `tests/domain/fechas-rapidas.test.ts`, `tests/app/componentes-ui.test.ts`.
+- Visto en el navegador solo el login (fuente y colores nuevos, sin errores): el panel requiere iniciar sesión.
+
 ### Otros pendientes conocidos
 - `03_datos_demo_dev.sql` no crea perfiles: para probar el rol técnico, enlazar un perfil a un técnico demo
   (`insert into perfiles (id, nombre, rol, tecnico_id) ...`).
@@ -181,7 +206,8 @@ scripts/               Comportamiento en el navegador
   features/            Pestañas (según rol), buscador, filtro por técnico, sesión, estado de conexión
   history/ audit/      Vistas de Historial y Bitácora
   actions/             Casos de uso: service → recarga (cargarDatos) → aviso/sonido
-  ui/                  toast, sonido, portapapeles, tablas, formato
+  ui/                  toast, sonido, portapapeles, tablas, formato, animacion (Motion + auto-animate),
+                       confirmar (panel/popover), fecha (selector rápido), combobox
         │
 state/                 appStore (createStore: get/set/subscribe) + sync.ts (Realtime + respaldo)
         │

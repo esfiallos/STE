@@ -7,17 +7,30 @@
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  padding: 0.5rem 0.9rem;
+  min-height: $alto-campo;
+  padding: 0.45rem 0.95rem;
   border-radius: $radio-sm;
-  border: 1px solid $color-borde-fuerte;
+  border: 1px solid $color-borde;
   background-color: $color-superficie;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
+  letter-spacing: -0.005em;
   color: $color-texto;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
 
   &:hover {
     background-color: $color-superficie-alta;
-    border-color: $color-texto-suave;
+    border-color: $color-borde-fuerte;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px $color-foco;
   }
 
   &[aria-pressed='true'] {
@@ -55,8 +68,9 @@
 }
 
 .btn-sm {
-  padding: 0.3rem 0.65rem;
-  font-size: 0.8rem;
+  min-height: 1.95rem;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.78rem;
 }
 
 .btn-block {

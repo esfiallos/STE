@@ -23,7 +23,7 @@
   &.is-match {
     border-color: $color-acento;
     background-color: $color-acento-suave;
-    box-shadow: 0 0 0 2px rgba(11, 95, 209, 0.25);
+    box-shadow: 0 0 0 2px $color-foco;
   }
 
   .inc-index {

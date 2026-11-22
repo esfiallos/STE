@@ -15,6 +15,7 @@ import { copiarReporte, type FormatoDeCopia } from '../actions/handoverActions';
 import { byId } from '../dom';
 import { formatearFechaHora } from '../ui/format';
 import { crearTabla } from '../ui/table';
+import { mejorarCampoDeFecha } from '../ui/fecha';
 
 let tecnicoId = '';
 let consulta = 0;
@@ -39,6 +40,8 @@ export async function cargarMisTraspasos(): Promise<void> {
   if (!tecnicoId) return;
   const campo = byId<HTMLInputElement>('myHandoversDate');
   if (!campo.value) campo.value = appStore.get().fechaOperativa || fechaOperativa(new Date());
+  campo.max = appStore.get().fechaOperativa || fechaOperativa(new Date());
+  mejorarCampoDeFecha(campo, { direccion: 'pasado' });
   const fecha = campo.value;
   const numero = ++consulta;
   pintarEstado('Cargando…');

@@ -1,6 +1,7 @@
 import {
   agruparSeguimiento,
   ESTADOS_DE_SEGUIMIENTO,
+  ETIQUETAS_SUGERIDAS,
   ETIQUETA_ORIGEN,
   normalizarEtiqueta,
   resumenDeVarios,
@@ -18,6 +19,8 @@ import { copiarTexto, guardarSeguimiento } from '../actions/followUpActions';
 import { byId, clonarPlantilla, crearElemento, ref } from '../dom';
 import { formatearFechaCorta, formatearFechaHora } from '../ui/format';
 import { mostrarAviso } from '../ui/toast';
+import { confirmar } from '../ui/confirmar';
+import { mejorarCombobox } from '../ui/combobox';
 
 let tecnicoId = '';
 let renderPendiente = false;
@@ -81,7 +84,9 @@ function crearTarjeta(caso: Incidente, hoy: string): HTMLElement {
   estado.append(...ESTADOS_DE_SEGUIMIENTO.map((e) => new Option(ETIQUETA_ESTADO_CASO[e], e)));
   estado.value = caso.estado ?? 'en_curso';
 
-  ref<HTMLInputElement>(fragmento, 'etiqueta').value = caso.etiqueta ?? '';
+  const etiqueta = ref<HTMLInputElement>(fragmento, 'etiqueta');
+  etiqueta.value = caso.etiqueta ?? '';
+  mejorarCombobox(etiqueta, { opciones: () => ETIQUETAS_SUGERIDAS, permitirCrear: true, vacio: 'Sin etiqueta' });
   const actualizacion = ref<HTMLTextAreaElement>(fragmento, 'actualizacion');
   actualizacion.value = caso.ultimaActualizacion ?? '';
   actualizacion.dataset.original = actualizacion.value;
@@ -242,8 +247,17 @@ export function iniciarSeguimiento(miTecnicoId: string): void {
 
     if (campo instanceof HTMLSelectElement && campo.dataset.ref === 'estado') {
       const estado = campo.value as EstadoCaso;
-      if (estado === 'cerrado' && !window.confirm(`¿Cerrar ${caso.codigo}? Sale de tu seguimiento y del tablero.`)) {
-        campo.value = caso.estado ?? 'en_curso';
+      if (estado === 'cerrado') {
+        void confirmar({
+          titulo: `¿Cerrar ${caso.codigo}?`,
+          mensaje: 'Sale de tu seguimiento. En el tablero del día queda como cerrado.',
+          aceptar: 'Cerrar caso',
+          peligro: true,
+          ancla: campo
+        }).then((si) => {
+          if (si) void guardar(tarjeta, caso, { estado }, `${caso.codigo}: ${ETIQUETA_ESTADO_CASO[estado]}.`);
+          else campo.value = caso.estado ?? 'en_curso';
+        });
         return;
       }
       void guardar(tarjeta, caso, { estado }, `${caso.codigo}: ${ETIQUETA_ESTADO_CASO[estado]}.`);

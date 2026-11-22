@@ -18,27 +18,9 @@
   gap: 0.35rem;
 
   label {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    color: $color-texto-suave;
-  }
-
-  input,
-  select {
-    padding: 0.5rem 0.75rem;
-    border-radius: $radio-sm;
-    border: 1px solid $color-borde-fuerte;
-    background-color: $color-superficie;
-    font-size: 0.9rem;
-
-    &:focus {
-      border-color: $color-acento;
-    }
-
-    &:disabled {
-      background-color: $color-superficie-alta;
-      color: $color-texto-suave;
-    }
+    color: $color-texto-etiqueta;
   }
 }
 

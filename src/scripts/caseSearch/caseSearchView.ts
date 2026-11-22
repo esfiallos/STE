@@ -12,6 +12,7 @@ import { appStore } from '../../state/appStore';
 import type { CasoEncontrado } from '../../types/noc';
 import { byId, clonarPlantilla, crearElemento, ref } from '../dom';
 import { formatearFechaCorta, formatearFechaHora } from '../ui/format';
+import { animarLista } from '../ui/animacion';
 
 let consulta = 0;
 let resultados: CasoEncontrado[] = [];
@@ -122,7 +123,9 @@ export async function buscarCaso(termino: string): Promise<void> {
         ? `Se muestran los primeros ${resultados.length}: afina la búsqueda para ver otros.`
         : null
   );
-  byId('caseSearchResults').replaceChildren(...resultados.map(crearResultado));
+  const contenedor = byId('caseSearchResults');
+  animarLista(contenedor);
+  contenedor.replaceChildren(...resultados.map(crearResultado));
   // Si hay un único resultado, se abre su ficha
   if (resultados.length === 1) {
     const tarjeta = byId('caseSearchResults').querySelector<HTMLElement>('[data-caso-id]')!;

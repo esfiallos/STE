@@ -16,6 +16,7 @@ import { byId, crearElemento } from '../dom';
 import { abrirModalAlmuerzo } from '../modals/lunchModal';
 import { formatearFechaHora } from '../ui/format';
 import { avisarSiFalla, mostrarAviso } from '../ui/toast';
+import { confirmar } from '../ui/confirmar';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -323,9 +324,18 @@ async function copiarSemanaAnterior(): Promise<void> {
     mostrarAviso('La semana anterior no tiene jornadas para copiar (o todos sus días ya pasaron).', 'error');
     return;
   }
-  if (!window.confirm(`Se copiarán ${copia.length} jornada(s) de la semana anterior. Las ya planificadas se reemplazan. ¿Continuar?`)) {
-    return;
-  }
+  const existentes = new Set(jornadas.map((j) => `${j.tecnicoId}|${j.fecha}`));
+  const reemplazadas = copia.filter((j) => existentes.has(`${j.tecnicoId}|${j.fecha}`)).length;
+  const aceptado = await confirmar({
+    titulo: 'Copiar la semana anterior',
+    mensaje: `Se copiarán ${copia.length} jornada(s) de la semana anterior. Las ya planificadas se reemplazan.`,
+    resumen: [
+      { etiqueta: 'Jornadas a copiar', valor: String(copia.length) },
+      { etiqueta: 'Se reemplazan', valor: String(reemplazadas) }
+    ],
+    aceptar: 'Copiar semana'
+  });
+  if (!aceptado) return;
 
   if (avisarSiFalla(await planificarJornadas(copia))) mostrarAviso(`${copia.length} jornada(s) copiadas.`, 'exito');
   await cargarPlanificacion();

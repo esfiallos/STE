@@ -1,5 +1,6 @@
 import type { Resultado } from '../../types/result';
 import { byId, crearElemento } from '../dom';
+import { animarLista } from './animacion';
 
 type TipoDeAviso = 'info' | 'exito' | 'error';
 
@@ -9,7 +10,9 @@ export function mostrarAviso(mensaje: string, tipo: TipoDeAviso = 'info'): void 
   const aviso = crearElemento('div', `toast toast--${tipo}`, mensaje);
   aviso.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
 
-  byId('toastHost').append(aviso);
+  const anfitrion = byId('toastHost');
+  animarLista(anfitrion); // entra y sale deslizándose (solo la primera vez configura)
+  anfitrion.append(aviso);
   window.setTimeout(() => aviso.remove(), DURACION_MS);
 }
 

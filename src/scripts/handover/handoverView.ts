@@ -13,6 +13,7 @@ import {
 } from '../../domain/handoverDraft';
 import { repartirCasos, type ModoDeReparto } from '../../domain/handoverBalance';
 import { armarBloques, reporteHtml, reporteTexto, reporteTsv, type OrdenDeReporte } from '../../domain/handoverReport';
+import { ETIQUETAS_SUGERIDAS } from '../../domain/followUp';
 import { debeTraspasarse } from '../../domain/handover';
 import { nombreDeTurno } from '../../domain/shifts';
 import { fechaOperativa, sumarDias } from '../../domain/time';
@@ -24,6 +25,9 @@ import { cerrarTurno, copiarReporte, guardarBorrador, type FormatoDeCopia } from
 import { byId, clonarPlantilla, crearElemento, ref } from '../dom';
 import { formatearFechaHora, formatearFechaLarga } from '../ui/format';
 import { mostrarAviso } from '../ui/toast';
+import { confirmar } from '../ui/confirmar';
+import { mejorarCampoDeFecha } from '../ui/fecha';
+import { mejorarCombobox } from '../ui/combobox';
 
 const ESPERA_GUARDADO_MS = 700;
 
@@ -215,7 +219,9 @@ function crearItem(item: ItemTraspaso, caso: Incidente, lista: ReceptorTraspaso[
   receptor.value = item.estado === 'cerrado' ? '' : (item.paraTecnicoId ?? '');
   receptor.disabled = item.estado === 'cerrado';
 
-  campo<HTMLInputElement>('etiqueta').value = item.etiqueta ?? '';
+  const etiqueta = campo<HTMLInputElement>('etiqueta');
+  etiqueta.value = item.etiqueta ?? '';
+  mejorarCombobox(etiqueta, { opciones: () => ETIQUETAS_SUGERIDAS, permitirCrear: true, vacio: 'Sin etiqueta' });
   campo<HTMLInputElement>('notaPersonalizada').value = item.notaPersonalizada ?? '';
   campo<HTMLTextAreaElement>('ultimaActualizacion').value = item.ultimaActualizacion ?? '';
   const fecha = campo<HTMLInputElement>('recordatorioFecha');
@@ -224,6 +230,7 @@ function crearItem(item: ItemTraspaso, caso: Incidente, lista: ReceptorTraspaso[
   const texto = campo<HTMLInputElement>('recordatorioTexto');
   texto.value = item.recordatorioTexto ?? '';
   fecha.disabled = texto.disabled = item.estado === 'cerrado';
+  mejorarCampoDeFecha(fecha, { direccion: 'futuro', vacio: 'Sin recordatorio' });
   return tarjeta;
 }
 
@@ -322,9 +329,29 @@ function repartir(modo: ModoDeReparto): void {
 
 async function confirmarCierre(): Promise<void> {
   if (!contexto) return;
-  const entregar = items.filter((i) => debeTraspasarse(i.estado)).length;
+  const entregados = items.filter((i) => debeTraspasarse(i.estado));
+  const entregar = entregados.length;
   const cerrar = items.length - entregar;
-  if (!window.confirm(`¿Cerrar turno? Se entregan ${entregar} caso(s)${cerrar > 0 ? ` y se cierran ${cerrar}` : ''}. Esto no se puede deshacer.`)) return;
+  const nombres = new Map(appStore.get().catalogo.map((t) => [t.id, t.nombre]));
+  const porReceptor = new Map<string, number>();
+  for (const item of entregados) {
+    const nombre = nombres.get(item.paraTecnicoId ?? '') ?? 'Sin receptor';
+    porReceptor.set(nombre, (porReceptor.get(nombre) ?? 0) + 1);
+  }
+  const recordatorios = items.filter((i) => i.recordatorioFecha).length;
+  const resumen = [
+    ...[...porReceptor].map(([nombre, total]) => ({ etiqueta: nombre, valor: `${total} caso(s)` })),
+    ...(cerrar > 0 ? [{ etiqueta: 'Se cierran', valor: `${cerrar} caso(s)` }] : []),
+    ...(recordatorios > 0 ? [{ etiqueta: 'Recordatorios', valor: String(recordatorios) }] : [])
+  ];
+  const aceptado = await confirmar({
+    titulo: '¿Cerrar turno?',
+    mensaje: `Se entregan ${entregar} caso(s)${cerrar > 0 ? ` y se cierran ${cerrar}` : ''}. Esto no se puede deshacer.`,
+    resumen,
+    aceptar: 'Cerrar turno',
+    peligro: true
+  });
+  if (!aceptado) return;
 
   const boton = byId<HTMLButtonElement>('btnCerrarTurno');
   boton.disabled = true;
