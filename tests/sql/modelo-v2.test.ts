@@ -181,7 +181,10 @@ describe('modelo v2 (migración 04)', () => {
     expect(await caso('INC1')).toMatchObject({ estado: 'pausado', etiqueta: 'Monitoreo', ultima_actualizacion_por: 'ana@noc.test' });
     expect((await caso('INC9')).estado).toBe('en_curso');
     const acciones = await db.query<{ accion: string }>(`select accion from bitacora where codigo = 'INC1' order by created_at, id`);
-    expect(acciones.rows.map((r) => r.accion)).toEqual(['caso_creado', 'estado_cambiado', 'etiqueta_cambiada', 'ultima_actualizacion']);
+    // Estado, etiqueta y actualización se registran en el mismo UPDATE: pueden tener la misma hora, así que su orden no importa.
+    const [primera, ...resto] = acciones.rows.map((r) => r.accion);
+    expect(primera).toBe('caso_creado');
+    expect(resto.sort()).toEqual(['estado_cambiado', 'etiqueta_cambiada', 'ultima_actualizacion']);
   });
 
   it('reasignar y reabrir mantienen el historial de responsables', async () => {
