@@ -1,0 +1,283 @@
+@use '../abstracts/variables' as *;
+
+// Casos abiertos cuyo responsable no trabaja hoy
+.reassign-strip {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: $radio-md;
+  border: 1px dashed $color-almuerzo-borde;
+  background-color: $color-almuerzo-fondo;
+}
+
+.reassign-strip__title {
+  font-size: 0.95rem;
+  color: $color-almuerzo-texto;
+}
+
+.reassign-strip__help {
+  margin: 0.15rem 0 0.6rem;
+  font-size: 0.8rem;
+  color: $color-almuerzo-texto;
+}
+
+.reassign-strip__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.5rem;
+}
+
+.reassign-strip__owner {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: $color-texto-suave;
+}
+
+// Planificación semanal
+.planning-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.planning-week {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.planning-title {
+  font-size: 1rem;
+  min-width: 14rem;
+  text-align: center;
+}
+
+.planning-help {
+  margin: 0.6rem 0 0.9rem;
+  font-size: 0.82rem;
+  color: $color-texto-suave;
+}
+
+.planning-grid {
+  th.is-today {
+    color: $color-acento;
+  }
+
+  .planning-name {
+    white-space: nowrap;
+    text-align: left;
+  }
+
+  tfoot th,
+  tfoot td {
+    background-color: $color-superficie-alta;
+  }
+}
+
+.planning-cell {
+  min-width: 9.5rem;
+  vertical-align: top;
+  transition: background-color 0.2s ease;
+
+  &.is-today {
+    background-color: $color-acento-suave;
+  }
+
+  &.is-past {
+    opacity: 0.6;
+  }
+
+  &[data-turno='turnoA'] .planning-select {
+    border-left: 3px solid #2e7dd7;
+  }
+  &[data-turno='turnoB'] .planning-select {
+    border-left: 3px solid #7a4cc2;
+  }
+  &[data-turno='turnoC'] .planning-select {
+    border-left: 3px solid #233041;
+  }
+  &[data-turno='comodin'] .planning-select {
+    border-left: 3px solid $color-cian;
+  }
+}
+
+.planning-select {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border-radius: $radio-sm;
+  border: 1px solid $color-borde-fuerte;
+  background-color: $color-superficie;
+  font-size: 0.8rem;
+}
+
+.planning-lunch {
+  margin-top: 0.3rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid $color-almuerzo-borde;
+  border-radius: $radio-pildora;
+  background-color: $color-almuerzo-fondo;
+  color: $color-almuerzo-texto;
+  font-size: 0.72rem;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.planning-total {
+  font-size: 0.72rem;
+  white-space: nowrap;
+  color: $color-texto-suave;
+}
+
+// Estado del día para el dispatch (encabezado de la grilla)
+.planning-day-chip {
+  display: block;
+  width: fit-content;
+  margin: 0.2rem auto 0;
+  padding: 0.05rem 0.45rem;
+  border-radius: $radio-pildora;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &[data-estado='habilitado'] {
+    background-color: $color-acento-suave;
+    color: $color-acento;
+  }
+
+  &[data-estado='pendiente'] {
+    background-color: $color-almuerzo-fondo;
+    color: $color-almuerzo-texto;
+  }
+}
+
+.planning-cell.is-locked .planning-select:disabled {
+  cursor: not-allowed;
+}
+
+// Solicitudes para editar la planificación
+.planning-requests {
+  margin-top: 1rem;
+}
+
+.planning-requests__title {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.planning-requests__subtitle {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.85rem;
+  color: $color-texto-suave;
+}
+
+.planning-request-form__day {
+  flex: 0 0 11rem;
+}
+
+.planning-requests__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planning-request {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid $color-borde-fuerte;
+  border-radius: $radio-md;
+  background-color: $color-superficie;
+  font-size: 0.85rem;
+}
+
+.planning-request__text {
+  flex: 1 1 18rem;
+  overflow-wrap: anywhere;
+}
+
+.planning-request__meta {
+  display: block;
+  font-size: 0.75rem;
+  color: $color-texto-suave;
+}
+
+.planning-request__state {
+  padding: 0.05rem 0.5rem;
+  border-radius: $radio-pildora;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background-color: $color-superficie-alta;
+  color: $color-texto-suave;
+
+  &[data-estado='pendiente'] {
+    background-color: $color-almuerzo-fondo;
+    color: $color-almuerzo-texto;
+  }
+
+  &[data-estado='aprobada'] {
+    background-color: $color-acento-suave;
+    color: $color-acento;
+  }
+
+  &[data-estado='rechazada'] {
+    background-color: $color-peligro-suave;
+    color: $color-peligro;
+  }
+}
+
+.planning-request__answer {
+  flex: 1 1 12rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: $radio-sm;
+  border: 1px solid $color-borde-fuerte;
+  background-color: $color-superficie;
+  font-size: 0.82rem;
+}
+
+.planning-requests__empty {
+  font-size: 0.82rem;
+  color: $color-texto-suave;
+}
+
+@media (max-width: 640px) {
+  .planning-request-form .form-row {
+    flex-direction: column;
+  }
+
+  .planning-request-form__day {
+    flex-basis: auto;
+  }
+}
+
+// Técnico desactivado en "Gestionar técnicos"
+.tech-item-row.is-inactivo .tech-item-name {
+  color: $color-texto-suave;
+  text-decoration: line-through;
+}
+
+// Usuario sin rol asignado
+.no-profile {
+  text-align: center;
+
+  p {
+    margin: 0.75rem 0 1.25rem;
+    font-size: 0.9rem;
+    color: $color-texto-suave;
+  }
+}
+
+.no-profile__icon {
+  font-size: 2rem;
+  color: $color-acento;
+  margin-bottom: 0.5rem;
+}

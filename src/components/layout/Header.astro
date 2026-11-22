@@ -20,8 +20,84 @@ const esDesarrollo = import.meta.env.PUBLIC_APP_ENV === 'development';
   </div>
 
   <div class="user-box">
+    <!-- Notificaciones del técnico (scripts/notifications/notificationsPanel.ts) -->
+    <div class="notif" data-tecnico-only>
+      <button
+        id="btnNotifications"
+        type="button"
+        class="btn-topbar notif__bell"
+        title="Notificaciones"
+        aria-label="Notificaciones"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="notifPanel"
+      >
+        <i class="fa-regular fa-bell" aria-hidden="true"></i>
+        <span id="notifCount" class="notif__count hidden" aria-live="polite"></span>
+      </button>
+      <div id="notifPanel" class="notif__panel hidden" role="dialog" aria-label="Notificaciones">
+        <div class="notif__head">
+          <strong>Notificaciones</strong>
+          <button id="btnNotifReadAll" type="button" class="link-button">Marcar todas como leídas</button>
+        </div>
+        <ul id="notifList" class="notif__list"></ul>
+        <button id="btnNotifDesktop" type="button" class="link-button notif__desktop hidden">
+          <i class="fa-solid fa-desktop" aria-hidden="true"></i> Activar alertas del escritorio
+        </button>
+      </div>
+    </div>
+
+    <!-- Alertas de coordinación (scripts/coordination/alertsBell.ts) -->
+    <div class="notif" data-coordinador-only>
+      <button
+        id="btnAlerts"
+        type="button"
+        class="btn-topbar notif__bell"
+        title="Alertas de coordinación"
+        aria-label="Alertas de coordinación"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="alertsPanel"
+      >
+        <i class="fa-regular fa-bell" aria-hidden="true"></i>
+        <span id="alertsCount" class="notif__count hidden" aria-live="polite"></span>
+      </button>
+      <div id="alertsPanel" class="notif__panel hidden" role="dialog" aria-label="Alertas de coordinación">
+        <div class="notif__head">
+          <strong>Alertas</strong>
+          <button id="btnAlertsReadAll" type="button" class="link-button">Marcar todas como atendidas</button>
+        </div>
+        <ul id="alertsList" class="notif__list"></ul>
+      </div>
+    </div>
+
+    <!-- Respuestas de coordinación a las solicitudes de planificación (scripts/planning/requestsBell.ts) -->
+    <div class="notif" data-edit-only>
+      <button
+        id="btnRequests"
+        type="button"
+        class="btn-topbar notif__bell"
+        title="Respuestas de coordinación"
+        aria-label="Respuestas de coordinación"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="requestsPanel"
+      >
+        <i class="fa-regular fa-bell" aria-hidden="true"></i>
+        <span id="requestsCount" class="notif__count hidden" aria-live="polite"></span>
+      </button>
+      <div id="requestsPanel" class="notif__panel hidden" role="dialog" aria-label="Respuestas de coordinación">
+        <div class="notif__head">
+          <strong>Solicitudes de planificación</strong>
+          <button id="btnRequestsReadAll" type="button" class="link-button">Marcar todas como vistas</button>
+        </div>
+        <ul id="requestsList" class="notif__list"></ul>
+      </div>
+    </div>
+
     <i class="fa-regular fa-circle-user" aria-hidden="true"></i>
     <span class="user-email" id="userEmail"></span>
+    <span class="role-badge hidden" id="userRole"></span>
     <button id="btnLogout" type="button" class="btn-topbar" title="Cerrar sesión" aria-label="Cerrar sesión">
       <i class="fa-solid fa-right-from-bracket"></i>
     </button>

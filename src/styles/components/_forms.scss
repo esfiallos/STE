@@ -54,3 +54,11 @@
   background-color: $color-peligro-suave;
   font-size: 0.85rem;
 }
+
+// Vista previa del siguiente técnico de la ronda (modal Nuevo caso)
+.round-hint:not(:empty) {
+  display: block;
+  margin-top: 0.25rem;
+  font-weight: 600;
+  color: $color-acento;
+}

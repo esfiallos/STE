@@ -3,8 +3,29 @@
 
 <nav class="tabs" aria-label="Secciones del panel">
   <div class="tabs__inner" role="tablist">
+    <button type="button" role="tab" class="tab" data-tab="panel" aria-selected="false" data-coordinador-only>
+      <i class="fa-solid fa-chart-pie" aria-hidden="true"></i> Panel
+      <span class="tab-badge hidden" id="panelBadge" title="Alertas por atender"></span>
+    </button>
     <button type="button" role="tab" class="tab is-active" data-tab="tablero" aria-selected="true">
       <i class="fa-solid fa-table-columns" aria-hidden="true"></i> Tablero
+    </button>
+    <button type="button" role="tab" class="tab" data-tab="busqueda" aria-selected="false" data-supervision-only>
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Buscar casos
+    </button>
+    <button type="button" role="tab" class="tab" data-tab="seguimiento" aria-selected="false" data-tecnico-only>
+      <i class="fa-solid fa-list-check" aria-hidden="true"></i> Mi seguimiento
+      <span class="tab-badge hidden" id="followUpBadge" title="Casos sin última actualización"></span>
+    </button>
+    <button type="button" role="tab" class="tab" data-tab="traspaso" aria-selected="false" data-tecnico-only>
+      <i class="fa-solid fa-right-left" aria-hidden="true"></i> Traspaso
+    </button>
+    <button type="button" role="tab" class="tab" data-tab="misTraspasos" aria-selected="false" data-tecnico-only>
+      <i class="fa-solid fa-folder-open" aria-hidden="true"></i> Mis traspasos
+    </button>
+    <button type="button" role="tab" class="tab" data-tab="planificacion" aria-selected="false" data-supervision-only>
+      <i class="fa-solid fa-calendar-week" aria-hidden="true"></i> Planificación
+      <span class="tab-badge hidden" id="planningBadge" title="Solicitudes por atender"></span>
     </button>
     <button type="button" role="tab" class="tab" data-tab="historial" aria-selected="false">
       <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Historial

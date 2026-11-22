@@ -1,0 +1,90 @@
+---
+// "Mi seguimiento" del técnico: sus casos abiertos. Lo dibuja scripts/followUp/followUpView.ts
+import { ETIQUETAS_SUGERIDAS, LARGO_MAXIMO_ACTUALIZACION, LARGO_MAXIMO_ETIQUETA } from '../../domain/followUp';
+import { AREAS_DE_CASO, LARGO_MAXIMO_EMPRESA } from '../../domain/areas';
+---
+
+<section class="panel-card followup" id="followUpView" aria-labelledby="followUpTitle">
+  <div class="followup-toolbar">
+    <div>
+      <h2 id="followUpTitle" class="planning-title">Mi seguimiento</h2>
+      <p id="followUpSummary" class="planning-help"></p>
+    </div>
+    <button id="btnCopyAllCases" type="button" class="btn">
+      <i class="fa-regular fa-copy" aria-hidden="true"></i>
+      <span>Copiar todos (texto)</span>
+    </button>
+  </div>
+
+  <p id="followUpStatus" class="board-status hidden" role="status"></p>
+
+  <div class="followup-section" data-grupo="traspaso">
+    <h3 class="followup-section__title"><i class="fa-solid fa-right-left" aria-hidden="true"></i> Recibidos en traspaso</h3>
+    <div class="followup-list" data-ref="lista"></div>
+  </div>
+  <div class="followup-section" data-grupo="nuevos">
+    <h3 class="followup-section__title"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Nuevos de hoy</h3>
+    <div class="followup-list" data-ref="lista"></div>
+  </div>
+  <div class="followup-section" data-grupo="anteriores">
+    <h3 class="followup-section__title"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> De días anteriores</h3>
+    <div class="followup-list" data-ref="lista"></div>
+  </div>
+
+  <datalist id="etiquetasSugeridas">
+    {ETIQUETAS_SUGERIDAS.map((etiqueta) => <option value={etiqueta} />)}
+  </datalist>
+
+  <!-- Plantilla de un caso (la completa scripts/followUp/followUpView.ts) -->
+  <template id="tpl-seguimiento-caso">
+    <article class="followup-card" data-ref="tarjeta">
+      <header class="followup-card__head">
+        <button type="button" class="followup-code" data-action="copiar-codigo" title="Copiar número" data-ref="codigo"></button>
+        <span class="followup-chip" data-ref="origen"></span>
+        <span class="followup-chip followup-chip--fecha hidden" data-ref="fecha"></span>
+        <span class="followup-chip followup-chip--recordatorio hidden" data-ref="recordatorio"></span>
+      </header>
+      <p class="followup-card__desc" data-ref="descripcion"></p>
+      <p class="followup-card__handoff hidden" data-ref="notaRecibida"></p>
+
+      <div class="followup-controls">
+        <label class="followup-field">
+          <span>Área</span>
+          <select data-ref="area">
+            <option value="">Sin área</option>
+            {AREAS_DE_CASO.map((area) => <option value={area}>{area}</option>)}
+          </select>
+        </label>
+        <label class="followup-field">
+          <span>Empresa</span>
+          <input type="text" maxlength={LARGO_MAXIMO_EMPRESA} data-ref="empresa" placeholder="Sin empresa" />
+        </label>
+        <label class="followup-field">
+          <span>Estado</span>
+          <select data-ref="estado" data-action="cambiar-estado"></select>
+        </label>
+        <label class="followup-field">
+          <span>Etiqueta</span>
+          <input type="text" list="etiquetasSugeridas" maxlength={LARGO_MAXIMO_ETIQUETA} data-ref="etiqueta" placeholder="Sin etiqueta" />
+        </label>
+      </div>
+
+      <label class="followup-field followup-field--full">
+        <span>Última actualización <small>(Ctrl + Enter para guardar)</small></span>
+        <textarea rows="2" maxlength={LARGO_MAXIMO_ACTUALIZACION} data-ref="actualizacion" placeholder="Qué pasó, qué falta, a quién se espera…"></textarea>
+      </label>
+
+      <footer class="followup-card__foot">
+        <span class="followup-meta" data-ref="meta"></span>
+        <div class="followup-actions">
+          <button type="button" class="btn btn-sm" data-action="ver-historial" aria-expanded="false">Historial</button>
+          <button type="button" class="btn btn-sm" data-action="copiar-resumen" title="Copiar como texto">
+            <i class="fa-regular fa-copy" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="btn btn-sm btn-primary" data-action="guardar-actualizacion" disabled>Guardar</button>
+        </div>
+      </footer>
+      <ol class="followup-history hidden" data-ref="historial"></ol>
+    </article>
+  </template>
+</section>

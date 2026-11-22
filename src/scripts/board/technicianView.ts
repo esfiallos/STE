@@ -25,6 +25,7 @@ export function crearVistaTecnico(tecnico: TecnicoConIncidentes, turnoId: TurnoI
   tarjeta.dataset.clave = clave;
   tarjeta.dataset.disponible = String(estado === 'disponible');
   if (estado) tarjeta.classList.add(`is-${estado}`);
+  tarjeta.classList.toggle('is-mine', !!contexto.miTecnicoId && contexto.miTecnicoId === tecnico.id);
 
   ref(fragmento, 'avatar').textContent = obtenerIniciales(tecnico.nombre);
   ref(fragmento, 'nombre').textContent = tecnico.nombre;

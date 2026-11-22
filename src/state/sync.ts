@@ -1,4 +1,7 @@
-import { listarIncidentes } from '../services/incidentesRepo';
+import { casosDelTablero, tecnicosDelDia } from '../domain/assignments';
+import { fechaOperativa } from '../domain/time';
+import { listarCasosAbiertos } from '../services/casosRepo';
+import { listarJornadas } from '../services/jornadasRepo';
 import { suscribirCambios } from '../services/realtime';
 import { listarTecnicos } from '../services/tecnicosRepo';
 import { appStore } from './appStore';
@@ -8,21 +11,29 @@ const INTERVALO_RESPALDO_MS = 60_000;
 
 let ultimaCarga = 0;
 
-/** Lee técnicos e incidentes y actualiza el store. Si llegan respuestas desordenadas, gana la más reciente. */
+/**
+ * Lee el catálogo, las jornadas del día operativo en curso y los casos abiertos, y actualiza el store.
+ * A las 06:00 cambia la fecha operativa y el tablero queda limpio solo (sin borrar nada).
+ * Si llegan respuestas desordenadas, gana la más reciente.
+ */
 export async function cargarDatos(): Promise<void> {
   const numeroDeCarga = ++ultimaCarga;
-  const [tecnicos, incidentes] = await Promise.all([listarTecnicos(), listarIncidentes()]);
+  const fecha = fechaOperativa(new Date());
+  const [catalogo, jornadas, casos] = await Promise.all([listarTecnicos(), listarJornadas(fecha, fecha), listarCasosAbiertos()]);
   if (numeroDeCarga !== ultimaCarga) return;
 
-  if (!tecnicos.ok || !incidentes.ok) {
-    const motivo = !tecnicos.ok ? tecnicos.error : !incidentes.ok ? incidentes.error : '';
+  if (!catalogo.ok || !jornadas.ok || !casos.ok) {
+    const motivo = [catalogo, jornadas, casos].map((r) => (r.ok ? '' : r.error)).find(Boolean) ?? '';
     appStore.set({ carga: 'error', errorCarga: `No se pudo actualizar el tablero. ${motivo}` });
     return;
   }
 
   appStore.set({
-    tecnicos: tecnicos.data,
-    incidentes: incidentes.data,
+    fechaOperativa: fecha,
+    catalogo: catalogo.data,
+    tecnicos: tecnicosDelDia(catalogo.data, jornadas.data),
+    incidentes: casosDelTablero(casos.data, fecha),
+    casosAbiertos: casos.data,
     carga: 'listo',
     errorCarga: null
   });

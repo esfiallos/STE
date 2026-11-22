@@ -2,7 +2,12 @@ import type {
   BorradorAsignacion,
   EstadoConexion,
   Incidente,
+  Notificacion,
+  AlertaCoordinacion,
+  Perfil,
+  SolicitudPlanificacion,
   Tecnico,
+  TecnicoCatalogo,
   TurnoId,
   Vista
 } from '../types/noc';
@@ -11,17 +16,35 @@ import { createStore } from './createStore';
 export type EstadoCarga = 'cargando' | 'listo' | 'error';
 
 export interface AppState {
+  // Sesión
+  perfil: Perfil | null;
+  /** Sin rol dispatch no se edita nada (la base de datos también lo impide). */
+  soloLectura: boolean;
   // Datos (vienen de Supabase)
+  /** Fecha operativa (YYYY-MM-DD) que muestra el tablero: el día de 06:00 a 06:00 en curso. */
+  fechaOperativa: string;
+  catalogo: TecnicoCatalogo[];
+  /** Técnicos con jornada en la fecha operativa (turno y almuerzo de ese día). */
   tecnicos: Tecnico[];
+  /** Casos abiertos que pertenecen al tablero de la fecha operativa. */
   incidentes: Incidente[];
+  /** Todos los casos abiertos (incluye los traspasados para el próximo turno): base del Seguimiento. */
+  casosAbiertos: Incidente[];
+  /** Notificaciones del técnico con sesión (vacío para el dispatch). */
+  notificaciones: Notificacion[];
+  /** Alertas de coordinación (vacío si no es coordinador). */
+  alertas: AlertaCoordinacion[];
+  /** Solicitudes de edición de la planificación (dispatch y coordinación). */
+  solicitudes: SolicitudPlanificacion[];
   carga: EstadoCarga;
   errorCarga: string | null;
   conexion: EstadoConexion;
   // Interfaz
   vista: Vista;
   busqueda: string;
+  /** Id del técnico al que se filtra el tablero ('' = todos). */
+  filtroTecnico: string;
   turnosColapsados: TurnoId[];
-  modoConsulta: boolean;
   /** Ids de los incidentes cuyo comentario está desplegado. */
   notasAbiertas: string[];
   /** "turno:tecnico" de la tarjeta que tiene abierto el formulario de asignación rápida. */
@@ -30,15 +53,23 @@ export interface AppState {
 }
 
 export const appStore = createStore<AppState>({
+  perfil: null,
+  soloLectura: true,
+  fechaOperativa: '',
+  catalogo: [],
   tecnicos: [],
   incidentes: [],
+  casosAbiertos: [],
+  notificaciones: [],
+  solicitudes: [],
+  alertas: [],
   carga: 'cargando',
   errorCarga: null,
   conexion: 'conectando',
   vista: 'tablero',
   busqueda: '',
+  filtroTecnico: '',
   turnosColapsados: [],
-  modoConsulta: false,
   notasAbiertas: [],
   claveFormulario: null,
   borrador: null

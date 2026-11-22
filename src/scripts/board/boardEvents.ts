@@ -1,9 +1,9 @@
 import { esTurnoId } from '../../domain/shifts';
 import { appStore } from '../../state/appStore';
-import { copiarCodigo, quitarIncidente } from '../actions/incidentActions';
+import { cerrarIncidente, copiarCodigo } from '../actions/incidentActions';
 import { byId } from '../dom';
 import { solicitarAsignacion } from '../modals/assignFlow';
-import { abrirModalAlmuerzo } from '../modals/lunchModal';
+import { abrirAlmuerzoDelTecnico } from '../modals/lunchModal';
 import { mostrarAviso } from '../ui/toast';
 import { solicitarEnfoqueDeFormulario } from './renderBoard';
 import { aplicarRenderPendiente } from './renderScheduler';
@@ -61,17 +61,17 @@ function manejarAccion(boton: HTMLElement): void {
     return;
   }
 
-  if (appStore.get().modoConsulta) return; // las demás acciones modifican datos
+  if (appStore.get().soloLectura) return; // las demás acciones modifican datos
 
   if (accion === 'asignar') alternarFormulario(claveDe(boton));
   if (accion === 'cancelar-asignar') cerrarFormulario();
-  if (accion === 'editar-almuerzo' && tecnicoId) abrirModalAlmuerzo(tecnicoId);
-  if (accion === 'quitar-incidente' && incidenteId) void quitarIncidente(incidenteId);
+  if (accion === 'editar-almuerzo' && tecnicoId) abrirAlmuerzoDelTecnico(tecnicoId);
+  if (accion === 'quitar-incidente' && incidenteId) void cerrarIncidente(incidenteId);
 }
 
 async function enviarFormulario(formulario: HTMLFormElement): Promise<void> {
   const tecnicoId = formulario.closest<HTMLElement>('[data-tecnico-id]')?.dataset.tecnicoId;
-  if (!tecnicoId || appStore.get().modoConsulta) return;
+  if (!tecnicoId || appStore.get().soloLectura) return;
 
   const datos = new FormData(formulario);
   const codigo = String(datos.get('codigo') ?? '');
