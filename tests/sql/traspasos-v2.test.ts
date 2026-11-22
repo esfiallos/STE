@@ -69,7 +69,10 @@ describe('casos y traspasos (migración 07)', () => {
     );
     expect(inc1).toEqual({ area: 'CORE IP', cliente: 'ACME', actividad: true });
     const acciones = await db.query<{ accion: string }>(`select accion from bitacora where codigo = 'INC1' order by created_at, id`);
-    expect(acciones.rows.map((r) => r.accion)).toEqual(['caso_creado', 'area_cambiada', 'empresa_cambiada']);
+    // Área y empresa se registran en el mismo UPDATE: pueden tener la misma hora, así que su orden no importa.
+    const [primera, ...resto] = acciones.rows.map((r) => r.accion);
+    expect(primera).toBe('caso_creado');
+    expect(resto.sort()).toEqual(['area_cambiada', 'empresa_cambiada']);
 
     // Lo que hace el dispatch no cuenta como actividad del técnico
     await como(U_DISPATCH, 'dispatch@noc.test');
