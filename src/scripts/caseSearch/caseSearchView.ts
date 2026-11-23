@@ -12,6 +12,9 @@ import { appStore } from '../../state/appStore';
 import type { CasoEncontrado } from '../../types/noc';
 import { byId, clonarPlantilla, crearElemento, ref } from '../dom';
 import { formatearFechaCorta, formatearFechaHora } from '../ui/format';
+import { animarLista } from '../ui/animacion';
+import { filtrarCasos } from '../../domain/caseFilters';
+import { crearBarraDeFiltros, type BarraDeFiltros } from '../features/caseFilters';
 
 let consulta = 0;
 let resultados: CasoEncontrado[] = [];
@@ -49,8 +52,8 @@ function crearResultado(caso: CasoEncontrado): HTMLElement {
   ref(fragmento, 'empresa').textContent = oGuion(caso.cliente);
   ref(fragmento, 'area').textContent = oGuion(caso.area);
   ref(fragmento, 'nota').textContent = oGuion(caso.descripcion ?? caso.nota);
-  ref(fragmento, 'actualizacion').textContent = caso.ultimaActualizacion
-    ? `${caso.ultimaActualizacion}${caso.ultimaActualizacionEn ? ` · ${formatearFechaHora(caso.ultimaActualizacionEn)}` : ''}${caso.ultimaActualizacionPor ? ` · ${caso.ultimaActualizacionPor}` : ''}`
+  ref(fragmento, 'actualizacion').textContent = caso.ultimaActualizacionEn
+    ? `${formatearFechaHora(caso.ultimaActualizacionEn)}${caso.ultimaActualizacionPor ? ` · ${caso.ultimaActualizacionPor}` : ''}`
     : '—';
   ref(fragmento, 'creado').textContent = `${formatearFechaHora(caso.creadoEn)}${caso.creadoPor ? ` · ${caso.creadoPor}` : ''}`;
   ref(fragmento, 'actividad').textContent = caso.actividadTecnicoEn ? formatearFechaHora(caso.actividadTecnicoEn) : '—';
@@ -91,8 +94,7 @@ async function cargarFicha(tarjeta: HTMLElement, casoId: string): Promise<void> 
                 `${formatearFechaCorta(t.fecha)}: ${nombreDe(t.deTecnicoId)} → ${t.estado === 'cerrado' ? 'lo cerró' : nombreDe(t.paraTecnicoId)}`,
                 ETIQUETA_ESTADO_CASO[t.estado],
                 t.etiqueta ? `[${t.etiqueta}]` : '',
-                t.notaPersonalizada ? `Nota: ${t.notaPersonalizada}` : '',
-                t.ultimaActualizacion ? `Últ. act.: ${t.ultimaActualizacion}` : ''
+                t.descripcion ? `Descripción: ${t.descripcion}` : ''
               ]
                 .filter(Boolean)
                 .join(' · ')
@@ -122,13 +124,31 @@ export async function buscarCaso(termino: string): Promise<void> {
         ? `Se muestran los primeros ${resultados.length}: afina la búsqueda para ver otros.`
         : null
   );
-  byId('caseSearchResults').replaceChildren(...resultados.map(crearResultado));
+  pintarResultados();
+}
+
+const filtrable = (c: CasoEncontrado) => ({ caso: c, codigo: c.codigo, tecnicoId: c.tecnicoActualId, area: c.area, estado: c.estado });
+
+/** Dibuja los resultados que pasan los filtros (los filtros no vuelven a consultar la base). */
+function pintarResultados(): void {
+  const todos = resultados.map(filtrable);
+  barraBusqueda?.actualizar(todos);
+  const visibles = (barraBusqueda ? filtrarCasos(todos, barraBusqueda.filtros()) : todos).map((v) => v.caso);
+  const contenedor = byId('caseSearchResults');
+  animarLista(contenedor);
+  contenedor.replaceChildren(
+    ...(visibles.length > 0 || resultados.length === 0
+      ? visibles.map(crearResultado)
+      : [crearElemento('p', 'empty-incidents', `Ninguno de los ${resultados.length} resultados coincide con los filtros.`)])
+  );
   // Si hay un único resultado, se abre su ficha
-  if (resultados.length === 1) {
-    const tarjeta = byId('caseSearchResults').querySelector<HTMLElement>('[data-caso-id]')!;
-    abrirFicha(tarjeta, resultados[0]!.id);
+  if (visibles.length === 1) {
+    const tarjeta = contenedor.querySelector<HTMLElement>('[data-caso-id]')!;
+    abrirFicha(tarjeta, visibles[0]!.id);
   }
 }
+
+let barraBusqueda: BarraDeFiltros | null = null;
 
 function abrirFicha(tarjeta: HTMLElement, casoId: string): void {
   const ficha = ref(tarjeta, 'ficha');
@@ -140,6 +160,12 @@ function abrirFicha(tarjeta: HTMLElement, casoId: string): void {
 }
 
 export function iniciarBuscadorDeCasos(): void {
+  barraBusqueda = crearBarraDeFiltros(byId('caseSearchFilters'), {
+    clave: 'busqueda',
+    campos: ['tipo', 'area', 'estado', 'tecnico'],
+    tecnicos: () => appStore.get().catalogo.map((t) => ({ id: t.id, nombre: t.nombre })),
+    alCambiar: () => pintarResultados()
+  });
   byId('caseSearchForm').addEventListener('submit', (evento) => {
     evento.preventDefault();
     void buscarCaso(byId<HTMLInputElement>('caseSearchInput').value);

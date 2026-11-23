@@ -24,6 +24,7 @@ import { iniciarPestanas } from './features/tabs';
 import { iniciarFiltroPorTecnico } from './features/techFilter';
 import { cargarHistorial, iniciarHistorial } from './history/historyView';
 import { iniciarModalAsignar } from './modals/assignIncidentModal';
+import { iniciarModalEdicionDeCaso } from './modals/editIncidentModal';
 import { iniciarModalAlmuerzo } from './modals/lunchModal';
 import { iniciarModales } from './modals/modal';
 import { iniciarModalTecnicos } from './modals/techniciansModal';
@@ -37,6 +38,7 @@ import { iniciarAvisoDeSolicitudes } from './planning/planningRequestsSync';
 import { iniciarCampanaDeSolicitudes } from './planning/requestsBell';
 import { RUTAS } from './routes';
 import { mostrarAviso } from './ui/toast';
+import { iniciarFiltrosDelTablero } from './features/boardFilters';
 
 /** Los estados "en almuerzo" y "disponible" dependen de la hora: se refrescan solos. */
 const REFRESCO_DE_HORA_MS = 30_000;
@@ -80,6 +82,8 @@ async function iniciar(): Promise<void> {
   iniciarModales();
   iniciarModalAsignar();
   iniciarModalAlmuerzo();
+  iniciarModalEdicionDeCaso();
+  iniciarFiltrosDelTablero();
   iniciarModalTecnicos();
   iniciarAccionesDeLaBarra();
   iniciarBuscador();
@@ -146,7 +150,8 @@ async function iniciar(): Promise<void> {
           }
         : {}),
       historial: () => void cargarHistorial(),
-      bitacora: () => void cargarBitacora()
+      // La bitácora es solo de supervisión (D28); la base también se la niega al técnico.
+      ...(esDispatch || esCoordinador ? { bitacora: () => void cargarBitacora() } : {})
     },
     miTecnicoId ? 'seguimiento' : esCoordinador ? 'panel' : 'tablero'
   );

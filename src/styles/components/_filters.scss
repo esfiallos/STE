@@ -1,0 +1,126 @@
+@use '../abstracts/variables' as *;
+
+// Barra de filtros (scripts/features/caseFilters.ts, §11.11) y chip de tipo de caso
+
+.case-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.75rem 0;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.case-filters__chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid $color-borde;
+  border-radius: $radio-pildora;
+  background-color: $color-superficie;
+}
+
+.case-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.7rem;
+  border: 0;
+  border-radius: $radio-pildora;
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: $color-texto-etiqueta;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background-color: $color-superficie-alta;
+    color: $color-acento;
+  }
+
+  &.is-selected {
+    background-color: $color-acento;
+    color: $color-texto-sobre-marca;
+
+    .case-chip__count {
+      background-color: rgba(255, 255, 255, 0.2);
+      color: inherit;
+    }
+  }
+}
+
+.case-chip__count {
+  min-width: 1.3rem;
+  padding: 0 0.35rem;
+  border-radius: $radio-pildora;
+  background-color: $color-superficie-alta;
+  font-size: 0.68rem;
+  line-height: 1.2rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: $color-texto-suave;
+}
+
+.case-filters__lists {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.case-filters__select {
+  min-height: 2rem;
+  width: auto;
+  max-width: 13rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.8rem;
+
+  &.is-active {
+    border-color: $color-acento;
+    background-color: $color-acento-suave;
+    color: $color-acento;
+    font-weight: 600;
+  }
+}
+
+.case-filters__summary {
+  font-size: 0.75rem;
+  color: $color-texto-suave;
+  font-variant-numeric: tabular-nums;
+}
+
+.case-filters__clear {
+  margin-left: auto;
+}
+
+.toolbar__case-filters {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+// Chip de tipo (tablero, seguimiento)
+.case-type {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border-radius: $radio-sm;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.15rem;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  @each $nombre, $par in $colores-tipo {
+    &--#{$nombre} {
+      background-color: nth($par, 1);
+      color: nth($par, 2);
+    }
+  }
+
+  &:empty {
+    display: none;
+  }
+}

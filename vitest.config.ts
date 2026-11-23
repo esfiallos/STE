@@ -1,5 +1,10 @@
 import { defineConfig } from 'vitest/config';
 
+// La app trabaja con la hora local de Honduras (día operativo 06:00 → 06:00). Las pruebas fijan la hora
+// "local" con fakeTimers, así que la zona horaria debe ser la misma en cualquier máquina: sin esto, el CI
+// (UTC) y un equipo en Honduras (UTC-6) dan resultados distintos. Los procesos de prueba la heredan.
+process.env.TZ = 'America/Tegucigalpa';
+
 export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],

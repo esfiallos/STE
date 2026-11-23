@@ -159,8 +159,9 @@ describe('planificación con solicitudes (D14)', () => {
     expect(app.celda('ana', '2026-11-09').querySelector('select')!.disabled).toBe(true);
     expect(app.q('#planningGrid thead').textContent).toContain('Editable hasta 06:00');
 
-    await app.elegir('luis', '2026-11-10', 'turnoC');
-    expect(app.db.jornadas!.find((j) => j.tecnico_id === 'luis' && j.fecha_operativa === '2026-11-10')).toMatchObject({ turno: 'turnoC' });
+    await app.elegir('luis', '2026-11-10', 'turnoC-22:00-00:00');
+    expect(app.db.jornadas!.find((j) => j.tecnico_id === 'luis' && j.fecha_operativa === '2026-11-10'))
+      .toMatchObject({ turno: 'turnoC', horario_inicio: '22:00', horario_fin: '00:00' });
   });
 
   it('coordinación aprueba o rechaza con una respuesta; el dispatch queda habilitado', async () => {

@@ -108,6 +108,8 @@ caso_responsables (caso_id, tecnico_id, fecha_operativa, origen 'dispatch'|'tras
 - El tablero del día = responsables con `fecha_operativa = hoy` y `hasta is null`.
 - Búsqueda global = `casos` + `caso_responsables` (quién lo llevó y cuándo), sin depender de snapshots.
 - "Última actualización": un solo campo de texto corto que el técnico escribe; la BD guarda quién y cuándo.
+  **Reemplazado por D19 (§11.3):** la última actualización pasa a ser solo una **fecha**; el texto vive en la
+  **descripción** del caso.
 
 ### 3.4 Traspasos
 ```
@@ -224,7 +226,14 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **8. Planificación con solicitudes** ✅ | Dispatch en solo lectura + solicitud de edición por día; planificación completa para coordinación (§10.7) | 6 |
 | **9. Animaciones** ✅ | Capa de efectos y pulido | 2, 4 |
 
+| **10. Tablero del día** ✅ | Tablero y panel = solo lo asignado hoy por dispatch (vacío a las 06:00), Cancelar y Editar del dispatch en lugar de cerrar, empresa al crear, bitácora solo supervisión (§11.1–11.2, §11.12) · `11` | 9 |
+| **11. Base visual** ✅ | Inter + paleta navy, panel de confirmación, selector de fecha rápido, combobox, auto-animate + Motion (§11.7–11.10) | — (paralelo a 10) |
+| **12. Seguimiento v2** ✅ | Descripción única + "Última actualización" como fecha y botón, filas horizontales, etiquetas locales con combobox, nota del traspaso = descripción, verificación traspaso → seguimiento (§11.3–11.6) · `12` | 10, 11 |
+| **13. Filtros** ✅ | Tipo de caso (FRESH · Tarea · Incidente) y filtros por técnico, área, estado y tipo en todas las vistas de casos (§11.11) | 12 |
+| **14. Turno C por tramos y pulido** ✅ | C1 22–00 / C2 00–06 (D29), color de la tabla del traspaso (D30), destello al soltar un caso, tarjetas sin chips superpuestos, quedarse un caso para mañana (D31) (§12) · `14`, `15` | 13 |
+
 > Orden revisado el 19/11/2026 al sumar los requerimientos de §10. Cada fase con su migración `sql/0N_*.sql`.
+> Fases 10–13 sumadas el 21/11/2026 (§11, calidad de vida).
 
 ---
 
@@ -241,6 +250,10 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 - **D7. Comodín:** horarios fijos 06–16, 07–17, 08–18. Almuerzos a elección del dispatch.
 - **D8–D15** (19/11/2026): ver §10. Cambian D3 (hay un tercer rol, **coordinador**) y D5 (la planificación la
   hace coordinación; el dispatch solo la edita por día con solicitud aprobada).
+- **D29–D31** (22/11/2026): ver §12. Cambian D6 (los tramos de C cuentan como "turno C"; uno puede entregarse a sí
+  mismo para su turno de mañana) y D2 (la carga en 0 cuenta solo los casos de hoy).
+- **D16–D28** (21/11/2026): ver §11. D25 es la única excepción a "los casos no se borran" (Cancelar del dispatch). Cambian D8 (el dispatch crea con código + **empresa**), D9 (la actividad del
+  técnico **es** la "última actualización", ahora una fecha) y §3.3 (el texto del caso es la **descripción**).
 
 ---
 
@@ -275,7 +288,7 @@ Lo marcado como **Supuesto** es criterio propio para completar la regla; confirm
 
 ### 10.1 Datos del caso: quién llena qué (fase 5) — ✅ `sql/07_v2_traspasos.sql`
 - **D8.** El **dispatch** crea el caso solo con **código + nota** (la nota suele llevar empresa e ID de enlace).
-  Su tablero muestra solo incidente, nota y técnico.
+  Su tablero muestra solo incidente, nota y técnico. **Cambiado por D18 (§11.2):** código + **empresa**.
 - El **técnico** registra en **sus** casos: **área**, **empresa** (`casos.cliente`), estado, etiqueta y
   última actualización. Hay que abrir `area` y `cliente` en el trigger `casos_antes_de_guardar` (hoy los bloquea).
 - El **coordinador** solo lee todos los campos.
@@ -362,3 +375,200 @@ Lo marcado como **Supuesto** es criterio propio para completar la regla; confirm
   permiso). La aprobación habilita al rol dispatch (cualquier usuario dispatch). Una solicitud pendiente de un día
   que ya pasó queda como "Sin responder". Avisos: la campana de coordinación suma las solicitudes por responder; el
   dispatch tiene una campana propia con las respuestas (y aviso en pantalla al llegar).
+
+---
+
+## 11. Requerimientos v2.2 · calidad de vida (21/11/2026)
+
+Revisión del usuario sobre DEV con los tres roles. D16–D28 son reglas **ya decididas** por el usuario: no
+re-preguntarlas. Lo marcado **Supuesto** es criterio propio; lo marcado **Pendiente (Pn)** se confirma con el
+usuario al empezar la fase que lo usa.
+
+### 11.1 El tablero es el panel **del día** (fase 10) — ✅ `sql/11_v2_tablero_del_dia.sql`
+- **Problema hoy:** `casosDelTablero()` muestra todo caso abierto cuyo responsable tiene `fecha <= hoy`, así que
+  a las 06:00 el tablero ya trae lo de días anteriores y lo recibido en traspaso. `estadisticas_del_dia()` cuenta
+  cualquier caso con un responsable en la fecha (incluye traspasos). Ninguno de los dos empieza vacío.
+- **D16. Tablero del día = asignaciones del dispatch en el día operativo.** Para cualquier rol (dispatch, técnico,
+  coordinación) el tablero de `D` muestra solo los casos que el dispatch **asignó** en `D` (responsables con
+  `origen in ('dispatch', 'reasignacion', 'reapertura')` y `fecha_operativa = D`, incluida la ronda). A las 06:00
+  está **vacío**. Lo recibido en traspaso y lo arrastrado de días anteriores vive en **Mi seguimiento**, no en el
+  tablero.
+- El caso se queda en el tablero todo el día aunque cambie de estado (se ve su estado; un cerrado queda atenuado):
+  el tablero es el registro del día y su foto la guarda `generar_snapshot_operativo()` a las 05:59.
+- **Confirmado (21/11):** el tablero general es **solo** de los casos del día. El caso aparece en la columna de a
+  quién se lo asignó el dispatch (una reasignación por arrastre lo mueve); un traspaso posterior **no** cambia el
+  tablero. Los casos nuevos **y** los traspasados se trabajan en **Mi seguimiento**.
+- **D17. El panel de coordinación** (`estadisticas_del_dia`) cuenta exactamente los casos de D16, por estado
+  actual. Misma regla en SQL (`casos_del_dia(fecha)`) y TS (`domain/assignments.ts`), con prueba de coincidencia.
+- "Por reasignar" sigue existiendo para el dispatch, pero **fuera** del tablero y de los contadores (franja aparte,
+  colapsable): son casos abiertos cuyo responsable no trabaja hoy.
+- Implementado: vista `tablero_del_dia` (una fila por caso y día operativo con la última asignación del dispatch;
+  `origenes_del_tablero()` = `ORIGENES_DEL_TABLERO`); `estadisticas_del_dia` y `generar_snapshot_operativo` la usan.
+  `casos_abiertos` no cambió. "Por reasignar" se calcula de los casos abiertos y solo lo ve el dispatch.
+
+### 11.2 El dispatch asigna, no cierra (fase 10) — ✅
+- **D18.** Se quita el botón ✓ (cerrar) de las tarjetas del tablero. Cerrar es del técnico, en Mi seguimiento
+  (y en el traspaso). El trigger rechaza que un dispatch cambie `estado` a `cerrado` (la UI no es la barrera).
+- **D25 (P1 resuelto, 21/11). Cancelar = el caso deja de existir.** El ✓ del tablero se reemplaza por
+  **Cancelar** (solo dispatch): borra el caso (y sus responsables, notificaciones e ítems de traspaso en borrador),
+  así el código queda libre para volver a usarse. Es la **única excepción** a "los casos no se borran". RPC
+  `cancelar_caso(caso_id, motivo)` (security definer, solo dispatch, motivo opcional) que antes copia los datos del
+  caso a la bitácora (`caso_cancelado`) y avisa al técnico con una notificación `cancelado` que guarda el código en
+  texto (`notificaciones.caso_id` pasa a admitir null). Confirmación anclada; si el técnico ya lo trabajó
+  (descripción, estado o etiqueta), la confirmación lo advierte.
+  **Supuesto:** solo se cancela desde el tablero, es decir, casos que el dispatch asignó **hoy**, y nunca uno que ya
+  salió en un traspaso enviado (ese lo cierra el técnico). Un caso cerrado del tablero no se edita ni se cancela.
+- **Técnico equivocado:** se corrige reasignando (arrastrar y soltar, ya existe). No es cancelar.
+- **D26. Editar el caso es solo del dispatch:** acción **Editar** en la tarjeta para corregir **código** y
+  **empresa**. El trigger abre `codigo` solo al dispatch (sigue normalizado y único: 23505 → "Ese código ya existe").
+  Queda en la bitácora con el valor anterior.
+- **D18b. Nuevo caso:** el segundo campo deja de ser "Comentario" y pasa a ser **Empresa** (opcional), que se guarda
+  directo en `casos.cliente`. Aplica al formulario en la columna, al modal Nuevo caso y a `asignar_a_ronda(codigo,
+  empresa)` (cambia la firma en la 11). La tarjeta del tablero muestra la empresa. `casos.nota` queda solo como
+  histórico (se sigue mostrando si tiene texto).
+
+### 11.3 Seguimiento: descripción y última actualización (fase 12) — ✅
+- **D19. "Última actualización" es una fecha, no un texto.** Es el momento en que el técnico tocó el caso por última
+  vez. La actualizan: cambiar área, empresa, estado, etiqueta o descripción, **o** el botón **"Actualizado"** (un
+  clic: "lo revisé, sigue igual"). Unifica `actividad_tecnico_en` (D9): es la misma fecha y reinicia las alertas
+  2/4/6 h. Se muestra relativa ("hace 35 min") con la hora exacta al pasar el mouse.
+- **D20. Descripción única del caso.** Un solo cuadro de texto, **Descripción** (`casos.descripcion`), donde el técnico
+  cuenta qué pasa. El técnico la edita en sus casos (hoy el trigger la bloquea). Guardado con Ctrl+Enter o al salir
+  del cuadro; el botón Guardar solo se activa si hay cambios.
+- Migración `sql/12_v2_seguimiento_descripcion.sql`: abrir `descripcion` al técnico; copiar el texto de
+  `ultima_actualizacion` a `descripcion` cuando esta esté vacía (y a la bitácora); RPC `marcar_actualizado(caso_id)`
+  (solo el responsable); `ultima_actualizacion_en/por` = cualquier edición del técnico. `ultima_actualizacion`
+  (texto) deja de escribirse (no se borra la columna).
+
+### 11.4 Seguimiento en tarjetas horizontales (fase 12) — ✅
+- En días cargados hay más de 20 casos: cada caso pasa a ser **una fila** (ancho completo, ~56 px):
+  `tipo · código (copiar) · empresa · área · estado · etiqueta · descripción (1 línea, clic para expandir) ·
+  última actualización + botón Actualizado · menú (historial, copiar resumen)`.
+- Grupos colapsables con contador (Recibidos en traspaso · Nuevos de hoy · De días anteriores) y barra de filtros fija.
+- El borde de la fila toma el color del nivel de alerta (2/4/6 h sin actualizar) para que el técnico vea qué
+  tiene olvidado antes que coordinación.
+- Bajo 1100 px la fila se parte en dos líneas; en móvil, tarjeta.
+
+### 11.5 La nota del traspaso **es** la descripción (fase 12) — ✅
+- **D21.** El técnico trabaja su caso en Mi seguimiento y cierra turno traspasándolo con **el último estado de esa
+  descripción**. En la pestaña Traspaso el campo "Nota para quien recibe" muestra la descripción del caso (editable);
+  al enviar se guarda en el caso. Desaparece el cuadro "Última actualización" del traspaso.
+- `enviar_traspaso` exige **descripción no vacía** (en lugar de última actualización) para entregar un caso.
+  `traspaso_items` guarda la descripción enviada (foto para Mis traspasos); el reporte (Outlook/texto/TSV) muestra
+  Descripción y "Últ. actualización: hora". Lo recibido en Mi seguimiento ya trae la descripción: deja de hacer
+  falta la "nota de quien entregó" aparte (se sigue viendo en el historial del caso).
+- Implementado: la descripción del traspaso es la del caso (se guarda en el caso al salir del campo) en vez de una
+  copia editable aparte, así nunca hay dos versiones. `traspaso_items.descripcion` guarda la foto al enviar.
+- **Verificación pedida (✅ con pruebas, falta en DEV):** al cerrar turno los casos deben aparecer en el **Mi seguimiento del receptor** (incluido
+  el destino del día siguiente). Hoy la prueba de app solo revisa al que entrega y el backend simulado elige mal la
+  fecha destino (`jornadas.find` por técnico, sin fecha). Se agrega: prueba de app con sesión del receptor,
+  prueba SQL de `casos_abiertos` con RLS del receptor (mismo día y D+1) y revisión en DEV con dos usuarios.
+
+### 11.6 Etiquetas con combobox y catálogo propio (fase 12) — ✅
+- **D22.** La etiqueta se elige en un **combobox** (escribir filtra; flechas + Enter; muestra sugeridas y creadas)
+  con la opción **"Crear «texto»"**. Se usa igual en Mi seguimiento, Traspaso y filtros.
+- **Confirmado (21/11): etiquetas propias locales.** Su función es la del formato de `traspasos-noc`: un
+  comentario corto que **acompaña a la descripción** (chip de color delante de la descripción en Outlook,
+  `[ETIQUETA] descripción` en texto/TSV, y prioridad al ordenar el reporte). Las creadas por el técnico se guardan
+  solo en **su navegador** (`localStorage`, envuelto en try/catch, máx. ~30, se pueden quitar); no hay tabla ni
+  migración. La etiqueta elegida sí se guarda en el caso (`casos.etiqueta`) y viaja con él.
+- Sugeridas fijas con su color (`ETIQUETAS_SUGERIDAS` en `domain/`): Crítico / VIP · Seguimiento · Pendiente
+  cliente · Escalar · VM · Monitoreo. Las propias usan un color neutro.
+
+### 11.7 Confirmaciones sin `window.confirm` (fase 11) — ✅
+- **D23.** Ningún `window.confirm/alert/prompt` (hoy hay 6: cerrar caso, cerrar turno, reasignar/reabrir ×2,
+  desactivar técnico, copiar semana). Se reemplazan por `scripts/ui/confirmar.ts`
+  (`confirmar(opciones): Promise<boolean>`):
+  - **Confirmación anclada** (popover junto al botón) para lo liviano: cerrar caso, desactivar técnico, reabrir.
+  - **Panel de confirmación** (modal con resumen) para lo grave: **Cerrar turno** muestra cuántos casos van a cada
+    receptor, cuáles se cierran y los recordatorios; Copiar semana muestra qué se reemplaza.
+  - Botón peligroso en rojo, Esc cancela, Enter confirma, foco atrapado y devuelto, texto vía `textContent`.
+
+### 11.8 Fechas rápidas (fase 11) — ✅
+- **D24.** Los `<input type="date">` (recordatorio del traspaso, Mis traspasos, Historial, solicitud de
+  planificación) pasan a un selector propio `scripts/ui/fecha.ts`:
+  - **Chips de un clic:** Hoy · Mañana · Pasado mañana · próximos días de la semana (lun, mar…) según el contexto
+    (el recordatorio solo ofrece fechas futuras).
+  - **Escritura rápida** (no texto libre: se interpreta y se muestra la fecha resultante antes de aceptar):
+    `+1`, `+3`, `lun`, `vie`, `25`, `25/11`, `h` (hoy), `m` (mañana). ↑/↓ suman o restan un día.
+  - Mini calendario en popover para lo demás. Formato visible `sáb 21/11`, valor ISO.
+  - El intérprete es puro: `domain/dateInput.ts`, con pruebas.
+  - Implementado: no hay campos de fecha en Historial ni en la solicitud de planificación (usan listas),
+    así que hoy se aplica al recordatorio del traspaso y a Mis traspasos. El `<input type="date">` original queda
+    oculto con el valor ISO, así el resto del código no cambió.
+
+### 11.9 Estilo visual (fase 11) — ✅
+- Se adopta el lenguaje de `traspasos-noc` (referencia del usuario): tipografía **Inter** (empaquetada con
+  `@fontsource-variable/inter`, sin CDN), paleta **navy** (`#081829 · #0F2942 · #163B5E · #1E4E79 · #E8F0F8 ·
+  #F4F8FC`) sobre grises *slate*, botones primarios navy oscuros, radios de 12 px, sombras mínimas, chips en
+  píldora, códigos en mono, campos de 36–40 px con borde suave y anillo de foco navy.
+- Todo vía tokens en `abstracts/_variables.scss` (regla del proyecto): primero tokens, luego botones, campos,
+  combos, pestañas y tarjetas. No se agrega Tailwind.
+
+### 11.10 Dinamismo (fase 11) — ✅
+- La capa propia (`ui/motion.ts`, FLIP del tablero) se mantiene.
+- **D27 (P2 resuelto, 21/11): se usan ambas.** **`@formkit/auto-animate`** para altas/bajas/reordenamientos de
+  listas (filas de seguimiento, resultados de filtros, notificaciones, ítems del traspaso) y **Motion** (`motion`,
+  API vanilla `animate`/`stagger`) para paneles, popovers, confirmaciones y microinteracciones (botón Actualizado,
+  chips). Solo se importan desde `scripts/ui/` (un envoltorio que apaga todo con `prefers-reduced-motion`); el FLIP
+  del tablero sigue en `ui/motion.ts`.
+
+### 11.11 Filtros y tipo de caso (fase 13) — ✅ `sql/13_v2_filtros.sql`
+- **Tipo de caso** por prefijo del código (`domain/caseType.ts`, = función SQL `tipo_de_caso()` con prueba):
+  `#SR…` o `#INC…` → **FRESH** · `SCTASK…` → **Tarea** · `INC…` → **Incidente** · otro → **Otro**. Se muestra como
+  chip en tarjetas y filas.
+- Filtros combinables: **técnico · área · estado · tipo** (+ el buscador de texto que ya existe), en Tablero,
+  Mi seguimiento (sin técnico), Traspaso, Buscar casos y Panel. Un solo módulo de dominio (`caseFilters.ts`) y un
+  componente de barra reutilizable; chips con contador y "Limpiar". Se recuerdan por vista en `sessionStorage`.
+- Implementado: FRESH es solo `#SR…`/`#INC…` (otro `#` cuenta como Otro). En el Panel, con filtros las estadísticas
+  se calculan en el navegador con el tablero del día (mismo criterio D17) para no consultar la base por cada
+  combinación. En el Traspaso el filtro de técnico es el **receptor**. La migración 13 suma `area` y `tipo` a
+  `tablero_del_dia`.
+
+### 11.12 Bitácora solo para supervisión (fase 10) — ✅
+- **D28.** La pestaña **Bitácora** la ven solo **dispatch y coordinación** (`[data-supervision-only]`). El técnico no
+  la ve, y la BD lo impone: en la `11` la política de lectura de la bitácora pasa a `es_dispatch() or
+  es_coordinador()`. **Supuesto:** el Historial (snapshots) sigue igual para todos.
+
+### 11.13 Despliegue
+- Cola de migraciones para DEV y luego PROD, en orden: **07 → … → 14 → 15** (al 22/11/2026 están aplicadas
+  todas, hasta la 15, en ambas). Cada nueva es
+  idempotente, con prueba en `tests/sql/` y en `MIGRACIONES`.
+
+---
+
+## 12. Requerimientos v2.3 (22/11/2026)
+
+Revisión del usuario sobre DEV con datos de prueba (`docs/interno/DATOS_DE_PRUEBA.md`, local y sin versionar).
+
+### 12.1 Turno C por tramos (fase 14) — ✅ `sql/14_v2_turno_c_variantes.sql`
+- **D29.** El turno C se planifica por tramos: **C1 22:00–00:00** y **C2 00:00–06:00**. Quien hace toda la noche
+  tiene los dos: se guarda como `turnoC` 22:00–06:00 y se muestra "C1 + C2". No hay un "C" sin tramo: la jornada C
+  siempre lleva horario (`jornada_horario_valido`); las que había sin horario pasaron a C1 + C2.
+- Disponibilidad, ronda, recordatorios y alertas de coordinación usan el horario del tramo (`inicio_de_turno`
+  suma un día a las horas antes de las 06:00: C2 empieza a las 00:00 del día siguiente en el reloj).
+- **Traspasos sin cambios (decisión del usuario):** todo tramo es "turno C": recibe de B/Comodín el mismo día y
+  entrega a A/Comodín del día siguiente. C1 **no** entrega a C2.
+- `HORARIOS_TURNO_C` (`domain/shifts.ts`) = `public.horarios_turno_c()`, con prueba de coincidencia.
+
+### 12.2 Color de la tabla del traspaso — ✅
+- **D30.** Seis paletas predefinidas (Cálido, Azul, Verde, Grafito, Morado, Vino) para el marco de la tabla que
+  se copia a Outlook; los chips por turno y por etiqueta no cambian. Cada técnico elige la suya en la vista previa
+  del Traspaso y queda en su navegador (`localStorage` `panel-noc:paleta-traspaso`); Mis traspasos usa la misma.
+
+### 12.3 Pulido visual — ✅
+- Tarjeta del tablero: código + tipo en la primera línea (el tipo baja si no cabe), empresa + estado en la
+  segunda. Ya no se superponen los chips. Encabezado del ítem de traspaso con chip de tipo y candado "Fijar".
+- Al soltar o reasignar un caso, la tarjeta se tiñe del color de acento y vuelve despacio a su color (1,6 s).
+
+### 12.4 Quedarse un caso para mañana — ✅ `sql/15_v2_traspaso_propio.sql`
+- **D31.** Al cerrar turno, el técnico puede entregarse un caso **a sí mismo para su turno de mañana**, si está
+  planificado mañana en un turno que reciba del suyo según D6 (p. ej. comodín hoy y comodín mañana, o B hoy y A
+  mañana). Para el mismo día, nunca. En la lista de receptores aparece como "Nombre (tú) · turno · mañana"; el
+  reparto automático no lo usa (hay que elegirlo a mano o marcarse en la lista).
+- El caso no cambia de dueño pero sí de día: se cierra el tramo de hoy en `caso_responsables` y se abre uno con
+  origen `traspaso` y la fecha de mañana. En Mi seguimiento sale en "Recibido en traspaso · Para tu turno del dd/mm".
+  No genera aviso (es suyo); la bitácora anota "Se queda con X para su turno del dd/mm".
+- **Carga en 0 (D2) solo con lo de hoy:** lo que ya es para un turno futuro (propio o que otro le entregó para
+  mañana) no impide cerrar el turno de hoy ni aparece en el traspaso de hoy; se entrega al cerrar ese turno.
+

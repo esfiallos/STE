@@ -54,7 +54,8 @@ function aIncidente(fila: FilaCasoAbierto): Incidente {
 export interface CambiosDeSeguimiento {
   estado?: EstadoCaso;
   etiqueta?: string | null;
-  ultimaActualizacion?: string | null;
+  /** Qué pasa con el caso (D20). */
+  descripcion?: string | null;
   /** Una de AREAS_DE_CASO (la base rechaza otra). */
   area?: string | null;
   /** Empresa (columna `cliente`). */
@@ -65,13 +66,20 @@ export async function actualizarSeguimiento(id: string, cambios: CambiosDeSeguim
   const fila: Record<string, unknown> = {};
   if (cambios.estado !== undefined) fila.estado = cambios.estado;
   if (cambios.etiqueta !== undefined) fila.etiqueta = cambios.etiqueta;
-  if (cambios.ultimaActualizacion !== undefined) fila.ultima_actualizacion = cambios.ultimaActualizacion;
+  if (cambios.descripcion !== undefined) fila.descripcion = cambios.descripcion;
   if (cambios.area !== undefined) fila.area = cambios.area;
   if (cambios.empresa !== undefined) fila.cliente = cambios.empresa;
 
   const { error } = await supabase.from('casos').update(fila).eq('id', id);
   if (error) return errorDeBaseDeDatos(error, 'No se pudo actualizar el caso');
   return exito();
+}
+
+/** Botón "Actualizado" (D19): el técnico confirma que revisó su caso. Devuelve la hora que guardó la base. */
+export async function marcarActualizado(id: string): Promise<Resultado<string>> {
+  const { data, error } = await supabase.rpc('marcar_actualizado', { p_caso: id });
+  if (error) return errorDeBaseDeDatos(error, 'No se pudo marcar el caso como actualizado');
+  return exito(String(data ?? new Date().toISOString()));
 }
 
 interface FilaResponsable {
@@ -110,6 +118,49 @@ export async function listarCasosAbiertos(): Promise<Resultado<Incidente[]>> {
   return exito((data as FilaCasoAbierto[]).map(aIncidente));
 }
 
+interface FilaTableroDelDia {
+  id: string;
+  codigo: string;
+  cliente: string | null;
+  nota: string | null;
+  estado: EstadoCaso;
+  etiqueta: string | null;
+  /** Desde la migración 13. */
+  area?: string | null;
+  tecnico_asignado_id: string | null;
+  asignado_en: string;
+  origen: OrigenResponsable;
+  creado_en: string;
+}
+
+/**
+ * Tablero del día (vista `tablero_del_dia`, D16): lo que el dispatch asignó ese día operativo, incluidos los
+ * cerrados. `tecnicoId` = a quién se lo asignó (su columna), aunque después se haya traspasado.
+ */
+export async function listarTableroDelDia(fecha: string): Promise<Resultado<Incidente[]>> {
+  const { data, error } = await supabase
+    .from('tablero_del_dia')
+    .select('id, codigo, cliente, nota, estado, etiqueta, tecnico_asignado_id, asignado_en, origen, creado_en, area')
+    .eq('fecha_operativa', fecha)
+    .order('asignado_en', { ascending: true });
+  if (error) return errorDeBaseDeDatos(error, 'No se pudo cargar el tablero del día');
+  return exito(
+    (data as FilaTableroDelDia[]).map((f) => ({
+      id: f.id,
+      codigo: f.codigo,
+      nota: f.nota,
+      cliente: f.cliente,
+      estado: f.estado,
+      etiqueta: f.etiqueta,
+      area: f.area ?? null,
+      tecnicoId: f.tecnico_asignado_id,
+      creadoEn: f.asignado_en ?? f.creado_en,
+      fechaResponsable: fecha,
+      origenResponsable: f.origen
+    }))
+  );
+}
+
 export interface CasoExistente {
   id: string;
   estado: EstadoCaso;
@@ -124,8 +175,9 @@ export async function buscarCasoPorCodigo(codigo: string): Promise<Resultado<Cas
   return exito(fila ? { id: fila.id, estado: fila.estado, tecnicoId: fila.tecnico_actual_id } : null);
 }
 
-export async function crearCaso(codigo: string, nota: string, tecnicoId: string): Promise<Resultado> {
-  const { error } = await supabase.from('casos').insert({ codigo, nota: nota.trim() || null, tecnico_actual_id: tecnicoId });
+/** Crea el caso con su empresa (opcional, D18) y lo asigna al técnico. */
+export async function crearCaso(codigo: string, empresa: string, tecnicoId: string): Promise<Resultado> {
+  const { error } = await supabase.from('casos').insert({ codigo, cliente: empresa.trim() || null, tecnico_actual_id: tecnicoId });
   if (error) return errorDeBaseDeDatos(error, 'No se pudo asignar el caso', `El caso ${codigo} ya existe.`);
   return exito();
 }
@@ -138,9 +190,19 @@ export async function asignarCaso(id: string, tecnicoId: string, reabrir = false
   return exito();
 }
 
-/** Los casos no se borran: se cierran y quedan en el historial. */
-export async function cerrarCaso(id: string): Promise<Resultado> {
-  const { error } = await supabase.from('casos').update({ estado: 'cerrado' }).eq('id', id);
-  if (error) return errorDeBaseDeDatos(error, 'No se pudo cerrar el caso');
+/** Corrección del dispatch (D26): código y empresa. El código sigue siendo único. */
+export async function editarCaso(id: string, codigo: string, empresa: string): Promise<Resultado> {
+  const { error } = await supabase.from('casos').update({ codigo, cliente: empresa.trim() || null }).eq('id', id);
+  if (error) return errorDeBaseDeDatos(error, 'No se pudo editar el caso', `El caso ${codigo} ya existe.`);
   return exito();
+}
+
+/**
+ * Cancela un caso asignado hoy por error (D25): deja de existir. La base guarda sus datos en la bitácora,
+ * avisa al técnico y rechaza los que ya se traspasaron. Devuelve el código cancelado.
+ */
+export async function cancelarCaso(id: string, motivo: string): Promise<Resultado<string>> {
+  const { data, error } = await supabase.rpc('cancelar_caso', { p_caso: id, p_motivo: motivo.trim() || null });
+  if (error) return errorDeBaseDeDatos(error, 'No se pudo cancelar el caso');
+  return exito(String(data ?? ''));
 }

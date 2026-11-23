@@ -44,6 +44,8 @@ export async function listarJornadas(desde: string, hasta: string): Promise<Resu
 /** Lo que el dispatch decide para un técnico en un día (sin id: se crea o se reemplaza). */
 export type JornadaPlanificada = Omit<Jornada, 'id'>;
 
+const conHorarioPropio = (turno: TurnoTecnico) => turno === 'comodin' || turno === 'turnoC';
+
 /** Crea o reemplaza jornadas (una por técnico y día). */
 export async function guardarJornadas(jornadas: JornadaPlanificada[]): Promise<Resultado> {
   if (jornadas.length === 0) return exito();
@@ -51,8 +53,9 @@ export async function guardarJornadas(jornadas: JornadaPlanificada[]): Promise<R
     fecha_operativa: j.fecha,
     tecnico_id: j.tecnicoId,
     turno: j.turno,
-    horario_inicio: j.turno === 'comodin' ? j.horarioInicio : null,
-    horario_fin: j.turno === 'comodin' ? j.horarioFin : null,
+    // Comodín y turno C llevan horario propio (C1, C2 o los dos); A y B no.
+    horario_inicio: conHorarioPropio(j.turno) ? j.horarioInicio : null,
+    horario_fin: conHorarioPropio(j.turno) ? j.horarioFin : null,
     almuerzo_inicio: j.almuerzoInicio,
     almuerzo_fin: j.almuerzoFin
   }));

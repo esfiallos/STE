@@ -1,10 +1,14 @@
 import { byId } from '../dom';
+import { animarEntrada, animarFondo } from '../ui/animacion';
 
 const SELECTOR_CAMPOS = 'input:not([type="hidden"]):not([disabled]), select:not([disabled])';
 
 export function abrirModal(id: string): void {
   const modal = byId(id);
   modal.classList.remove('hidden');
+  void animarFondo(modal, true);
+  const tarjeta = modal.querySelector<HTMLElement>('.noc-modal-card');
+  if (tarjeta) void animarEntrada(tarjeta, 'abajo');
   window.setTimeout(() => modal.querySelector<HTMLElement>(SELECTOR_CAMPOS)?.focus(), 0);
 }
 

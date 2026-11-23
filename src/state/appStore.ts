@@ -12,6 +12,7 @@ import type {
   Vista
 } from '../types/noc';
 import { createStore } from './createStore';
+import { FILTROS_VACIOS, type FiltrosDeCasos } from '../domain/caseFilters';
 
 export type EstadoCarga = 'cargando' | 'listo' | 'error';
 
@@ -26,7 +27,7 @@ export interface AppState {
   catalogo: TecnicoCatalogo[];
   /** Técnicos con jornada en la fecha operativa (turno y almuerzo de ese día). */
   tecnicos: Tecnico[];
-  /** Casos abiertos que pertenecen al tablero de la fecha operativa. */
+  /** Tablero del día (D16): lo que el dispatch asignó en la fecha operativa, incluidos los cerrados. */
   incidentes: Incidente[];
   /** Todos los casos abiertos (incluye los traspasados para el próximo turno): base del Seguimiento. */
   casosAbiertos: Incidente[];
@@ -44,6 +45,8 @@ export interface AppState {
   busqueda: string;
   /** Id del técnico al que se filtra el tablero ('' = todos). */
   filtroTecnico: string;
+  /** Filtros de tipo, área y estado del tablero (§11.11; el de técnico es filtroTecnico). */
+  filtrosTablero: FiltrosDeCasos;
   turnosColapsados: TurnoId[];
   /** Ids de los incidentes cuyo comentario está desplegado. */
   notasAbiertas: string[];
@@ -69,6 +72,7 @@ export const appStore = createStore<AppState>({
   vista: 'tablero',
   busqueda: '',
   filtroTecnico: '',
+  filtrosTablero: { ...FILTROS_VACIOS },
   turnosColapsados: [],
   notasAbiertas: [],
   claveFormulario: null,

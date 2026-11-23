@@ -2,10 +2,10 @@
 
 .incident-item-card {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.6rem;
-  padding: 0.45rem 0.5rem 0.45rem 0.6rem;
+  padding: 0.55rem 0.5rem 0.55rem 0.6rem;
   border-radius: $radio-sm;
   cursor: grab;
   background-color: $color-superficie-alta;
@@ -23,7 +23,7 @@
   &.is-match {
     border-color: $color-acento;
     background-color: $color-acento-suave;
-    box-shadow: 0 0 0 2px rgba(11, 95, 209, 0.25);
+    box-shadow: 0 0 0 2px $color-foco;
   }
 
   .inc-index {
@@ -39,10 +39,77 @@
     background-color: $color-borde;
   }
 
+  .inc-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  // Código + tipo: si no caben en una línea, el tipo baja (nunca se monta sobre otro elemento)
+  .inc-code-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.2rem 0.4rem;
+    min-width: 0;
+  }
+
   .inc-code {
     font-size: 0.9rem;
     font-weight: 700;
+    line-height: 1.25;
     user-select: text;
+  }
+
+  // Empresa + estado
+  .inc-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  .inc-company {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.75rem;
+    color: $color-texto-suave;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Estado distinto de "En curso" (lo cambia el técnico en su seguimiento)
+  .inc-state {
+    flex: 0 0 auto;
+    margin-left: auto;
+    white-space: nowrap;
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    background-color: $color-borde;
+    color: $color-texto-suave;
+
+    &[data-estado='resuelto'] {
+      background-color: $color-exito-suave;
+      color: $color-exito;
+    }
+  }
+
+  // Cerrado: sigue en el tablero del día como registro, atenuado y sin arrastre
+  &.is-closed {
+    cursor: default;
+    opacity: 0.6;
+
+    .inc-code {
+      text-decoration: line-through;
+    }
   }
 
   .inc-actions {

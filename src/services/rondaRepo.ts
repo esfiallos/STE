@@ -10,8 +10,8 @@ export interface AsignacionPorRonda {
 }
 
 /** Crea el caso y la base lo asigna al siguiente técnico de la ronda (D10). */
-export async function asignarARonda(codigo: string, nota: string): Promise<Resultado<AsignacionPorRonda>> {
-  const { data, error } = await supabase.rpc('asignar_a_ronda', { p_codigo: codigo, p_nota: nota.trim() || null });
+export async function asignarARonda(codigo: string, empresa: string): Promise<Resultado<AsignacionPorRonda>> {
+  const { data, error } = await supabase.rpc('asignar_a_ronda', { p_codigo: codigo, p_empresa: empresa.trim() || null });
   if (error) {
     // La base explica el motivo (ya existe, nadie disponible…): se muestra tal cual.
     console.error('[asignar a la ronda]', error);

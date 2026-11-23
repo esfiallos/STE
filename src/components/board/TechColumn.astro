@@ -34,7 +34,7 @@
     <!-- Asignación rápida: el técnico y el turno ya se conocen, solo falta el número -->
     <form class="inline-add" data-form="asignar" data-ref="formAsignar" data-edit-only autocomplete="off">
       <input type="text" name="codigo" placeholder="Número de INC" aria-label="Número de incidente" required />
-      <input type="text" name="nota" placeholder="Comentario (opcional)" aria-label="Comentario (opcional)" />
+      <input type="text" name="empresa" placeholder="Empresa (opcional)" aria-label="Empresa (opcional)" maxlength="120" />
       <div class="inline-add__actions">
         <button type="submit" class="btn btn-primary btn-sm">Asignar</button>
         <button type="button" class="btn btn-sm" data-action="cancelar-asignar">Cancelar</button>

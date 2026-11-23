@@ -40,8 +40,13 @@ export async function iniciarApp(
   const backend = crearBackendSimulado(datos);
 
   vi.doMock('../../src/scripts/ui/sound', () => ({ reproducirSonido: () => undefined }));
-  const confirmar = vi.fn((_mensaje?: string) => true);
-  window.confirm = confirmar;
+  // El panel de confirmación (ui/confirmar.ts) se responde con este mock; recibe el texto del panel
+  // (título, mensaje y resumen) para que las pruebas puedan revisarlo. Sus pruebas propias: confirmar.test.ts.
+  const confirmar = vi.fn((_texto?: string) => true);
+  vi.doMock('../../src/scripts/ui/confirmar', () => ({
+    confirmar: async (opciones: { titulo: string; mensaje?: string; resumen?: { etiqueta: string; valor: string }[] }) =>
+      confirmar([opciones.titulo, opciones.mensaje ?? '', ...(opciones.resumen ?? []).map((l) => `${l.etiqueta}: ${l.valor}`)].join('\n'))
+  }));
   document.execCommand = vi.fn(() => true);
 
   const { appStore } = await import('../../src/state/appStore');
@@ -52,6 +57,8 @@ export async function iniciarApp(
   const { iniciarModalAsignar, abrirModalAsignar } = await import('../../src/scripts/modals/assignIncidentModal');
   const { iniciarFiltroPorTecnico } = await import('../../src/scripts/features/techFilter');
   const { solicitarAsignacion } = await import('../../src/scripts/modals/assignFlow');
+  const { iniciarModalEdicionDeCaso } = await import('../../src/scripts/modals/editIncidentModal');
+  const { iniciarFiltrosDelTablero } = await import('../../src/scripts/features/boardFilters');
 
   appStore.set({ perfil: { nombre: 'Prueba', rol, tecnicoId }, soloLectura: rol !== 'dispatch' });
   document.body.classList.toggle('solo-lectura', rol !== 'dispatch');
@@ -60,7 +67,9 @@ export async function iniciarApp(
   document.body.classList.toggle('rol-coordinador', rol === 'coordinador');
 
   iniciarModalAsignar();
+  iniciarModalEdicionDeCaso();
   iniciarFiltroPorTecnico();
+  iniciarFiltrosDelTablero();
   iniciarEventosDelTablero();
   iniciarDragAndDrop(aplicarRenderPendiente);
   appStore.subscribe(solicitarRender);

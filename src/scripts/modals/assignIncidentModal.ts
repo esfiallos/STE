@@ -19,7 +19,7 @@ function campos() {
     formulario: byId<HTMLFormElement>('formNewIncident'),
     codigo: byId<HTMLInputElement>('inputIncNumber'),
     tecnico: byId<HTMLSelectElement>('selectTechnician'),
-    nota: byId<HTMLInputElement>('inputIncNote'),
+    empresa: byId<HTMLInputElement>('inputIncCompany'),
     enviar: byId<HTMLButtonElement>('btnSubmitIncident'),
     ronda: byId<HTMLButtonElement>('btnAssignRound'),
     pista: byId('roundHint')
@@ -81,7 +81,7 @@ export function abrirModalAsignar(): void {
 
 /** "Asignar a la ronda": crea el caso y la base elige al siguiente técnico disponible. */
 async function alAsignarARonda(): Promise<void> {
-  const { codigo: campoCodigo, nota, ronda, tecnico } = campos();
+  const { codigo: campoCodigo, empresa, ronda, tecnico } = campos();
   establecerError(ID_ERROR, null);
   const { incidentes, soloLectura, catalogo } = appStore.get();
   if (soloLectura) return establecerError(ID_ERROR, 'No tienes permiso para asignar casos.');
@@ -89,14 +89,14 @@ async function alAsignarARonda(): Promise<void> {
   const codigo = normalizarCodigo(campoCodigo.value);
   if (!codigo) return establecerError(ID_ERROR, 'Indica el número de incidente.');
   const enTablero = buscarIncidentePorCodigo(incidentes, codigo);
-  if (enTablero) {
+  if (enTablero && enTablero.estado !== 'cerrado') {
     const quien = catalogo.find((t) => t.id === enTablero.tecnicoId)?.nombre ?? 'otro técnico';
     return establecerError(ID_ERROR, `${codigo} ya está asignado a ${quien}.`);
   }
 
   ronda.disabled = true;
   try {
-    const resultado = await asignarIncidenteARonda(codigo, nota.value);
+    const resultado = await asignarIncidenteARonda(codigo, empresa.value);
     if (resultado.ok) cerrarModal(ID_MODAL);
     else establecerError(ID_ERROR, resultado.error);
   } finally {
@@ -106,13 +106,13 @@ async function alAsignarARonda(): Promise<void> {
 
 async function alEnviar(evento: SubmitEvent): Promise<void> {
   evento.preventDefault();
-  const { codigo, tecnico, nota, enviar } = campos();
+  const { codigo, tecnico, empresa, enviar } = campos();
 
   establecerError(ID_ERROR, null);
   enviar.disabled = true;
 
   try {
-    const resultado = await solicitarAsignacion(codigo.value, nota.value, tecnico.value);
+    const resultado = await solicitarAsignacion(codigo.value, empresa.value, tecnico.value);
     if (resultado === null) return;
 
     if (resultado.ok) cerrarModal(ID_MODAL);

@@ -8,6 +8,7 @@ import { byId, crearElemento } from '../dom';
 import { formatearFechaHora } from '../ui/format';
 import { reproducirSonido } from '../ui/sound';
 import { mostrarAviso } from '../ui/toast';
+import { animarEntrada } from '../ui/animacion';
 
 let alAbrirCaso: (casoId: string) => void = () => undefined;
 
@@ -16,7 +17,10 @@ function panelAbierto(): boolean {
 }
 
 function alternarPanel(abrir = !panelAbierto()): void {
-  byId('notifPanel').classList.toggle('hidden', !abrir);
+  const panel = byId('notifPanel');
+  const estabaAbierto = !panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', !abrir);
+  if (abrir && !estabaAbierto) void animarEntrada(panel, 'arriba');
   byId('btnNotifications').setAttribute('aria-expanded', String(abrir));
 }
 
@@ -39,7 +43,7 @@ function pintar(): void {
         const boton = crearElemento('button', 'notif__link');
         boton.type = 'button';
         boton.dataset.notificacionId = n.id;
-        boton.dataset.casoId = n.casoId;
+        if (n.casoId) boton.dataset.casoId = n.casoId;
         boton.append(crearElemento('span', 'notif__text', describirNotificacion(n)), crearElemento('span', 'notif__time', formatearFechaHora(n.creadoEn)));
         item.append(boton);
         return item;
@@ -98,8 +102,10 @@ export function iniciarNotificaciones(tecnicoId: string, abrirCaso: (casoId: str
 
   byId('notifList').addEventListener('click', (evento) => {
     const boton = evento.target instanceof Element ? evento.target.closest<HTMLElement>('[data-notificacion-id]') : null;
-    if (!boton?.dataset.notificacionId || !boton.dataset.casoId) return;
+    if (!boton?.dataset.notificacionId) return;
     void leerNotificacion(boton.dataset.notificacionId);
+    // Un caso cancelado ya no existe: solo se marca como leída.
+    if (!boton.dataset.casoId) return;
     alternarPanel(false);
     alAbrirCaso(boton.dataset.casoId);
   });

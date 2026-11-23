@@ -16,7 +16,7 @@ function datosDeAna() {
   const datos = datosBase();
   datos.casos = [
     { id: 'c1', codigo: 'INC1', nota: 'Fibra', cliente: 'ACME', estado: 'en_curso', tecnico_actual_id: 'ana', creado_en: '2026-11-09T12:00:00Z', _fecha: HOY },
-    { id: 'c2', codigo: 'INC2', nota: null, estado: 'pausado', etiqueta: 'Monitoreo', ultima_actualizacion: 'Esperando proveedor', ultima_actualizacion_en: '2026-11-09T11:00:00Z', ultima_actualizacion_por: 'luis@noc.test', tecnico_actual_id: 'ana', creado_en: '2026-11-09T11:00:00Z', _fecha: HOY, _origen: 'traspaso' },
+    { id: 'c2', codigo: 'INC2', nota: null, estado: 'pausado', etiqueta: 'Monitoreo', descripcion: 'Esperando proveedor', ultima_actualizacion_en: '2026-11-09T11:00:00Z', ultima_actualizacion_por: 'luis@noc.test', tecnico_actual_id: 'ana', creado_en: '2026-11-09T11:00:00Z', _fecha: HOY, _origen: 'traspaso' },
     { id: 'c3', codigo: 'INC3', nota: null, estado: 'en_curso', tecnico_actual_id: 'ana', creado_en: '2026-11-09T21:00:00Z', _fecha: '2026-11-10', _origen: 'traspaso' },
     { id: 'c9', codigo: 'INC9', nota: null, estado: 'en_curso', tecnico_actual_id: 'luis', creado_en: '2026-11-09T09:00:00Z', _fecha: HOY }
   ];
@@ -44,7 +44,7 @@ async function abrirSeguimiento() {
   await esperar(80);
 
   const tarjeta = (codigo: string) =>
-    [...document.querySelectorAll<HTMLElement>('#followUpView .followup-card')].find((t) => t.textContent!.includes(codigo))!;
+    [...document.querySelectorAll<HTMLElement>('#followUpView .followup-row[data-caso-id]')].find((t) => t.querySelector('.followup-code')!.textContent === codigo)!;
   const codigosDe = (grupo: string) =>
     [...document.querySelectorAll<HTMLElement>(`[data-grupo="${grupo}"] .followup-code`)].map((c) => c.textContent);
   return { ...app, seguimiento, notificaciones, tarjeta, codigosDe };
@@ -57,10 +57,16 @@ describe('mi seguimiento', () => {
     expect(app.codigosDe('traspaso')).toEqual(['INC2', 'INC3']);
     expect(app.codigosDe('nuevos')).toEqual(['INC1']);
     expect(app.tarjeta('INC3').textContent).toContain('Para tu turno del 10/11/2026');
-    expect(app.tarjeta('INC2').querySelector<HTMLTextAreaElement>('textarea')!.value).toBe('Esperando proveedor');
-    expect(app.q('#followUpSummary').textContent).toBe('3 caso(s) abierto(s) · 2 sin última actualización');
+    expect(app.tarjeta('INC2').querySelector<HTMLTextAreaElement>('[data-ref="descripcion"]')!.value).toBe('Esperando proveedor');
+    expect(app.q('#followUpSummary').textContent).toBe('3 caso(s) abierto(s) · 2 sin descripción (la necesitan para el traspaso)');
     expect(app.q('#followUpBadge').textContent).toBe('2');
     expect(app.tarjeta('INC9')).toBeUndefined();
+    // Contadores por grupo y "última actualización" como fecha relativa
+    expect(app.q('[data-grupo="traspaso"] [data-ref="conteo"]').textContent).toBe('2');
+    expect(app.tarjeta('INC1').querySelector('[data-ref="hace"]')!.textContent).toBe('Sin actualizar');
+    expect(app.tarjeta('INC2').querySelector('[data-ref="hace"]')!.textContent).toMatch(/^hace /);
+    // La nota histórica del dispatch queda como pista, sin copiarse a la descripción
+    expect(app.tarjeta('INC1').querySelector<HTMLTextAreaElement>('[data-ref="descripcion"]')!.placeholder).toBe('Nota del dispatch: Fibra');
   });
 
   it('cambiar el estado y la etiqueta se guarda al momento', async () => {
@@ -91,20 +97,49 @@ describe('mi seguimiento', () => {
     expect(estado.value).toBe('en_curso');
   });
 
-  it('la última actualización se guarda con el botón o con Ctrl+Enter', async () => {
+  it('la descripción se guarda con Ctrl+Enter (o al salir) y marca la última actualización; Esc deshace', async () => {
     const app = await abrirSeguimiento();
-    const texto = () => app.tarjeta('INC1').querySelector<HTMLTextAreaElement>('textarea')!;
-    const guardar = () => app.tarjeta('INC1').querySelector<HTMLButtonElement>('[data-action="guardar-actualizacion"]')!;
+    const texto = () => app.tarjeta('INC1').querySelector<HTMLTextAreaElement>('[data-ref="descripcion"]')!;
 
-    expect(guardar().disabled).toBe(true);
+    texto().focus();
     texto().value = 'Cliente reinicia el equipo';
     texto().dispatchEvent(new Event('input', { bubbles: true }));
-    expect(guardar().disabled).toBe(false);
+    expect(texto().classList.contains('is-dirty')).toBe(true);
     texto().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }));
     await esperar(80);
 
-    expect(app.db.casos!.find((c) => c.id === 'c1')).toMatchObject({ ultima_actualizacion: 'Cliente reinicia el equipo' });
-    expect(app.qa('.toast').some((t) => t.textContent!.includes('INC1: última actualización guardada'))).toBe(true);
+    expect(app.db.casos!.find((c) => c.id === 'c1')).toMatchObject({ descripcion: 'Cliente reinicia el equipo' });
+    expect(app.db.casos!.find((c) => c.id === 'c1')!.ultima_actualizacion_en).toBeTruthy();
+    expect(app.qa('.toast').some((t) => t.textContent!.includes('INC1: descripción guardada'))).toBe(true);
+    expect(app.tarjeta('INC1').querySelector('[data-ref="hace"]')!.textContent).toBe('recién');
+
+    texto().focus();
+    texto().value = 'algo que no quiero';
+    texto().dispatchEvent(new Event('input', { bubbles: true }));
+    texto().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await esperar(80);
+    expect(texto().value).toBe('Cliente reinicia el equipo');
+    expect(app.escrituras.filter((e) => e.startsWith('PATCH casos'))).toHaveLength(1);
+  });
+
+  it('"Actualizado" marca la fecha sin cambiar nada', async () => {
+    const app = await abrirSeguimiento();
+    app.click(app.tarjeta('INC1').querySelector('[data-action="marcar-actualizado"]')!);
+    await esperar(80);
+    expect(app.escrituras.some((e) => e.startsWith('RPC marcar_actualizado') && e.includes('"p_caso":"c1"'))).toBe(true);
+    expect(app.tarjeta('INC1').querySelector('[data-ref="hace"]')!.textContent).toBe('recién');
+    expect(app.db.casos!.find((c) => c.id === 'c1')!.descripcion).toBeUndefined();
+  });
+
+  it('el borde de la fila avisa el atraso sin actualizar y los grupos se pliegan', async () => {
+    fijarHora(19); // INC1 llegó 12:00 UTC (≈ 06:00 local) y nunca se tocó
+    const app = await abrirSeguimiento();
+    expect(Number(app.tarjeta('INC1').dataset.atraso)).toBeGreaterThan(0);
+
+    const titulo = app.q<HTMLButtonElement>('[data-grupo="nuevos"] [data-action="alternar-grupo"]');
+    app.click(titulo);
+    expect(app.q('[data-grupo="nuevos"]').classList.contains('is-collapsed')).toBe(true);
+    expect(titulo.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('muestra el historial de responsables y copia el resumen como texto', async () => {

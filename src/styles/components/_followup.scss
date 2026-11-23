@@ -37,59 +37,268 @@ body:not(.rol-tecnico) [data-tecnico-only] {
 }
 
 .followup-section {
-  margin-top: 1.25rem;
+  margin-top: 1.1rem;
+
+  &.is-collapsed .followup-table {
+    display: none;
+  }
+
+  &.is-collapsed .followup-section__chevron {
+    transform: rotate(-90deg);
+  }
 }
 
 .followup-section__title {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.6rem;
-  font-size: 0.95rem;
-  color: $color-texto-suave;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding: 0.2rem 0.1rem;
+  border: 0;
+  background: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: $navy-900;
+
+  .followup-section__chevron {
+    font-size: 0.7rem;
+    color: $color-texto-suave;
+    transition: transform 0.18s ease;
+  }
 }
 
-.followup-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr));
-  gap: 0.75rem;
+.followup-section__count {
+  min-width: 1.4rem;
+  padding: 0 0.45rem;
+  border-radius: $radio-pildora;
+  background-color: $color-acento-suave;
+  color: $color-acento;
+  font-size: 0.72rem;
+  line-height: 1.35rem;
+  text-align: center;
 }
 
-.followup-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  padding: 0.85rem 1rem;
+// Tabla de filas: una fila por caso (§11.4). Las columnas se comparten con el encabezado.
+$columnas-seguimiento: minmax(8.5rem, 1fr) minmax(7.5rem, 0.9fr) 8.25rem 7.5rem minmax(8rem, 0.9fr) minmax(14rem, 2.6fr) 9.5rem 3.6rem;
+
+.followup-table {
   border: 1px solid $color-borde;
-  border-left: 4px solid $color-acento;
   border-radius: $radio-md;
   background-color: $color-superficie;
   box-shadow: $sombra-tarjeta;
-  animation: entrar-caso 0.25s ease-out both;
-  transition: opacity 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
+}
 
-  &[data-estado='pausado'] {
-    border-left-color: $color-almuerzo-borde;
+.followup-list {
+  display: flex;
+  flex-direction: column;
+
+  > .empty-incidents {
+    padding: 0.9rem;
   }
-  &[data-estado='resuelto'] {
-    border-left-color: $color-exito;
+}
+
+.followup-row {
+  display: grid;
+  grid-template-columns: $columnas-seguimiento;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem 0.45rem 0.6rem;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid $color-borde;
+  transition: background-color 0.15s ease, opacity 0.2s ease, border-color 0.2s ease;
+
+  &:last-child {
+    border-bottom: 0;
   }
-  &.is-sin-actualizar {
+
+  &:not(.followup-row--head):hover {
     background-color: $color-superficie-alta;
   }
+
+  // Atraso sin actualizar (2/4/6 h): el técnico ve lo que tiene olvidado antes que coordinación
+  &[data-atraso='2'] {
+    border-left-color: $color-almuerzo-borde;
+  }
+  &[data-atraso='4'] {
+    border-left-color: $color-atraso-medio;
+  }
+  &[data-atraso='6'] {
+    border-left-color: $color-peligro;
+  }
+
+  &[data-estado='pausado'] .followup-code::after,
+  &[data-estado='resuelto'] .followup-code::after {
+    content: '';
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin-left: 0.35rem;
+    border-radius: 50%;
+    vertical-align: middle;
+    background-color: $color-almuerzo-borde;
+  }
+  &[data-estado='resuelto'] .followup-code::after {
+    background-color: $color-exito;
+  }
+
   &.is-saving {
     opacity: 0.6;
   }
   &.is-highlight {
     animation: destacar 1.6s ease-out;
   }
+
+  // Controles compactos dentro de la fila
+  input,
+  select,
+  textarea {
+    width: 100%;
+    min-height: 2.05rem;
+    padding: 0.3rem 0.55rem;
+    font-size: 0.82rem;
+  }
 }
 
-.followup-card__head {
+.followup-row--head {
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+  background-color: $color-superficie-alta;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: $color-texto-suave;
+
+  small {
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: $color-texto-tenue;
+  }
+}
+
+.followup-cell {
+  min-width: 0;
+}
+
+.followup-cell--case {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.followup-chips {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
+  gap: 0.2rem;
+}
+
+// La descripción ocupa una línea; al enfocarla crece para escribir cómodo
+.followup-cell--desc textarea {
+  resize: none;
+  overflow: hidden;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus {
+    white-space: pre-wrap;
+    overflow-y: auto;
+    max-height: 12rem;
+  }
+
+  &.is-dirty {
+    border-color: $color-almuerzo-borde;
+    background-color: $color-almuerzo-fondo;
+  }
+
+  &:placeholder-shown {
+    border-style: dashed;
+  }
+}
+
+.followup-cell--update {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.followup-ago {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: $color-texto;
+
+  &.is-never {
+    color: $color-texto-tenue;
+    font-weight: 500;
+  }
+}
+
+.followup-touch {
+  min-height: 1.6rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.7rem;
+
+  &.is-done {
+    border-color: $color-exito;
+    color: $color-exito;
+  }
+}
+
+.followup-cell--actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.1rem;
+}
+
+.followup-row > .followup-history {
+  grid-column: 1 / -1;
+  padding: 0.4rem 0 0.2rem 1.2rem;
+}
+
+// Pantallas medianas: la fila se parte en dos líneas (datos arriba, descripción abajo)
+@media (max-width: 1180px) {
+  .followup-row {
+    grid-template-columns: minmax(8rem, 1fr) minmax(7rem, 1fr) 8rem 7.5rem minmax(7.5rem, 1fr) 3.6rem;
+  }
+  .followup-row--head {
+    display: none;
+  }
+  .followup-cell--desc {
+    grid-column: 1 / 5;
+    grid-row: 2;
+  }
+  .followup-cell--update {
+    grid-column: 5 / -1;
+    grid-row: 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+}
+
+// Móvil: tarjeta
+@media (max-width: 720px) {
+  .followup-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .followup-cell--case,
+  .followup-cell--desc {
+    grid-column: 1 / -1;
+  }
+  .followup-cell--update {
+    grid-column: 1 / 2;
+    grid-row: auto;
+    justify-content: flex-start;
+  }
+  .followup-cell--actions {
+    grid-column: 2 / 3;
+  }
 }
 
 .followup-code {
@@ -98,8 +307,9 @@ body:not(.rol-tecnico) [data-tecnico-only] {
   padding: 0;
   font-family: $fuente-mono;
   font-weight: 700;
-  font-size: 0.95rem;
-  color: $color-marca;
+  font-size: 0.9rem;
+  text-align: left;
+  color: $navy-900;
   cursor: copy;
 
   &:hover {
@@ -109,12 +319,13 @@ body:not(.rol-tecnico) [data-tecnico-only] {
 }
 
 .followup-chip {
-  padding: 0.05rem 0.45rem;
+  padding: 0.02rem 0.45rem;
   border-radius: $radio-pildora;
   background-color: $color-acento-suave;
   color: $color-acento;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 600;
+  white-space: nowrap;
 
   &--fecha {
     background-color: $color-almuerzo-fondo;
@@ -122,25 +333,14 @@ body:not(.rol-tecnico) [data-tecnico-only] {
   }
 }
 
-.followup-card__desc {
-  font-size: 0.85rem;
-  color: $color-texto;
-  overflow-wrap: anywhere;
-}
-
-.followup-controls {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.6rem;
-}
-
+// Campos con etiqueta encima (los usa el Traspaso)
 .followup-field {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.75rem;
   font-weight: 600;
-  color: $color-texto-suave;
+  color: $color-texto-etiqueta;
 
   small {
     font-weight: 400;
@@ -149,38 +349,26 @@ body:not(.rol-tecnico) [data-tecnico-only] {
   select,
   input,
   textarea {
-    padding: 0.4rem 0.55rem;
-    border-radius: $radio-sm;
-    border: 1px solid $color-borde-fuerte;
-    background-color: $color-superficie;
-    font: inherit;
-    font-size: 0.85rem;
     font-weight: 400;
     color: $color-texto;
   }
+}
 
-  textarea {
-    resize: vertical;
-    min-height: 3rem;
+// Etiquetas con su color (D22): en el combobox seleccionado y en chips
+.tag-color {
+  @each $nombre, $par in $colores-etiqueta {
+    &--#{$nombre} {
+      --tag-fondo: #{nth($par, 1)};
+      --tag-texto: #{nth($par, 2)};
+    }
   }
 }
 
-.followup-card__foot {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.followup-meta {
-  font-size: 0.72rem;
-  color: $color-texto-suave;
-}
-
-.followup-actions {
-  display: flex;
-  gap: 0.35rem;
+input.tag-color {
+  background-color: var(--tag-fondo);
+  color: var(--tag-texto);
+  font-weight: 600;
+  border-color: transparent;
 }
 
 .followup-history {

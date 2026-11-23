@@ -1,11 +1,53 @@
 import type { EstadoCaso, Incidente, Notificacion, OrigenResponsable, TipoNotificacion } from '../types/noc';
 import { ETIQUETA_ESTADO_CASO } from './handover';
 
-/** Etiquetas que se ofrecen al técnico (también puede escribir una propia, hasta 40 caracteres). */
-/** VM: al caso se le programó una ventana de mantenimiento (VM). */
-export const ETIQUETAS_SUGERIDAS = ['Crítico', 'Monitoreo', 'Pendiente cliente', 'Escalar', 'VM'] as const;
+/**
+ * Etiquetas sugeridas (D22): un comentario corto que acompaña a la descripción, como en traspasos-noc
+ * (chip de color en Outlook, `[ETIQUETA]` en texto). El técnico puede crear las suyas (se guardan en su navegador).
+ * VM: al caso se le programó una ventana de mantenimiento. El orden es también la prioridad del reporte.
+ */
+export const ETIQUETAS_SUGERIDAS = ['Crítico', 'Escalar', 'VM', 'Monitoreo', 'Pendiente cliente', 'Seguimiento'] as const;
 export const LARGO_MAXIMO_ETIQUETA = 40;
-export const LARGO_MAXIMO_ACTUALIZACION = 500;
+export const LARGO_MAXIMO_DESCRIPCION = 2000;
+/** Cuántas etiquetas propias se recuerdan por navegador. */
+export const MAXIMO_ETIQUETAS_PROPIAS = 30;
+
+/** Color (clave de estilo) de cada etiqueta sugerida; las propias usan 'otra'. */
+export type ColorDeEtiqueta = 'critico' | 'escalar' | 'vm' | 'monitoreo' | 'pendiente' | 'seguimiento' | 'otra';
+const COLORES: Record<string, ColorDeEtiqueta> = {
+  'Crítico': 'critico',
+  'Escalar': 'escalar',
+  'VM': 'vm',
+  'Monitoreo': 'monitoreo',
+  'Pendiente cliente': 'pendiente',
+  'Seguimiento': 'seguimiento'
+};
+
+export function colorDeEtiqueta(etiqueta: string | null | undefined): ColorDeEtiqueta | null {
+  if (!etiqueta) return null;
+  return COLORES[etiqueta] ?? 'otra';
+}
+
+const plano = (texto: string) => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+/**
+ * Agrega una etiqueta propia a la lista del navegador: normalizada, sin repetir (ni una sugerida), la más
+ * reciente primero y como máximo MAXIMO_ETIQUETAS_PROPIAS.
+ */
+export function agregarEtiquetaPropia(propias: readonly string[], nueva: string): string[] {
+  const etiqueta = normalizarEtiqueta(nueva);
+  if (!etiqueta || ETIQUETAS_SUGERIDAS.some((s) => plano(s) === plano(etiqueta))) return [...propias];
+  return [etiqueta, ...propias.filter((p) => plano(p) !== plano(etiqueta))].slice(0, MAXIMO_ETIQUETAS_PROPIAS);
+}
+
+/** Opciones del combobox de etiquetas: sugeridas primero, luego las propias (y la actual si no está en ninguna). */
+export function opcionesDeEtiqueta(propias: readonly string[], actual?: string | null): string[] {
+  const opciones: string[] = [...ETIQUETAS_SUGERIDAS];
+  for (const p of [...propias, ...(actual ? [actual] : [])]) {
+    if (!opciones.some((o) => plano(o) === plano(p))) opciones.push(p);
+  }
+  return opciones;
+}
 
 /** Estados que el técnico puede elegir para su caso (cerrarlo lo saca de su seguimiento). */
 export const ESTADOS_DE_SEGUIMIENTO: readonly EstadoCaso[] = ['en_curso', 'pausado', 'resuelto', 'cerrado'];
@@ -34,9 +76,43 @@ export function agruparSeguimiento(casos: Incidente[], tecnicoId: string, fechaH
   };
 }
 
-/** Casos propios que aún no tienen última actualización (la necesitan para el traspaso). */
-export function sinActualizar(casos: Incidente[]): Incidente[] {
-  return casos.filter((c) => !c.ultimaActualizacion?.trim());
+/** Casos propios sin descripción (la necesitan para entregarse en el traspaso, D21). */
+export function sinDescripcion(casos: Incidente[]): Incidente[] {
+  return casos.filter((c) => !c.descripcion?.trim());
+}
+
+/** Horas que marcan el atraso de un caso sin actualizar (las mismas de las alertas de coordinación, D12). */
+export const NIVELES_DE_ATRASO = [2, 4, 6] as const;
+export type NivelDeAtraso = 0 | (typeof NIVELES_DE_ATRASO)[number];
+
+/**
+ * Cuánto lleva el caso sin que el técnico lo toque, en niveles 0/2/4/6 h, contando desde lo más reciente entre
+ * su última actualización y la hora en que le llegó. Es una guía visual para el técnico: las alertas de
+ * coordinación (que solo cuentan horas dentro del turno) las calcula la base.
+ */
+export function nivelDeAtraso(caso: Pick<Incidente, 'ultimaActualizacionEn' | 'creadoEn'>, ahora: Date): NivelDeAtraso {
+  const referencias = [caso.ultimaActualizacionEn, caso.creadoEn].filter((v): v is string => !!v).map((v) => Date.parse(v)).filter((n) => !Number.isNaN(n));
+  if (referencias.length === 0) return 0;
+  const horas = (ahora.getTime() - Math.max(...referencias)) / 3_600_000;
+  return ([...NIVELES_DE_ATRASO].reverse().find((n) => horas >= n) ?? 0) as NivelDeAtraso;
+}
+
+/** "recién", "hace 12 min", "hace 3 h", "hace 2 d". */
+export function haceCuanto(iso: string, ahora: Date): string {
+  const minutos = Math.floor((ahora.getTime() - Date.parse(iso)) / 60_000);
+  if (Number.isNaN(minutos) || minutos < 1) return 'recién';
+  if (minutos < 60) return `hace ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `hace ${horas} h`;
+  return `hace ${Math.floor(horas / 24)} d`;
+}
+
+/** "21/11 14:05" en la hora local del navegador (sin Intl, igual en todos). */
+export function momentoCorto(iso: string): string {
+  const f = new Date(iso);
+  if (Number.isNaN(f.getTime())) return '';
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${dos(f.getDate())}/${dos(f.getMonth() + 1)} ${dos(f.getHours())}:${dos(f.getMinutes())}`;
 }
 
 /** Texto plano para pegar en un chat o correo: una línea por caso. */
@@ -47,7 +123,7 @@ export function resumenParaCopiar(caso: Incidente): string {
     caso.etiqueta ? `[${caso.etiqueta}]` : null,
     caso.cliente,
     caso.descripcion ?? caso.nota,
-    caso.ultimaActualizacion ? `Últ. act.: ${caso.ultimaActualizacion}` : null
+    caso.ultimaActualizacionEn ? `Últ. act.: ${momentoCorto(caso.ultimaActualizacionEn)}` : null
   ];
   return partes.filter((p): p is string => !!p && p.trim() !== '').join(' · ');
 }
@@ -68,7 +144,8 @@ const TEXTO_NOTIFICACION: Record<TipoNotificacion, string> = {
   asignado: 'Te asignaron',
   reasignado: 'Te reasignaron',
   traspaso: 'Recibiste en traspaso',
-  recordatorio: 'Recordatorio:'
+  recordatorio: 'Recordatorio:',
+  cancelado: 'El dispatch canceló'
 };
 
 export function describirNotificacion(notificacion: Pick<Notificacion, 'tipo' | 'detalle'>): string {

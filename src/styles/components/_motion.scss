@@ -1,6 +1,6 @@
 @use '../abstracts/variables' as *;
 
-// Animaciones del tablero (scripts/ui/motion.ts). Duración máxima = DURACION_ANIMACION_MS (900 ms).
+// Animaciones del tablero (scripts/ui/motion.ts). Duración máxima = DURACION_ANIMACION_MS (1600 ms).
 // `_base.scss` las apaga todas con prefers-reduced-motion.
 
 // Caso recién asignado: entra desde abajo y destella
@@ -10,9 +10,12 @@
     tablero-destello 0.9s ease-out;
 }
 
-// Caso reasignado o arrastrado: destello suave (el deslizamiento lo hace FLIP desde motion.ts)
+// Caso reasignado o arrastrado: se tiñe del color de acento al llegar a la columna y vuelve despacio a su
+// color normal, para que se note qué caso entró (el deslizamiento lo hace FLIP desde motion.ts)
 .incident-item-card.is-moved {
-  animation: tablero-destello-suave 0.9s ease-out;
+  animation:
+    tablero-destello-suave 0.9s ease-out,
+    tablero-tinte 1.6s ease-out;
 }
 
 // Columna del técnico que recibe un caso
@@ -52,6 +55,18 @@
   }
   100% {
     box-shadow: 0 0 0 10px rgba($color-acento, 0);
+  }
+}
+
+@keyframes tablero-tinte {
+  0%,
+  20% {
+    background-color: $color-acento-suave;
+    border-color: $color-acento;
+  }
+  100% {
+    background-color: $color-superficie-alta;
+    border-color: $color-borde;
   }
 }
 

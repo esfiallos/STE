@@ -3,7 +3,7 @@ import { AREAS_DE_CASO, esAreaValida } from '../../src/domain/areas';
 import { ETIQUETAS_SUGERIDAS } from '../../src/domain/followUp';
 import { combinarBorrador, entradasDelReporte, itemInicial, normalizarItem, problemasDelTraspaso, receptoresDelTraspaso } from '../../src/domain/handoverDraft';
 import { repartirCasos, tipoDeCaso, type CasoParaRepartir } from '../../src/domain/handoverBalance';
-import { armarBloques, fechaEnTexto, reporteHtml, reporteTexto, reporteTsv, type FilaDeReporte } from '../../src/domain/handoverReport';
+import { armarBloques, esPaletaCorreo, fechaEnTexto, PALETAS_CORREO, reporteHtml, reporteTexto, reporteTsv, temaDeCorreo, type FilaDeReporte } from '../../src/domain/handoverReport';
 import type { Incidente, ItemTraspaso, Jornada, ReceptorTraspaso } from '../../src/types/noc';
 
 const HOY = '2026-11-09';
@@ -96,21 +96,45 @@ describe('borrador del traspaso', () => {
     ]);
   });
 
+  it('puedo quedarme un caso para mi turno de mañana si ese turno recibe del mío, nunca para hoy', () => {
+    const cat = [{ id: 'marta', nombre: 'Marta', activo: true }, { id: 'ana', nombre: 'Ana', activo: true }];
+    const comodinHoyYManana = [jornada('marta', 'comodin'), jornada('marta', 'comodin', MANANA), jornada('ana', 'turnoA', MANANA)];
+    expect(receptoresDelTraspaso('comodin', HOY, comodinHoyYManana, cat, 'marta').map((r) => `${r.tecnicoId} ${r.fecha}`))
+      .toEqual([`ana ${MANANA}`, `marta ${MANANA}`]);
+    // A hoy y A mañana: A no entrega a A, así que no puede quedárselo
+    const aHoyYManana = [jornada('ana', 'turnoA'), jornada('ana', 'turnoA', MANANA)];
+    expect(receptoresDelTraspaso('turnoA', HOY, aHoyYManana, cat, 'ana')).toEqual([]);
+  });
+
+  it('los tramos de C (C1, C2, C1 + C2) reciben de B igual que el turno C y entregan a A del día siguiente', () => {
+    const conHorario = (tecnicoId: string, inicio: string, fin: string, fecha = HOY): Jornada => ({ ...jornada(tecnicoId, 'turnoC', fecha), horarioInicio: inicio, horarioFin: fin });
+    const deNoche = [
+      jornada('luis', 'turnoB'), conHorario('carlos', '22:00', '00:00'), conHorario('sofia', '00:00', '06:00'),
+      conHorario('tomas', '22:00', '06:00'), jornada('ana', 'turnoA', MANANA)
+    ];
+    const cat = ['luis', 'carlos', 'sofia', 'tomas', 'ana'].map((id) => ({ id, nombre: id, activo: true }));
+    expect(receptoresDelTraspaso('turnoB', HOY, deNoche, cat, 'luis').map((r) => r.tecnicoId)).toEqual(['carlos', 'sofia', 'tomas', 'ana']);
+    // C1 no entrega a C2: todo C entrega a A/Comodín del día siguiente
+    expect(receptoresDelTraspaso('turnoC', HOY, deNoche, cat, 'carlos').map((r) => r.tecnicoId)).toEqual(['ana']);
+  });
+
   const casoBase = (id: string, extra: Partial<Incidente> = {}): Incidente => ({
     id, codigo: `INC${id}`, nota: null, tecnicoId: 'ana', creadoEn: '2026-11-09T12:00:00Z', estado: 'en_curso', ...extra
   });
 
-  it('precarga estado, etiqueta, última actualización y recordatorio vigente del caso', () => {
-    const item = itemInicial(casoBase('1', { estado: 'pausado', etiqueta: 'VM', ultimaActualizacion: 'Esperando', recordatorioFecha: MANANA, recordatorioTexto: 'VM 10:00' }), HOY);
-    expect(item).toMatchObject({ estado: 'pausado', etiqueta: 'VM', ultimaActualizacion: 'Esperando', recordatorioFecha: MANANA, recordatorioTexto: 'VM 10:00', paraTecnicoId: null });
+  it('precarga estado, etiqueta, descripción y recordatorio vigente del caso', () => {
+    const item = itemInicial(casoBase('1', { estado: 'pausado', etiqueta: 'VM', descripcion: 'Esperando', recordatorioFecha: MANANA, recordatorioTexto: 'VM 10:00' }), HOY);
+    expect(item).toMatchObject({ estado: 'pausado', etiqueta: 'VM', descripcion: 'Esperando', recordatorioFecha: MANANA, recordatorioTexto: 'VM 10:00', paraTecnicoId: null });
     expect(itemInicial(casoBase('2', { recordatorioFecha: '2026-11-01', recordatorioTexto: 'viejo' }), HOY).recordatorioFecha).toBeNull();
   });
 
   it('combina lo guardado con mis casos actuales y descarta lo que ya no es mío', () => {
-    const guardado: ItemTraspaso = { ...itemInicial(casoBase('1'), HOY), paraTecnicoId: 'luis' };
+    const guardado: ItemTraspaso = { ...itemInicial(casoBase('1'), HOY), paraTecnicoId: 'luis', descripcion: 'vieja' };
     const ajeno: ItemTraspaso = itemInicial(casoBase('9'), HOY);
-    const r = combinarBorrador([casoBase('1'), casoBase('2')], [guardado, ajeno], HOY);
+    const r = combinarBorrador([casoBase('1', { descripcion: 'actual' }), casoBase('2')], [guardado, ajeno], HOY);
     expect(r.items.map((i) => [i.casoId, i.paraTecnicoId])).toEqual([['1', 'luis'], ['2', null]]);
+    // La descripción es siempre la del caso (D21): una sola nota, la de Mi seguimiento
+    expect(r.items[0]!.descripcion).toBe('actual');
     expect(r.sobrantes).toEqual(['9']);
   });
 
@@ -118,30 +142,30 @@ describe('borrador del traspaso', () => {
     const receptores = receptoresDelTraspaso('turnoA', HOY, jornadas, catalogo, 'ana');
     const casos = [casoBase('1'), casoBase('2'), casoBase('3'), casoBase('4')];
     const items: ItemTraspaso[] = [
-      { ...itemInicial(casos[0]!, HOY), paraTecnicoId: 'luis', ultimaActualizacion: 'ok' },
+      { ...itemInicial(casos[0]!, HOY), paraTecnicoId: 'luis', descripcion: 'ok' },
       { ...itemInicial(casos[1]!, HOY), paraTecnicoId: 'carlos' },
       { ...itemInicial(casos[2]!, HOY), estado: 'cerrado' },
-      { ...itemInicial(casos[3]!, HOY), paraTecnicoId: 'marta', ultimaActualizacion: 'ok', recordatorioTexto: 'VM' }
+      { ...itemInicial(casos[3]!, HOY), paraTecnicoId: 'marta', descripcion: 'ok', recordatorioTexto: 'VM' }
     ];
     expect(problemasDelTraspaso(items, casos, receptores, HOY).map((p) => p.mensaje)).toEqual([
       'INC2: el receptor ya no puede recibir de tu turno.',
-      'INC2: falta la última actualización.',
+      'INC2: falta la descripción.',
       'INC4: el recordatorio necesita fecha.'
     ]);
     expect(problemasDelTraspaso(items.slice(0, 1), casos.slice(0, 1), [], HOY)[0]!.mensaje).toMatch(/No hay nadie planificado/);
   });
 
   it('normaliza lo escrito y limpia receptor y recordatorio de un caso cerrado', () => {
-    const item = normalizarItem({ ...itemInicial(casoBase('1'), HOY), estado: 'cerrado', paraTecnicoId: 'luis', etiqueta: '  vm  ', notaPersonalizada: '  ', recordatorioFecha: MANANA });
-    expect(item).toMatchObject({ paraTecnicoId: null, etiqueta: 'vm', notaPersonalizada: null, recordatorioFecha: null });
+    const item = normalizarItem({ ...itemInicial(casoBase('1'), HOY), estado: 'cerrado', paraTecnicoId: 'luis', etiqueta: '  vm  ', descripcion: '  ', recordatorioFecha: MANANA });
+    expect(item).toMatchObject({ paraTecnicoId: null, etiqueta: 'vm', descripcion: null, recordatorioFecha: null });
   });
 
-  it('arma las entradas del reporte con la nota personalizada y deja fuera lo que aún no tiene receptor', () => {
+  it('arma las entradas del reporte con la descripción y deja fuera lo que aún no tiene receptor', () => {
     const receptores: ReceptorTraspaso[] = receptoresDelTraspaso('turnoA', HOY, jornadas, catalogo, 'ana');
     const destinos = new Map(receptores.map((r) => [r.tecnicoId, r]));
     const casos = [casoBase('1', { nota: 'ACME' }), casoBase('2', { nota: 'BETA' }), casoBase('3')];
     const items: ItemTraspaso[] = [
-      { ...itemInicial(casos[0]!, HOY), paraTecnicoId: 'luis', notaPersonalizada: 'Llamar al NOC del cliente' },
+      { ...itemInicial(casos[0]!, HOY), paraTecnicoId: 'luis', descripcion: 'Llamar al NOC del cliente' },
       { ...itemInicial(casos[1]!, HOY) },
       { ...itemInicial(casos[2]!, HOY), estado: 'cerrado' }
     ];
@@ -156,7 +180,7 @@ describe('borrador del traspaso', () => {
 describe('reporte del traspaso', () => {
   const fila = (codigo: string, extra: Partial<FilaDeReporte> = {}): FilaDeReporte => ({
     codigo, empresa: 'ACME <SA>', area: 'CORE IP', estado: 'en_curso', etiqueta: null, descripcion: 'Caída & corte',
-    ultimaActualizacion: 'Esperando proveedor', recordatorioFecha: null, recordatorioTexto: null, ...extra
+    ultimaActualizacionEn: '2026-11-09T14:05:00', recordatorioFecha: null, recordatorioTexto: null, ...extra
   });
   const luis = { nombre: 'Luis', turno: 'turnoB' as const, fecha: HOY };
   const ana = { nombre: 'Ana', turno: 'turnoA' as const, fecha: MANANA };
@@ -194,10 +218,38 @@ describe('reporte del traspaso', () => {
   it('texto plano y TSV', () => {
     const texto = reporteTexto(bloques());
     expect(texto).toContain('Luis · TURNO B · Lunes 9 de noviembre de 2026');
-    expect(texto).toContain('- INC1 · ACME <SA> · CORE IP · En curso · [VM] Caída & corte · Últ. act.: Esperando proveedor · Recordatorio 10/11: VM 10:00');
+    expect(texto).toContain('- INC1 · ACME <SA> · CORE IP · En curso · [VM] Caída & corte · Últ. act.: 09/11 14:05 · Recordatorio 10/11: VM 10:00');
     const tsv = reporteTsv(bloques());
     expect(tsv.split('\n')[0]).toBe('TECNICO:\tLuis\tASIGNACION:\tTURNO B\t\t');
-    expect(tsv).toContain('INC1\tACME <SA>\tCORE IP\tEn curso\t[VM] Caída & corte · Recordatorio 10/11: VM 10:00\tEsperando proveedor');
+    expect(tsv).toContain('INC1\tACME <SA>\tCORE IP\tEn curso\t[VM] Caída & corte · Recordatorio 10/11: VM 10:00\t09/11 14:05');
     expect(reporteTsv([{ destino: luis, filas: [fila('INC5', { descripcion: 'a\tb\nc' })] }])).toContain('\ta b c\t');
+  });
+});
+
+describe('paletas de la tabla del traspaso', () => {
+  const fila: FilaDeReporte = {
+    codigo: 'INC1', empresa: 'ACME', area: null, estado: 'en_curso', etiqueta: null, descripcion: 'x',
+    ultimaActualizacionEn: null, recordatorioFecha: null, recordatorioTexto: null
+  };
+  const bloques = () => armarBloques([{ destino: { nombre: 'Luis', turno: 'turnoB', fecha: HOY }, fila }]);
+
+  it('cada paleta cambia el marco de la tabla; una desconocida usa la cálida de siempre', () => {
+    expect(PALETAS_CORREO.map((p) => p.id)).toEqual(['calido', 'azul', 'verde', 'grafito', 'morado', 'vino']);
+    expect(esPaletaCorreo('azul')).toBe(true);
+    expect(esPaletaCorreo('rosa')).toBe(false);
+    expect(temaDeCorreo('nada').barraFondo).toBe(temaDeCorreo('calido').barraFondo);
+    for (const p of PALETAS_CORREO) {
+      expect(temaDeCorreo(p.id).barraFondo).toBe(p.marco.barraFondo);
+      // Los chips por turno no cambian: se reconocen igual en cualquier paleta
+      expect(temaDeCorreo(p.id).turnos.turnoB).toEqual(temaDeCorreo('calido').turnos.turnoB);
+    }
+  });
+
+  it('el HTML usa los colores de la paleta elegida', () => {
+    const azul = PALETAS_CORREO.find((p) => p.id === 'azul')!.marco;
+    const html = reporteHtml(bloques(), { tema: temaDeCorreo('azul') });
+    expect(html).toContain(azul.barraFondo);
+    expect(html).toContain(azul.encabezadoFondo);
+    expect(html).not.toContain(temaDeCorreo('calido').barraFondo);
   });
 });

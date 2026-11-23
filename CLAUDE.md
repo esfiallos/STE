@@ -15,17 +15,18 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
-   §8 decisiones D1–D15, §9 despliegue, §10 requerimientos v2.1). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 30 archivos, 206 pruebas). En una máquina cargada
+   §8 decisiones D1–D28, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 37 archivos, ~270 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Las 9 fases del diseño v2 están hechas. Siguiente: aplicar 07–10 en Supabase, poblar perfiles, probar contra
-   DEV en el navegador y publicar (`docs/DISENO_V2.md` §9). Pendientes menores en "Otros pendientes conocidos".
+4. Fases 1–14 hechas (`docs/DISENO_V2.md` §11–§12, reglas D16–D31, todas decididas). Migraciones 04–15
+   aplicadas en DEV y PROD y perfiles poblados. Siguiente: probar contra DEV con los tres roles y publicar
+   (§9, §11.13).
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
    usuario lo pide; nunca ejecutes migraciones ni escrituras en PROD sin su confirmación explícita.
 
-## Estado (al 19/11/2026)
+## Estado (al 22/11/2026)
 
 | Fase | Estado | Qué quedó |
 |---|---|---|
@@ -38,13 +39,30 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 7. Ronda | ✅ | `sql/09_v2_ronda.sql`, botón **Asignar a la ronda** en Nuevo caso con vista previa del siguiente |
 | 8. Planificación con solicitudes | ✅ | `sql/10_v2_planificacion.sql`, coordinación planifica; el dispatch pide permiso por día (campanas en ambos roles) |
 | 9. Animaciones | ✅ | Tablero: FLIP al mover, entrada + destello del caso nuevo, pop del contador, realce de la columna (`ui/motion.ts`) |
+| 10. Tablero del día | ✅ | §11.1–11.2, §11.12: tablero/panel solo con lo asignado hoy por dispatch (vacío a las 06:00), **Cancelar** (borra el caso) y **Editar** código/empresa del dispatch en lugar de cerrar, Empresa al crear, Bitácora solo dispatch/coordinación · `sql/11` |
+| 11. Base visual | ✅ | §11.7–11.10: Inter + navy, `ui/confirmar.ts` (adiós `window.confirm`), `ui/fecha.ts`, combobox, `@formkit/auto-animate` + `motion` |
+| 12. Seguimiento v2 | ✅ | §11.3–11.6: descripción única, última actualización = fecha + botón, filas horizontales, etiquetas propias locales (localStorage) con combobox, nota del traspaso = descripción · `sql/12` |
+| 13. Filtros | ✅ | §11.11: tipo de caso (FRESH `#SR`/`#INC` · Tarea `SCTASK` · Incidente `INC`) + filtros técnico/área/estado/tipo |
+| 14. Turno C por tramos y pulido | ✅ | §12: C1 22–00 / C2 00–06 (D29, `sql/14`), paletas de la tabla del traspaso (D30), destello al soltar, tarjetas sin superposición, quedarse un caso para mañana (D31, `sql/15`) |
 
-**Bases de datos (revisado con el conector el 19/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
+**Bases de datos (revisado con el conector el 22/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
 DEV = `DEV` (`bofqefbxziqxzrdujihd`).
-- DEV y PROD: 04, 05 y 06 aplicadas; la **07, 08, 09 y 10 aún no** (las ejecuta el usuario, en orden). Cron 05:59 funcionando.
-- 19/11/2026, a pedido del usuario: se **vaciaron todas las tablas** de `public` en DEV y PROD (casos, jornadas,
+- DEV y PROD: **04 a 15 aplicadas** (la 14 y la 15 el 22/11/2026) (verificado el 22/11/2026: `marcar_actualizado`, `traspaso_items.descripcion`/
+  `actualizado_en`, `tipo_de_caso`, `tablero_del_dia.area`/`tipo`).
+- Detalle 04–11 (vista `tablero_del_dia`, `cancelar_caso`, ronda con `p_empresa`, política
+  `bitacora_leer_supervision`). Crons: `snapshot-operativo` 11:59 UTC (= 05:59 Honduras), `recordatorios-traspaso`
+  y `alertas-coordinacion` cada 5 min. DEV tiene perfiles dispatch, técnico y coordinador; PROD aún no tiene
+  coordinador ni casos/jornadas.
+- 19/11/2026, a pedido del usuario: se vaciaron todas las tablas de `public` en DEV y PROD (casos, jornadas,
   técnicos, perfiles, traspasos, notificaciones, snapshots y bitácora). Se conservan los usuarios de `auth` y
   `entorno_dev` en DEV. El usuario las poblará al terminar la nueva arquitectura: sin perfiles nadie entra.
+- 22/11/2026, a pedido del usuario: se volvió a vaciar `public` **y `auth.users`** en DEV y PROD y se crearon las
+  cuentas reales (12 técnicos con su ficha en `tecnicos`, 3 dispatch, 1 coordinador; DEV además un coordinador de
+  prueba). Sin casos ni jornadas. Las cuentas se crearon **sin contraseña** (la pone el usuario). Procedimiento para
+  altas, cambios de rol y bajas: `docs/interno/ALTA_DE_USUARIOS.md` (local, no se versiona).
+- DEV tiene el escenario de datos de prueba con los técnicos reales (copia local `docs/interno/03_datos_demo_dev_real.sql`,
+  misma lógica que `sql/03_datos_demo_dev.sql`; cargado el 22/11/2026; repetible, relativo al día en que
+  se corre). Qué contiene y qué probar con cada usuario: `docs/interno/DATOS_DE_PRUEBA.md` (local, no se versiona).
 - PROD: la app publicada (`main`, que aún usa `incidentes`) **no funciona** hasta publicar la v2.
 
 **Configuración pendiente (la hace el usuario):** en Supabase DEV y PROD agregar `/restablecer/` a
@@ -125,9 +143,90 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
 - `styles/components/_motion.scss` (máx. 900 ms = `DURACION_ANIMACION_MS`); `_base.scss` las apaga con
   `prefers-reduced-motion`. Se animan también los cambios que llegan de otros usuarios (Realtime).
 
+### Fase 10 — Tablero del día ✅ (qué quedó)
+- `sql/11_v2_tablero_del_dia.sql`: `origenes_del_tablero()` (= `ORIGENES_DEL_TABLERO`) y vista `tablero_del_dia`
+  (por caso y día, la última asignación del dispatch: dispatch/reasignación/reapertura; incluye cerrados). La usan
+  `estadisticas_del_dia` y `generar_snapshot_operativo`. Trigger: el dispatch no puede cerrar. `cancelar_caso(caso,
+  motivo)` (solo dispatch, solo casos del tablero de hoy y sin traspaso enviado; copia a la bitácora, borra en
+  cascada y avisa al técnico con notificación `cancelado`, `caso_id` null). Corrección de código → bitácora
+  `codigo_corregido`. `asignar_a_ronda(codigo, empresa)`. Bitácora: lectura solo dispatch/coordinación.
+- App: `sync.ts` lee `listarTableroDelDia(fecha)` → `incidentes` (columna = a quién lo asignó el dispatch; un
+  traspaso no lo mueve). "Por reasignar" sale de `casosAbiertos` (`casosHastaElDia`) y solo la ve el dispatch.
+  Tarjeta: empresa, chip de estado si no es "En curso", cerrado atenuado y sin arrastre; botones **Editar** y
+  **Cancelar** (`modals/editIncidentModal.ts`, modal con motivo y aviso si el técnico ya lo trabajó). "Nuevo caso"
+  y el formulario rápido piden **Empresa** (`casos.cliente`). Métrica "Casos asignados hoy". Pestaña Bitácora solo
+  supervisión. El buscador del tablero también busca por empresa.
+- No verificado en el navegador: necesita la 11 (y antes 07–10) aplicada en DEV.
+
+### Fase 11 — Base visual ✅ (qué quedó)
+- Tokens (`abstracts/_variables.scss`): paleta navy (`$navy-950…50`) sobre slate, Inter Variable empaquetada
+  (`@fontsource-variable/inter`, importada en `layouts/Layout.astro`), radios 8/12 px, `$alto-campo`, `$color-foco`,
+  `$sombra-flotante`. `_base.scss` da un aspecto único a todos los campos con `:where()` (los componentes ajustan).
+- `scripts/ui/animacion.ts`: único lugar que importa **Motion** (`animarEntrada/Salida/Fondo/Pulso/Sacudida`) y
+  **auto-animate** (`animarLista`, solo listas que cambian de a un elemento: avisos, resultados del buscador). Sin
+  soporte o con movimiento reducido no anima. Usado por modales, campana, confirmaciones, fecha y combobox.
+- `scripts/ui/confirmar.ts`: `confirmar(opciones): Promise<boolean>`; con `ancla` = popover junto al botón, sin
+  ancla = panel con fondo y `resumen`. Enter acepta, Esc/clic fuera cancelan, foco atrapado y devuelto. Reemplazó
+  los 6 `window.confirm` (cerrar caso, cerrar turno con resumen por receptor, reasignar/reabrir, desactivar técnico,
+  copiar semana con cuántas se reemplazan). En las pruebas de app lo sustituye un mock (`app.confirmar` recibe el
+  texto del panel).
+- `domain/dateInput.ts` (intérprete puro: h, m, pm, ayer, ±N, lun…dom, D, D/M[/AA], ISO; chips; calendario) +
+  `scripts/ui/fecha.ts` (`mejorarCampoDeFecha(input, { direccion })`: oculta el `<input type="date">`, que sigue
+  teniendo el valor y recibe `change`; chips, mini calendario, vista previa, ↑/↓). Usado en el recordatorio del
+  traspaso (futuro, mín. hoy) y en Mis traspasos (pasado, máx. hoy).
+- `scripts/ui/combobox.ts` (`mejorarCombobox(input, { opciones, permitirCrear, alCrear, vacio })`) +
+  `filtrarOpciones`/`mismoTexto` en `domain/search.ts`. Usado en las etiquetas de Mi seguimiento y Traspaso (sin
+  datalist). Las etiquetas propias locales (localStorage) llegan en la fase 12 vía `alCrear`.
+- Pruebas: `tests/domain/fechas-rapidas.test.ts`, `tests/app/componentes-ui.test.ts`.
+- Visto en el navegador solo el login (fuente y colores nuevos, sin errores): el panel requiere iniciar sesión.
+
+### Fase 12 — Seguimiento v2 ✅ (qué quedó)
+- `sql/12_v2_seguimiento_descripcion.sql`: el técnico edita `casos.descripcion` (≤ 2000); el trigger marca
+  `ultima_actualizacion_en/por` (y `actividad_tecnico_en`) con cualquier edición del técnico, con
+  `marcar_actualizado(caso)` (solo el responsable, caso abierto; usa `app.marcar_actualizado`) y con la descripción
+  que cambia al enviar un traspaso. `ultima_actualizacion` (texto) ya no se escribe: la migración copió su contenido
+  a la descripción vacía (+1 entrada `migracion_descripcion` en la bitácora). Bitácora `descripcion_cambiada`.
+  `traspaso_items.descripcion` + `actualizado_en` (foto al enviar). `enviar_traspaso` exige descripción (la del ítem o,
+  si está vacía, la del caso) y la guarda en el caso.
+- Dominio: `followUp.ts` (`sinDescripcion`, `nivelDeAtraso` 0/2/4/6 h, `haceCuanto`, `momentoCorto`,
+  `ETIQUETAS_SUGERIDAS` + `Seguimiento`, `colorDeEtiqueta`, `agregarEtiquetaPropia`, `opcionesDeEtiqueta`).
+  `ItemTraspaso.descripcion` reemplaza a `notaPersonalizada`/`ultimaActualizacion`; `combinarBorrador` toma siempre la
+  descripción del caso (una sola nota). Reporte: "Últ. act.: 21/11 14:05" (fecha, no texto).
+- Mi seguimiento (`followUpView.ts`): una **fila** por caso (código + chips · empresa · área · estado · etiqueta ·
+  descripción de una línea que crece al enfocarla · "hace N min" + botón **Actualizado** · historial/copiar), grupos
+  plegables con contador, borde por atraso, refresco de los tiempos cada 60 s sin redibujar. Ctrl+Enter o salir del
+  campo guarda; Esc deshace. Insignia = casos sin descripción. Bajo 1180 px la fila usa dos líneas; en móvil, tarjeta.
+- Traspaso: un solo campo **Descripción** (se guarda en el caso al salir del campo; la misma de Mi seguimiento).
+  Ya no hay "nota para quien recibe" ni "última actualización" escrita; `notasDeTraspasosRecibidos` se quitó.
+- Etiquetas: `scripts/ui/etiquetas.ts` (combobox con sugeridas + propias en `localStorage`
+  `panel-noc:etiquetas-propias`, color por etiqueta con `tag-color--*`; tokens `$colores-etiqueta`).
+- Pruebas: `tests/sql/seguimiento-descripcion-v2.test.ts` (incluye que cada receptor ve el caso en `casos_abiertos`,
+  mismo día y día siguiente) y en `tests/app/traspaso.test.ts` "cada receptor ve el caso en su Mi seguimiento". El
+  backend simulado ya elige la fecha destino por la jornada del receptor desde el día del traspaso.
+- No verificado en el navegador (sin sesión).
+
+### Fase 13 — Filtros ✅ (qué quedó)
+- `sql/13_v2_filtros.sql`: `tipo_de_caso(codigo)` (= `domain/caseType.ts`, prueba de coincidencia en
+  `tests/sql/tablero-del-dia-v2.test.ts`) y `tablero_del_dia` + `area`, `tipo` al final.
+- Dominio: `caseType.ts` (`#SR…`/`#INC…` → FRESH · `SCTASK…` → Tarea · `INC…` → Incidente · Otro; antes cualquier `#`
+  era FRESH; `handoverBalance.ts` lo reexporta) y `caseFilters.ts` (`cumpleFiltros`, `filtrarCasos`, `conteoPorTipo`
+  que respeta los demás filtros, `SIN_AREA`, `filtrosDesdeTexto`).
+- `scripts/features/caseFilters.ts` (`crearBarraDeFiltros(contenedor, { clave, campos, tecnicos?, alCambiar })`):
+  chips de tipo con contador, listas de técnico/área/estado, "Mostrando X de Y" y "Limpiar (n)"; recuerda por vista
+  en `sessionStorage` (`panel-noc:filtros:<clave>`). `ui/tipoDeCaso.ts` pinta el chip de tipo.
+- Dónde: **Tablero** (tipo/área/estado en `#boardFilters` → `appStore.filtrosTablero`; el técnico sigue en
+  `#filterTech`; solo filtra tarjetas, no columnas), **Mi seguimiento** (tipo/área/estado), **Traspaso**
+  (tipo/área/estado/receptor; solo oculta ítems, los problemas y el reporte siguen viendo todo), **Buscar casos**
+  (tipo/área/estado/técnico actual, sobre los resultados ya traídos) y **Panel** (con filtros, las estadísticas se
+  calculan con el tablero del día del store, mismo criterio D17; sin filtros, `estadisticas_del_dia`; las alertas se
+  filtran y la insignia cuenta todas). Chip de tipo en tarjetas del tablero y filas del seguimiento.
+- Pruebas: `tests/domain/filtros.test.ts`, `tests/app/filtros.test.ts`.
+- No verificado en el navegador (sin sesión).
+
 ### Otros pendientes conocidos
-- `03_datos_demo_dev.sql` no crea perfiles: para probar el rol técnico, enlazar un perfil a un técnico demo
-  (`insert into perfiles (id, nombre, rol, tecnico_id) ...`).
+- `03_datos_demo_dev.sql` no crea perfiles ni usuarios y usa **nombres ficticios** (en el repo no va ningún nombre ni
+  correo real; lo real vive en `docs/interno/`, ignorada por git). Busca los técnicos por nombre y crea los que falten.
+  Apaga `casos_antes_de_guardar_trg` durante la carga para fijar fechas pasadas y lo enciende antes del commit.
 - Las alertas de escritorio solo salen si el técnico las activa y la pestaña no está a la vista.
 
 ---
@@ -161,7 +260,8 @@ scripts/               Comportamiento en el navegador
   features/            Pestañas (según rol), buscador, filtro por técnico, sesión, estado de conexión
   history/ audit/      Vistas de Historial y Bitácora
   actions/             Casos de uso: service → recarga (cargarDatos) → aviso/sonido
-  ui/                  toast, sonido, portapapeles, tablas, formato
+  ui/                  toast, sonido, portapapeles, tablas, formato, animacion (Motion + auto-animate),
+                       confirmar (panel/popover), fecha (selector rápido), combobox
         │
 state/                 appStore (createStore: get/set/subscribe) + sync.ts (Realtime + respaldo)
         │
@@ -171,7 +271,7 @@ services/              ÚNICO lugar que habla con Supabase. Repos devuelven Resu
         │
 domain/                Reglas puras (sin DOM ni Supabase): time (día operativo, semanas), shifts, availability,
                        lunch, planning, handover (traspasos), followUp (seguimiento/notificaciones), credentials,
-                       metrics, search, assignments, audit
+                       metrics, search, assignments, audit, caseType, caseFilters, dateInput
 types/                 noc.ts (modelo) y result.ts (Resultado, exito, falla)
 styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variables.scss
 ```
@@ -198,25 +298,32 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - Mapeo snake_case (BD) ↔ camelCase (TS) se hace en cada repo (`aIncidente`, `aJornada`, `aNotificacion`…).
 - Los permisos los impone la BD (RLS + triggers); la UI solo oculta: `body.solo-lectura` + `[data-edit-only]`
   (sin rol dispatch) y `body.rol-tecnico` + `[data-tecnico-only]` (solo técnicos enlazados).
-- Casos y técnicos **no se borran**: los casos se cierran, los técnicos se desactivan.
+- Casos y técnicos **no se borran**: los casos se cierran, los técnicos se desactivan. Única excepción (D25, fase
+  10): **Cancelar** del dispatch borra un caso asignado por error, vía RPC y con copia en la bitácora.
 - Reglas duplicadas a propósito en SQL y TS, con prueba que verifica que coincidan:
-  `desfase_traspaso()` = `domain/handover.ts`; horarios de comodín (`jornada_horario_comodin`) = `HORARIOS_COMODIN`.
+  `desfase_traspaso()` = `domain/handover.ts`; horarios de comodín y de C (`jornada_horario_valido`,
+  `horarios_turno_c()`) = `HORARIOS_COMODIN` / `HORARIOS_TURNO_C`.
 - Navegar con `irA()` (`scripts/routes.ts`), no con `window.location.replace` directo (las pruebas lo sustituyen).
 
 ## Dominio clave
 
 - **Día operativo** 06:00 → 06:00 (Honduras): `fechaOperativa()` / `public.fecha_operativa()`. A las 06:00 el
   tablero queda limpio sin borrar nada; los casos abiertos de un responsable que no trabaja hoy salen en
-  "Por reasignar".
-- Turnos: A 06–14, B 14–22, C 22–06. **Comodín**: 06–16, 07–17 u 08–18; aparece en los turnos que toca.
+  "Por reasignar" (solo dispatch). **D16:** el tablero y el panel muestran solo lo que el dispatch asignó en el día
+  (vista `tablero_del_dia`, incluye cerrados); lo traspasado y lo de días anteriores vive en Mi seguimiento.
+- El dispatch **no cierra** casos: edita código/empresa o **cancela** (D25, el caso deja de existir).
+- "Última actualización" es una **fecha** (cualquier edición del técnico o el botón Actualizado) y el texto del caso
+  es la **descripción**, que es también la nota del traspaso (D19–D21, fase 12).
+- Turnos: A 06–14, B 14–22, C por tramos **C1 22–00** y **C2 00–06** (toda la noche = C1 + C2, D29).
+  **Comodín**: 06–16, 07–17 u 08–18; aparece en los turnos que toca.
   El turno es **por día** (tabla `jornadas`), lo planifica el dispatch por semana; el almuerzo también.
 - Destinos de traspaso: A → B/Comodín (mismo día) · B y Comodín → C (mismo día) o A/Comodín (día siguiente) ·
-  C → A/Comodín (día siguiente).
+  C (cualquier tramo) → A/Comodín (día siguiente). Uno mismo cuenta como receptor solo para su turno de mañana (D31).
 - Un técnico recibe casos solo si está `disponible` (en horario y fuera de almuerzo) → `domain/availability.ts`.
 - Un código de caso existe una sola vez en todo el historial. Asignar uno cerrado ofrece reabrirlo.
 - Estados: En curso · Pausado · Resuelto · Cerrado. Al cerrar turno todo lo no cerrado se traspasa (fase 5).
-- El técnico solo puede cambiar estado, etiqueta, nota y última actualización de **sus** casos (trigger
-  `casos_antes_de_guardar` + RLS); la BD registra quién y cuándo escribió la última actualización.
+- El técnico solo puede cambiar estado, etiqueta, área, empresa y descripción de **sus** casos (trigger
+  `casos_antes_de_guardar` + RLS); la BD registra quién y cuándo los tocó por última vez.
 
 ## Base de datos (`sql/`, se ejecutan a mano en el SQL Editor de Supabase, en orden)
 
@@ -234,7 +341,17 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
   `alertas-coordinacion` cada 5 min). Coordinador: `insert into perfiles (id, nombre, rol) ... 'coordinador'`.
 - `09_v2_ronda.sql`: `ronda_estado` y `asignar_a_ronda()` (rotativa alfabética por turno, D10). Sin cron.
 - `10_v2_planificacion.sql`: solicitudes de planificación y permisos de `jornadas` por día (D14, D15). Sin cron.
-- `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`); no toca `perfiles`.
+- `11_v2_tablero_del_dia.sql`: vista `tablero_del_dia`, estadísticas y snapshot por D16, el dispatch no cierra,
+  `cancelar_caso()`, ronda con empresa, bitácora solo supervisión (D16–D18, D25, D26, D28). Sin cron.
+- `12_v2_seguimiento_descripcion.sql`: descripción editable por el técnico, última actualización como fecha,
+  `marcar_actualizado()`, `enviar_traspaso` con descripción, foto en `traspaso_items` (D19–D21). Sin cron.
+- `13_v2_filtros.sql`: `tipo_de_caso()` y `tablero_del_dia` con `area` y `tipo` (§11.11). Sin cron.
+- `14_v2_turno_c_variantes.sql`: tramos C1/C2 (`horarios_turno_c()`, `jornada_horario_valido`), inicio/fin de turno
+  y ronda por tramo, `describir_turno` con el tramo (D29). Sin cron.
+- `15_v2_traspaso_propio.sql`: `enviar_traspaso` acepta entregarse un caso a uno mismo para mañana (nuevo tramo en
+  `caso_responsables`) y la carga en 0 ignora lo que ya es para un turno futuro (D31). Sin cron.
+- `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`, requiere 04–14); escenario de prueba completo
+  y repetible; no toca `perfiles` ni `auth`. Guía: `docs/interno/DATOS_DE_PRUEBA.md` (local, no se versiona).
 - Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
   **con** `tecnico_id`; sin él no tiene seguimiento ni notificaciones.
 - Cambios de esquema → nuevo archivo `sql/0N_*.sql` idempotente + prueba en `tests/sql/` + agregarlo a

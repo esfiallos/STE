@@ -12,9 +12,11 @@ import {
   type ProblemaDelTraspaso
 } from '../../domain/handoverDraft';
 import { repartirCasos, type ModoDeReparto } from '../../domain/handoverBalance';
-import { armarBloques, reporteHtml, reporteTexto, reporteTsv, type OrdenDeReporte } from '../../domain/handoverReport';
+import { armarBloques, esPaletaCorreo, reporteHtml, reporteTexto, reporteTsv, temaDeCorreo, type OrdenDeReporte } from '../../domain/handoverReport';
+import { guardarPaletaDelCorreo, leerPaletaDelCorreo } from './paletaDelCorreo';
+import { momentoCorto } from '../../domain/followUp';
 import { debeTraspasarse } from '../../domain/handover';
-import { nombreDeTurno } from '../../domain/shifts';
+import { nombreDeJornada } from '../../domain/shifts';
 import { fechaOperativa, sumarDias } from '../../domain/time';
 import { listarJornadas } from '../../services/jornadasRepo';
 import { obtenerTraspasoDelDia } from '../../services/traspasosRepo';
@@ -24,6 +26,13 @@ import { cerrarTurno, copiarReporte, guardarBorrador, type FormatoDeCopia } from
 import { byId, clonarPlantilla, crearElemento, ref } from '../dom';
 import { formatearFechaHora, formatearFechaLarga } from '../ui/format';
 import { mostrarAviso } from '../ui/toast';
+import { confirmar } from '../ui/confirmar';
+import { mejorarCampoDeFecha } from '../ui/fecha';
+import { mejorarCampoDeEtiqueta } from '../ui/etiquetas';
+import { pintarTipo } from '../ui/tipoDeCaso';
+import { guardarSeguimiento } from '../actions/followUpActions';
+import { filtrarCasos } from '../../domain/caseFilters';
+import { crearBarraDeFiltros, type BarraDeFiltros } from '../features/caseFilters';
 
 const ESPERA_GUARDADO_MS = 700;
 
@@ -51,8 +60,15 @@ let salidas = { html: '', texto: '', tsv: '' };
 
 const vista = () => byId('handoverView');
 
+/**
+ * Mis casos abiertos que entran en el traspaso de hoy. Los que ya son para un turno futuro (me los entregaron,
+ * o me los dejé, para mañana) no: se entregan cuando cierre ese turno.
+ */
 function misCasos(): Incidente[] {
-  return appStore.get().casosAbiertos.filter((c) => c.tecnicoId === tecnicoId);
+  const hoy = contexto?.fecha;
+  return appStore.get().casosAbiertos.filter(
+    (c) => c.tecnicoId === tecnicoId && !(hoy && c.fechaResponsable && c.fechaResponsable > hoy)
+  );
 }
 
 function receptores(): ReceptorTraspaso[] {
@@ -70,9 +86,10 @@ function estaEditando(): boolean {
 }
 
 function describirReceptor(r: ReceptorTraspaso): string {
-  const turno = r.turno === 'comodin' && r.horarioInicio ? `${nombreDeTurno(r.turno)} ${r.horarioInicio}–${r.horarioFin}` : nombreDeTurno(r.turno);
+  const turno = nombreDeJornada(r);
   const dia = r.fecha === contexto?.fecha ? 'hoy' : 'mañana';
-  return `${r.nombre} · ${turno} · ${dia}`;
+  const yo = r.tecnicoId === tecnicoId ? ' (tú)' : '';
+  return `${r.nombre}${yo} · ${turno} · ${dia}`;
 }
 
 // ------------------------------------------------------------------ carga
@@ -199,7 +216,14 @@ function crearItem(item: ItemTraspaso, caso: Incidente, lista: ReceptorTraspaso[
   tarjeta.classList.toggle('has-problem', problemas.some((p) => p.casoId === caso.id));
 
   ref(fragmento, 'codigo').textContent = caso.codigo;
-  ref(fragmento, 'meta').textContent = [caso.cliente, caso.area, caso.nota].filter(Boolean).join(' · ');
+  pintarTipo(ref(fragmento, 'tipo'), caso.codigo);
+  ref(fragmento, 'meta').textContent = [
+    caso.cliente,
+    caso.area,
+    caso.ultimaActualizacionEn ? `Últ. act. ${momentoCorto(caso.ultimaActualizacionEn)}` : 'Sin actualizar'
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const campo = <T extends HTMLElement>(nombre: string) => fragmento.querySelector<T>(`[data-campo="${nombre}"]`)!;
   campo<HTMLInputElement>('candado').checked = candados.has(caso.id);
@@ -215,15 +239,17 @@ function crearItem(item: ItemTraspaso, caso: Incidente, lista: ReceptorTraspaso[
   receptor.value = item.estado === 'cerrado' ? '' : (item.paraTecnicoId ?? '');
   receptor.disabled = item.estado === 'cerrado';
 
-  campo<HTMLInputElement>('etiqueta').value = item.etiqueta ?? '';
-  campo<HTMLInputElement>('notaPersonalizada').value = item.notaPersonalizada ?? '';
-  campo<HTMLTextAreaElement>('ultimaActualizacion').value = item.ultimaActualizacion ?? '';
+  const etiqueta = campo<HTMLInputElement>('etiqueta');
+  etiqueta.value = item.etiqueta ?? '';
+  mejorarCampoDeEtiqueta(etiqueta);
+  campo<HTMLTextAreaElement>('descripcion').value = item.descripcion ?? '';
   const fecha = campo<HTMLInputElement>('recordatorioFecha');
   fecha.value = item.recordatorioFecha ?? '';
   fecha.min = contexto?.fecha ?? '';
   const texto = campo<HTMLInputElement>('recordatorioTexto');
   texto.value = item.recordatorioTexto ?? '';
   fecha.disabled = texto.disabled = item.estado === 'cerrado';
+  mejorarCampoDeFecha(fecha, { direccion: 'futuro', vacio: 'Sin recordatorio' });
   return tarjeta;
 }
 
@@ -235,7 +261,7 @@ function pintarResumen(): void {
   const problemas = problemasDelTraspaso(items, casos, lista, contexto.fecha);
 
   const entregar = items.filter((i) => debeTraspasarse(i.estado)).length;
-  const turno = contexto.miJornada ? nombreDeTurno(contexto.miJornada.turno) : '';
+  const turno = contexto.miJornada ? nombreDeJornada(contexto.miJornada) : '';
   byId('handoverSummary').textContent =
     `${turno} · ${formatearFechaLarga(contexto.fecha)} · ${items.length} caso(s): ${entregar} por entregar, ${items.length - entregar} se cierran.`;
 
@@ -255,7 +281,8 @@ function pintarResumen(): void {
   const conEtiquetas = byId<HTMLInputElement>('handoverTags').checked;
   const destinos = new Map(lista.map((r) => [r.tecnicoId, r]));
   const bloques = armarBloques(entradasDelReporte(items.map(normalizarItem), casos, destinos), orden);
-  salidas = { html: reporteHtml(bloques, { conEtiquetas }), texto: reporteTexto(bloques, { conEtiquetas }), tsv: reporteTsv(bloques, { conEtiquetas }) };
+  const tema = temaDeCorreo(leerPaletaDelCorreo());
+  salidas = { html: reporteHtml(bloques, { conEtiquetas, tema }), texto: reporteTexto(bloques, { conEtiquetas }), tsv: reporteTsv(bloques, { conEtiquetas }) };
   byId<HTMLIFrameElement>('handoverPreview').srcdoc =
     salidas.html || '<p style="font-family:sans-serif;color:#5c6b7e">Elige a quién entregar cada caso para ver el reporte.</p>';
 }
@@ -284,7 +311,18 @@ export function renderizarTraspaso(): void {
   const lista = receptores();
   const casos = new Map(misCasos().map((c) => [c.id, c]));
   const problemas = problemasDelTraspaso(items, [...casos.values()], lista, contexto!.fecha);
-  byId('handoverItems').replaceChildren(...items.flatMap((i) => (casos.has(i.casoId) ? [crearItem(i, casos.get(i.casoId)!, lista, problemas)] : [])));
+  // Los filtros solo ocultan ítems: los problemas y el reporte siguen considerando todo el traspaso.
+  const filtrables = items.flatMap((i) => {
+    const caso = casos.get(i.casoId);
+    return caso ? [{ item: i, caso, codigo: caso.codigo, area: caso.area, estado: i.estado, tecnicoId: i.paraTecnicoId }] : [];
+  });
+  barraTraspaso?.actualizar(filtrables);
+  const visibles = barraTraspaso ? filtrarCasos(filtrables, barraTraspaso.filtros()) : filtrables;
+  byId('handoverItems').replaceChildren(
+    ...(visibles.length > 0 || filtrables.length === 0
+      ? visibles.map((v) => crearItem(v.item, v.caso, lista, problemas))
+      : [crearElemento('p', 'empty-incidents', 'Ningún caso del traspaso coincide con los filtros.')])
+  );
   pintarResumen();
 }
 
@@ -322,9 +360,29 @@ function repartir(modo: ModoDeReparto): void {
 
 async function confirmarCierre(): Promise<void> {
   if (!contexto) return;
-  const entregar = items.filter((i) => debeTraspasarse(i.estado)).length;
+  const entregados = items.filter((i) => debeTraspasarse(i.estado));
+  const entregar = entregados.length;
   const cerrar = items.length - entregar;
-  if (!window.confirm(`¿Cerrar turno? Se entregan ${entregar} caso(s)${cerrar > 0 ? ` y se cierran ${cerrar}` : ''}. Esto no se puede deshacer.`)) return;
+  const nombres = new Map(appStore.get().catalogo.map((t) => [t.id, t.nombre]));
+  const porReceptor = new Map<string, number>();
+  for (const item of entregados) {
+    const nombre = nombres.get(item.paraTecnicoId ?? '') ?? 'Sin receptor';
+    porReceptor.set(nombre, (porReceptor.get(nombre) ?? 0) + 1);
+  }
+  const recordatorios = items.filter((i) => i.recordatorioFecha).length;
+  const resumen = [
+    ...[...porReceptor].map(([nombre, total]) => ({ etiqueta: nombre, valor: `${total} caso(s)` })),
+    ...(cerrar > 0 ? [{ etiqueta: 'Se cierran', valor: `${cerrar} caso(s)` }] : []),
+    ...(recordatorios > 0 ? [{ etiqueta: 'Recordatorios', valor: String(recordatorios) }] : [])
+  ];
+  const aceptado = await confirmar({
+    titulo: '¿Cerrar turno?',
+    mensaje: `Se entregan ${entregar} caso(s)${cerrar > 0 ? ` y se cierran ${cerrar}` : ''}. Esto no se puede deshacer.`,
+    resumen,
+    aceptar: 'Cerrar turno',
+    peligro: true
+  });
+  if (!aceptado) return;
 
   const boton = byId<HTMLButtonElement>('btnCerrarTurno');
   boton.disabled = true;
@@ -338,6 +396,16 @@ async function confirmarCierre(): Promise<void> {
   await cargarTraspaso();
 }
 
+async function guardarDescripcionDelCaso(casoId: string, texto: string): Promise<void> {
+  const caso = misCasos().find((c) => c.id === casoId);
+  const descripcion = texto.trim() || null;
+  if (!caso || descripcion === (caso.descripcion ?? null)) return;
+  const resultado = await guardarSeguimiento(casoId, { descripcion });
+  if (!resultado.ok) mostrarAviso(resultado.error, 'error');
+}
+
+let barraTraspaso: BarraDeFiltros | null = null;
+
 function campoDe(evento: Event): { campo: HTMLElement; casoId: string } | null {
   const campo = evento.target;
   if (!(campo instanceof HTMLElement) || !campo.dataset.campo) return null;
@@ -347,14 +415,23 @@ function campoDe(evento: Event): { campo: HTMLElement; casoId: string } | null {
 
 export function iniciarTraspaso(miTecnicoId: string): void {
   tecnicoId = miTecnicoId;
+  // Quedarse un caso para mañana se elige a mano: el reparto automático no te lo asigna (puedes marcarte).
+  excluidos.add(miTecnicoId);
   const lista = byId('handoverItems');
+  barraTraspaso = crearBarraDeFiltros(byId('handoverFilters'), {
+    clave: 'traspaso',
+    campos: ['tipo', 'area', 'estado', 'tecnico'],
+    todosLosTecnicos: 'Todos los receptores',
+    tecnicos: () => receptores().map((r) => ({ id: r.tecnicoId, nombre: r.nombre })),
+    alCambiar: () => renderizarTraspaso()
+  });
 
   // Texto: se guarda en el modelo al escribir, sin redibujar la lista.
   lista.addEventListener('input', (evento) => {
     const objetivo = campoDe(evento);
     if (!objetivo || !(objetivo.campo instanceof HTMLInputElement || objetivo.campo instanceof HTMLTextAreaElement)) return;
     const nombre = objetivo.campo.dataset.campo!;
-    if (!['etiqueta', 'notaPersonalizada', 'ultimaActualizacion', 'recordatorioTexto'].includes(nombre)) return;
+    if (!['etiqueta', 'descripcion', 'recordatorioTexto'].includes(nombre)) return;
     cambiarItem(objetivo.casoId, { [nombre]: objetivo.campo.value });
     pintarResumen();
   });
@@ -379,6 +456,10 @@ export function iniciarTraspaso(miTecnicoId: string): void {
       case 'recordatorioFecha':
         cambiarItem(casoId, { recordatorioFecha: valor || null });
         break;
+      case 'descripcion':
+        // Es la descripción del caso (D21): se guarda en el caso y se ve igual en Mi seguimiento.
+        void guardarDescripcionDelCaso(casoId, valor);
+        return;
       default:
         return;
     }
@@ -404,6 +485,17 @@ export function iniciarTraspaso(miTecnicoId: string): void {
   });
   byId('handoverOrder').addEventListener('change', pintarResumen);
   byId('handoverTags').addEventListener('change', pintarResumen);
+  // Color de la tabla: se recuerda en el navegador del técnico (también lo usa Mis traspasos)
+  const paletas = vista().querySelectorAll<HTMLInputElement>('input[name="handoverPalette"]');
+  const actual = leerPaletaDelCorreo();
+  paletas.forEach((radio) => {
+    radio.checked = radio.value === actual;
+    radio.addEventListener('change', () => {
+      if (!radio.checked || !esPaletaCorreo(radio.value)) return;
+      guardarPaletaDelCorreo(radio.value);
+      pintarResumen();
+    });
+  });
   vista().querySelectorAll<HTMLElement>('.handover-copy [data-copiar]').forEach((boton) =>
     boton.addEventListener('click', () => void copiarReporte(boton.dataset.copiar as FormatoDeCopia, salidas))
   );

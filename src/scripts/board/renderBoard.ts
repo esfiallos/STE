@@ -1,4 +1,4 @@
-import { casosPorReasignar, unirTecnicosConIncidentes } from '../../domain/assignments';
+import { casosHastaElDia, casosPorReasignar, unirTecnicosConIncidentes } from '../../domain/assignments';
 import { cambiosDelTablero, fotoDelTablero, hayCambios, type FotoDelTablero } from '../../domain/boardChanges';
 import { incidenteCoincide, normalizarBusqueda } from '../../domain/search';
 import { tecnicosDelTurno, TURNOS } from '../../domain/shifts';
@@ -10,6 +10,7 @@ import { animarCambiosDelTablero, continuarAnimaciones, medirCasos } from '../ui
 import type { ContextoTablero } from './boardContext';
 import { crearVistaIncidente } from './incidentView';
 import { crearVistaTurno } from './shiftView';
+import { filtrarCasos } from '../../domain/caseFilters';
 
 let claveAEnfocar: string | null = null;
 /** Estado del último dibujo, para animar lo que cambió en el siguiente. */
@@ -27,8 +28,8 @@ function enfocarFormularioPendiente(contenedor: HTMLElement): void {
 }
 
 /**
- * Casos abiertos cuyo responsable no trabaja hoy (o no tienen): se muestran aparte para que el dispatch
- * los arrastre a un técnico del día. Así ningún caso se pierde al cambiar de día.
+ * Casos abiertos cuyo responsable no trabaja hoy (o no tienen): solo el dispatch los ve, aparte del tablero
+ * del día y de sus contadores, para arrastrarlos a un técnico del día. Así ningún caso se pierde.
  */
 function crearFranjaPorReasignar(casos: Incidente[], estado: AppState, termino: string): HTMLElement | null {
   if (casos.length === 0) return null;
@@ -41,9 +42,7 @@ function crearFranjaPorReasignar(casos: Incidente[], estado: AppState, termino: 
     crearElemento(
       'p',
       'reassign-strip__help',
-      estado.soloLectura
-        ? 'Casos abiertos cuyo responsable no trabaja hoy.'
-        : 'Casos abiertos cuyo responsable no trabaja hoy. Arrástralos a un técnico disponible.'
+      'Casos abiertos cuyo responsable no trabaja hoy. Arrástralos a un técnico disponible.'
     )
   );
 
@@ -56,7 +55,8 @@ function crearFranjaPorReasignar(casos: Incidente[], estado: AppState, termino: 
         coincideConBusqueda: incidenteCoincide(caso, termino),
         notaFija: false,
         notaAbierta: estado.notasAbiertas.includes(caso.id),
-        arrastrable: !estado.soloLectura
+        arrastrable: true,
+        conAcciones: false
       }),
       crearElemento(
         'span',
@@ -97,15 +97,20 @@ export function renderizarTablero(): void {
     miTecnicoId: estado.perfil?.rol === 'tecnico' ? estado.perfil.tecnicoId : null
   };
 
-  const todos = unirTecnicosConIncidentes(estado.tecnicos, estado.incidentes);
+  const todos = unirTecnicosConIncidentes(estado.tecnicos, filtrarCasos(estado.incidentes, estado.filtrosTablero));
   const tecnicos = estado.filtroTecnico ? todos.filter((t) => t.id === estado.filtroTecnico) : todos;
 
   const turnos = TURNOS.map((turno) =>
     crearVistaTurno(turno, tecnicosDelTurno(tecnicos, turno.id), contexto, estado.turnosColapsados.includes(turno.id))
   );
-  const franja = estado.filtroTecnico
-    ? null
-    : crearFranjaPorReasignar(casosPorReasignar(estado.incidentes, estado.tecnicos), estado, contexto.termino);
+  const franja =
+    estado.filtroTecnico || estado.soloLectura
+      ? null
+      : crearFranjaPorReasignar(
+          casosPorReasignar(casosHastaElDia(estado.casosAbiertos, estado.fechaOperativa), estado.tecnicos),
+          estado,
+          contexto.termino
+        );
 
   const foto = fotoDelTablero(estado.fechaOperativa, estado.incidentes);
   const cambios = cambiosDelTablero(fotoAnterior, foto);

@@ -149,12 +149,59 @@ describe('arrastrar y soltar', () => {
     expect(codigos(app.db, 'marta')).toEqual(['INC1']);
   });
 
-  it('cerrar un caso lo saca del tablero pero no lo borra', async () => {
+  it('el dispatch no tiene botón de cerrar: cancela con motivo y el caso deja de existir', async () => {
     const app = await iniciarApp();
-    app.click(app.tarjeta('turnoA', 'ana').querySelector('[data-action="quitar-incidente"]')!);
+    const tarjetaAna = () => app.tarjeta('turnoA', 'ana');
+    expect(tarjetaAna().querySelector('[data-action="quitar-incidente"]')).toBeNull();
+
+    app.click(tarjetaAna().querySelector('[data-action="cancelar-incidente"]')!);
+    expect(app.q('#modalCancelIncident').classList.contains('hidden')).toBe(false);
+    expect(app.q('#cancelIncidentCode').textContent).toBe('INC1');
+    expect(app.q('#cancelIncidentTech').textContent).toBe('Ana Pérez');
+    app.q<HTMLInputElement>('#cancelIncidentReason').value = 'Número mal escrito';
+    app.q<HTMLFormElement>('#formCancelIncident').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await esperar(80);
 
-    expect(app.db.casos).toMatchObject([{ codigo: 'INC1', estado: 'cerrado' }]);
-    expect(app.tarjeta('turnoA', 'ana').querySelectorAll('.incident-item-card')).toHaveLength(0);
+    expect(app.escrituras.find((e) => e.startsWith('RPC cancelar_caso'))).toContain('"p_motivo":"Número mal escrito"');
+    expect(app.db.casos).toHaveLength(0);
+    expect(app.q('#modalCancelIncident').classList.contains('hidden')).toBe(true);
+    expect(tarjetaAna().querySelectorAll('.incident-item-card')).toHaveLength(0);
+  });
+
+  it('avisa al cancelar si el técnico ya trabajó el caso', async () => {
+    const datos = datosBase();
+    Object.assign(datos.casos[0]!, { estado: 'pausado', area: 'CPE' });
+    const app = await iniciarApp(datos);
+    app.click(app.tarjeta('turnoA', 'ana').querySelector('[data-action="cancelar-incidente"]')!);
+    const aviso = app.q('#cancelIncidentWorked');
+    expect(aviso.classList.contains('hidden')).toBe(false);
+    expect(aviso.textContent).toContain('cambió el estado');
+    expect(aviso.textContent).toContain('registró el área');
+  });
+
+  it('el dispatch corrige código y empresa desde la tarjeta', async () => {
+    const app = await iniciarApp();
+    app.click(app.tarjeta('turnoA', 'ana').querySelector('[data-action="editar-incidente"]')!);
+    expect(app.q<HTMLInputElement>('#editIncidentCode').value).toBe('INC1');
+    app.q<HTMLInputElement>('#editIncidentCode').value = ' inc11 ';
+    app.q<HTMLInputElement>('#editIncidentCompany').value = 'ACME';
+    app.q<HTMLFormElement>('#formEditIncident').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await esperar(80);
+
+    expect(app.db.casos).toMatchObject([{ codigo: 'INC11', cliente: 'ACME', estado: 'en_curso' }]);
+    const tarjeta = app.tarjeta('turnoA', 'ana');
+    expect(tarjeta.querySelector('.inc-code')!.textContent).toBe('INC11');
+    expect(tarjeta.querySelector('.inc-company')!.textContent).toBe('ACME');
+  });
+
+  it('el formulario rápido guarda la empresa del caso', async () => {
+    const app = await iniciarApp();
+    app.click(app.tarjeta('turnoA', 'ana').querySelector('[data-action="asignar"]')!);
+    const formulario = app.tarjeta('turnoA', 'ana').querySelector<HTMLFormElement>('form[data-form="asignar"]')!;
+    formulario.querySelector<HTMLInputElement>('[name="codigo"]')!.value = 'INC5';
+    formulario.querySelector<HTMLInputElement>('[name="empresa"]')!.value = ' Beta ';
+    formulario.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await esperar(80);
+    expect(app.db.casos!.find((c) => c.codigo === 'INC5')).toMatchObject({ cliente: 'Beta', tecnico_actual_id: 'ana' });
   });
 });

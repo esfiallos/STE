@@ -1,0 +1,71 @@
+@use '../abstracts/variables' as *;
+
+// Combobox (scripts/ui/combobox.ts, D22). La lista flota sobre todo (fixed) para no recortarse en tarjetas.
+
+.combo__input {
+  padding-right: 1.9rem;
+  background-image: linear-gradient(45deg, transparent 50%, $color-texto-tenue 50%),
+    linear-gradient(135deg, $color-texto-tenue 50%, transparent 50%);
+  background-position: calc(100% - 0.95rem) 52%, calc(100% - 0.65rem) 52%;
+  background-size: 0.3rem 0.3rem;
+  background-repeat: no-repeat;
+
+  &[aria-expanded='true'] {
+    border-color: $color-acento;
+    box-shadow: 0 0 0 3px $color-foco;
+  }
+}
+
+.combo__list {
+  position: fixed;
+  z-index: 170;
+  max-height: 15rem;
+  overflow-y: auto;
+  padding: 0.3rem;
+  list-style: none;
+  border: 1px solid $color-borde;
+  border-radius: $radio-md;
+  background-color: $color-superficie;
+  box-shadow: $sombra-flotante;
+  transform-origin: top left;
+}
+
+.combo__option {
+  padding: 0.4rem 0.6rem;
+  border-radius: $radio-sm;
+  font-size: 0.82rem;
+  cursor: pointer;
+
+  &:hover,
+  &.is-active {
+    background-color: $color-acento-suave;
+    color: $color-acento;
+  }
+
+  &.is-chosen {
+    font-weight: 700;
+
+    &::after {
+      content: ' ✓';
+      color: $color-acento;
+    }
+  }
+
+  &--crear {
+    margin-top: 0.2rem;
+    border-top: 1px dashed $color-borde;
+    font-weight: 600;
+    color: $color-acento;
+  }
+
+  &--vacio {
+    color: $color-texto-suave;
+    font-style: italic;
+  }
+}
+
+.combo__empty {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.8rem;
+  color: $color-texto-tenue;
+}

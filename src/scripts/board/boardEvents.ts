@@ -1,8 +1,9 @@
 import { esTurnoId } from '../../domain/shifts';
 import { appStore } from '../../state/appStore';
-import { cerrarIncidente, copiarCodigo } from '../actions/incidentActions';
+import { copiarCodigo } from '../actions/incidentActions';
 import { byId } from '../dom';
 import { solicitarAsignacion } from '../modals/assignFlow';
+import { abrirCancelacionDeCaso, abrirEdicionDeCaso } from '../modals/editIncidentModal';
 import { abrirAlmuerzoDelTecnico } from '../modals/lunchModal';
 import { mostrarAviso } from '../ui/toast';
 import { solicitarEnfoqueDeFormulario } from './renderBoard';
@@ -66,7 +67,8 @@ function manejarAccion(boton: HTMLElement): void {
   if (accion === 'asignar') alternarFormulario(claveDe(boton));
   if (accion === 'cancelar-asignar') cerrarFormulario();
   if (accion === 'editar-almuerzo' && tecnicoId) abrirAlmuerzoDelTecnico(tecnicoId);
-  if (accion === 'quitar-incidente' && incidenteId) void cerrarIncidente(incidenteId);
+  if (accion === 'editar-incidente' && incidenteId) abrirEdicionDeCaso(incidenteId);
+  if (accion === 'cancelar-incidente' && incidenteId) abrirCancelacionDeCaso(incidenteId);
 }
 
 async function enviarFormulario(formulario: HTMLFormElement): Promise<void> {
@@ -75,12 +77,12 @@ async function enviarFormulario(formulario: HTMLFormElement): Promise<void> {
 
   const datos = new FormData(formulario);
   const codigo = String(datos.get('codigo') ?? '');
-  const nota = String(datos.get('nota') ?? '');
+  const empresa = String(datos.get('empresa') ?? '');
 
   // Se suelta el foco antes: mientras un campo lo tiene, el tablero no se redibuja.
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 
-  const resultado = await solicitarAsignacion(codigo, nota, tecnicoId);
+  const resultado = await solicitarAsignacion(codigo, empresa, tecnicoId);
   if (resultado === null) return;
 
   if (resultado.ok) cerrarFormulario();
@@ -111,7 +113,7 @@ export function iniciarEventosDelTablero(): void {
     if (!formulario || !clave) return;
 
     const datos = new FormData(formulario);
-    appStore.set({ borrador: { clave, codigo: String(datos.get('codigo') ?? ''), nota: String(datos.get('nota') ?? '') } });
+    appStore.set({ borrador: { clave, codigo: String(datos.get('codigo') ?? ''), empresa: String(datos.get('empresa') ?? '') } });
   });
 
   tablero.addEventListener('keydown', (evento) => {

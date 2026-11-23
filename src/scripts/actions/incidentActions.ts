@@ -1,15 +1,15 @@
 import { describirNoDisponibilidad, estadoDelTecnico } from '../../domain/availability';
-import { asignarCaso, cerrarCaso, crearCaso } from '../../services/casosRepo';
+import { asignarCaso, cancelarCaso, crearCaso, editarCaso } from '../../services/casosRepo';
 import { asignarARonda as asignarARondaEnBase, type AsignacionPorRonda } from '../../services/rondaRepo';
 import { appStore } from '../../state/appStore';
 import { cargarDatos } from '../../state/sync';
-import type { Resultado } from '../../types/result';
+import { exito, type Resultado } from '../../types/result';
 import { copiarAlPortapapeles } from '../ui/clipboard';
 import { reproducirSonido } from '../ui/sound';
 import { avisarSiFalla, mostrarAviso } from '../ui/toast';
 
-export async function asignarIncidente(codigo: string, nota: string, tecnicoId: string): Promise<Resultado> {
-  const resultado = await crearCaso(codigo, nota, tecnicoId);
+export async function asignarIncidente(codigo: string, empresa: string, tecnicoId: string): Promise<Resultado> {
+  const resultado = await crearCaso(codigo, empresa, tecnicoId);
   if (resultado.ok) {
     reproducirSonido('asignar');
     await cargarDatos();
@@ -18,8 +18,8 @@ export async function asignarIncidente(codigo: string, nota: string, tecnicoId: 
 }
 
 /** Crea el caso y lo asigna al siguiente técnico de la ronda (lo decide la base de datos). */
-export async function asignarIncidenteARonda(codigo: string, nota: string): Promise<Resultado<AsignacionPorRonda>> {
-  const resultado = await asignarARondaEnBase(codigo, nota);
+export async function asignarIncidenteARonda(codigo: string, empresa: string): Promise<Resultado<AsignacionPorRonda>> {
+  const resultado = await asignarARondaEnBase(codigo, empresa);
   if (resultado.ok) {
     reproducirSonido('asignar');
     mostrarAviso(`${codigo.trim().toUpperCase()} asignado por ronda a ${resultado.data.tecnicoNombre}.`, 'exito');
@@ -40,10 +40,11 @@ export async function reasignarIncidente(incidenteId: string, tecnicoId: string,
 
 /** Reasignación por arrastre: sin formulario, así que los avisos se muestran aquí. */
 export async function moverIncidente(incidenteId: string, tecnicoDestinoId: string): Promise<void> {
-  const { incidentes, tecnicos, soloLectura } = appStore.get();
+  const { incidentes, casosAbiertos, tecnicos, soloLectura } = appStore.get();
   if (soloLectura) return;
 
-  const incidente = incidentes.find((i) => i.id === incidenteId);
+  // Del tablero del día, o de "Por reasignar" (casos abiertos de otro día)
+  const incidente = incidentes.find((i) => i.id === incidenteId) ?? casosAbiertos.find((i) => i.id === incidenteId);
   const destino = tecnicos.find((t) => t.id === tecnicoDestinoId);
   if (!incidente || !destino || incidente.tecnicoId === tecnicoDestinoId) return;
 
@@ -56,14 +57,23 @@ export async function moverIncidente(incidenteId: string, tecnicoDestinoId: stri
   avisarSiFalla(await reasignarIncidente(incidenteId, tecnicoDestinoId));
 }
 
-/** Los casos ya no se borran: se cierran y quedan en el historial y la búsqueda. */
-export async function cerrarIncidente(incidenteId: string): Promise<void> {
-  const incidente = appStore.get().incidentes.find((i) => i.id === incidenteId);
+/** Corrección del dispatch (D26): código y empresa. */
+export async function editarIncidente(incidenteId: string, codigo: string, empresa: string): Promise<Resultado> {
+  const resultado = await editarCaso(incidenteId, codigo, empresa);
+  if (resultado.ok) {
+    await cargarDatos();
+    mostrarAviso(`${codigo} actualizado.`, 'exito');
+  }
+  return resultado;
+}
 
-  if (!avisarSiFalla(await cerrarCaso(incidenteId))) return;
-
+/** Cancela un caso asignado hoy por error (D25): deja de existir y su número queda libre. */
+export async function cancelarIncidente(incidenteId: string, motivo: string): Promise<Resultado> {
+  const resultado = await cancelarCaso(incidenteId, motivo);
+  if (!resultado.ok) return resultado;
   await cargarDatos();
-  mostrarAviso(`${incidente?.codigo ?? 'Caso'} cerrado.`);
+  mostrarAviso(`${resultado.data || 'Caso'} cancelado.`);
+  return exito();
 }
 
 export async function copiarCodigo(codigo: string): Promise<void> {

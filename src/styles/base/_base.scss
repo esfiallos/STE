@@ -13,12 +13,22 @@ body {
   background-color: $color-fondo;
   color: $color-texto;
   min-height: 100vh;
-  line-height: 1.4;
+  line-height: 1.45;
+  font-size: 0.9rem;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01'; // Inter: "1" y "l" más legibles en códigos
+}
+
+::selection {
+  background-color: $color-acento;
+  color: $color-texto-sobre-marca;
 }
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -30,6 +40,52 @@ button {
 :focus-visible {
   outline: 2px solid $color-acento;
   outline-offset: 2px;
+}
+
+// Campos: un solo aspecto para toda la app (baja especificidad con :where para que los componentes ajusten).
+:where(input:not([type='checkbox']):not([type='radio']):not([type='hidden']), select, textarea) {
+  min-height: $alto-campo;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid $color-borde-fuerte;
+  border-radius: $radio-sm;
+  background-color: $color-superficie;
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &::placeholder {
+    color: $color-texto-tenue;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: $color-texto-tenue;
+  }
+
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    border-color: $color-acento;
+    box-shadow: 0 0 0 3px $color-foco;
+  }
+
+  &:disabled {
+    background-color: $color-superficie-alta;
+    color: $color-texto-suave;
+    cursor: not-allowed;
+  }
+}
+
+:where(textarea) {
+  min-height: 4.5rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+:where(select) {
+  cursor: pointer;
+}
+
+:where(input[type='checkbox'], input[type='radio']) {
+  accent-color: $color-acento;
 }
 
 // Utilidades

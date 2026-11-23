@@ -72,7 +72,10 @@ export interface Incidente {
   id: string;
   codigo: string;
   nota: string | null;
-  /** Responsable actual; null si quedó sin asignar. */
+  /**
+   * Técnico del caso. En el tablero del día es a quién lo asignó el dispatch (su columna, D16);
+   * en los casos abiertos (seguimiento) es el responsable actual. Null si quedó sin asignar.
+   */
   tecnicoId: string | null;
   creadoEn: string;
   estado?: EstadoCaso;
@@ -84,8 +87,9 @@ export interface Incidente {
   area?: string | null;
   descripcion?: string | null;
   etiqueta?: string | null;
-  /** Texto corto que escribe el técnico; la base guarda quién y cuándo. */
+  /** Histórico (antes de la fase 12): texto de "última actualización". El texto vigente es `descripcion`. */
   ultimaActualizacion?: string | null;
+  /** Última vez que el técnico tocó el caso (D19). */
   ultimaActualizacionEn?: string | null;
   ultimaActualizacionPor?: string | null;
   /** Última edición del técnico responsable (migración 07). */
@@ -107,12 +111,13 @@ export interface ResponsableCaso {
   asignadoPor: string;
 }
 
-export type TipoNotificacion = 'asignado' | 'reasignado' | 'traspaso' | 'recordatorio';
+export type TipoNotificacion = 'asignado' | 'reasignado' | 'traspaso' | 'recordatorio' | 'cancelado';
 
 export interface Notificacion {
   id: string;
   tipo: TipoNotificacion;
-  casoId: string;
+  /** Null en los avisos de "cancelado": el caso ya no existe. */
+  casoId: string | null;
   /** Código del caso. */
   detalle: string | null;
   leida: boolean;
@@ -127,7 +132,7 @@ export interface TecnicoConIncidentes extends Tecnico {
 export interface BorradorAsignacion {
   clave: string;
   codigo: string;
-  nota: string;
+  empresa: string;
 }
 
 export interface EntradaBitacora {
@@ -156,11 +161,12 @@ export interface ItemTraspaso {
   paraTecnicoId: string | null;
   estado: EstadoCaso;
   etiqueta: string | null;
-  /** Nota para quien recibe (se adjunta a la descripción del reporte). */
-  notaPersonalizada: string | null;
-  ultimaActualizacion: string | null;
+  /** Descripción con la que se entrega: la del caso, editable en el traspaso (D21). */
+  descripcion: string | null;
   recordatorioFecha: string | null;
   recordatorioTexto: string | null;
+  /** Solo en traspasos enviados: última actualización del caso al enviarse. */
+  actualizadoEn?: string | null;
 }
 
 export type EstadoTraspaso = 'borrador' | 'enviado';
@@ -257,8 +263,8 @@ export interface TraspasoDelCaso {
   fechaDestino: string | null;
   estado: EstadoCaso;
   etiqueta: string | null;
-  notaPersonalizada: string | null;
-  ultimaActualizacion: string | null;
+  /** Descripción con la que viajó el caso. */
+  descripcion: string | null;
   enviadoEn: string | null;
 }
 

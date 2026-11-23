@@ -1,47 +1,83 @@
-// Tema claro estilo ServiceNow, con azules tipo Tigo.
-// Tigo no publica una paleta oficial: estos tonos son aproximados.
-// Para usar los hex del manual de marca, cámbialos solo aquí.
+// Tema claro "navy + slate" (fase 11, DISENO_V2 §11.9): el lenguaje visual de traspasos-noc.
+// Todos los colores, radios, sombras y fuentes del panel salen SOLO de aquí.
+
+// Paleta navy de referencia
+$navy-950: #081829;
+$navy-900: #0f2942;
+$navy-800: #163b5e;
+$navy-700: #1e4e79;
+$navy-100: #e8f0f8;
+$navy-50: #f4f8fc;
 
 // Marca
-$color-marca: #0a2a66; // barra superior
-$color-marca-oscuro: #061c47;
-$color-acento: #0b5fd1; // botones principales, pestaña activa, enlaces
-$color-acento-hover: #0849a6;
-$color-acento-suave: #e6f0fd;
-$color-cian: #00b4f0; // detalle de marca
+$color-marca: $navy-900; // barra superior
+$color-marca-oscuro: $navy-950;
+$color-acento: $navy-800; // botones principales, pestaña activa, enlaces
+$color-acento-hover: $navy-900;
+$color-acento-suave: $navy-100;
+$color-cian: #38bdf8; // detalle de marca
+$color-foco: rgba(30, 78, 121, 0.22); // anillo de foco de campos y botones
 
-// Superficies y bordes
-$color-fondo: #f2f4f8;
+// Superficies y bordes (slate)
+$color-fondo: #f8fafc;
 $color-superficie: #ffffff;
-$color-superficie-alta: #f7f9fc;
-$color-borde: #dbe1ea;
-$color-borde-fuerte: #c3ccd9;
+$color-superficie-alta: $navy-50;
+$color-borde: #e2e8f0;
+$color-borde-fuerte: #cbd5e1;
 
 // Texto
-$color-texto: #1a2635;
-$color-texto-suave: #5c6b7e;
+$color-texto: #1e293b;
+$color-texto-suave: #64748b;
+$color-texto-tenue: #94a3b8; // marcadores de posición, bordes al pasar el mouse
+$color-texto-etiqueta: #475569; // etiquetas de campos
 $color-texto-sobre-marca: #ffffff;
 
 // Estados
-$color-exito: #1c9a56;
-$color-exito-suave: #e3f6ec;
-$color-peligro: #c9302c;
-$color-peligro-suave: #fdecea;
+$color-exito: #047857;
+$color-exito-suave: #ecfdf5;
+$color-peligro: #be123c;
+$color-peligro-hover: #9f1239;
+$color-peligro-suave: #fff1f2;
 
-// Almuerzo (amarillo)
-$color-almuerzo-fondo: #fff6d6;
-$color-almuerzo-borde: #f0c23b;
-$color-almuerzo-texto: #6b4e00;
-$color-almuerzo-activo: #ffe9a0;
+// Atraso de un caso sin actualizar (2 h usa el ámbar del almuerzo, 6 h el rojo de peligro)
+$color-atraso-medio: #f97316;
+
+// Etiquetas (D22): fondo y texto por color (domain/followUp.ts → colorDeEtiqueta)
+$colores-etiqueta: (
+  critico: (#fde2dd, #8e2412),
+  escalar: (#eadcf5, #5b2a86),
+  vm: (#d6ecf3, #14536a),
+  monitoreo: (#dcebf5, #1f5a7a),
+  pendiente: (#ffe9b0, #7a4b03),
+  seguimiento: (#e2f0e4, #2f5e35),
+  otra: ($navy-50, #475569)
+);
+
+// Tipo de caso (§11.11): fondo y texto del chip
+$colores-tipo: (
+  fresh: (#ccfbf1, #0f766e),
+  sctask: (#ede9fe, #5b21b6),
+  inc: ($navy-100, $navy-800),
+  otro: (#f1f5f9, #475569)
+);
+
+// Almuerzo (ámbar)
+$color-almuerzo-fondo: #fffbeb;
+$color-almuerzo-borde: #fcd34d;
+$color-almuerzo-texto: #92400e;
+$color-almuerzo-activo: #fef3c7;
 
 // Forma
-$radio-sm: 0.25rem;
-$radio-md: 0.5rem;
+$radio-sm: 0.5rem;
+$radio-md: 0.75rem;
 $radio-pildora: 9999px;
 $ancho-maximo: 1600px;
-$sombra-tarjeta: 0 1px 2px rgba(16, 24, 40, 0.06);
-$sombra-modal: 0 20px 40px rgba(16, 24, 40, 0.25);
-$color-overlay: rgba(16, 24, 40, 0.5);
+$alto-campo: 2.375rem; // inputs, selects y botones normales
+$sombra-tarjeta: 0 1px 0 rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+$sombra-flotante: 0 10px 30px rgba(8, 24, 41, 0.14), 0 2px 6px rgba(8, 24, 41, 0.08);
+$sombra-modal: 0 24px 48px rgba(8, 24, 41, 0.22);
+$color-overlay: rgba(8, 24, 41, 0.45);
 
-$fuente-base: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-$fuente-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+// Tipografía: Inter empaquetada (@fontsource-variable/inter, se importa en layouts/Layout.astro)
+$fuente-base: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+$fuente-mono: ui-monospace, 'Cascadia Mono', SFMono-Regular, Menlo, Consolas, monospace;

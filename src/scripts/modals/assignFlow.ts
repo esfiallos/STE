@@ -4,6 +4,7 @@ import { buscarCasoPorCodigo } from '../../services/casosRepo';
 import { appStore } from '../../state/appStore';
 import { falla, type Resultado } from '../../types/result';
 import { asignarIncidente, reasignarIncidente } from '../actions/incidentActions';
+import { confirmar } from '../ui/confirmar';
 
 const nombreDe = (tecnicoId: string | null): string =>
   appStore.get().catalogo.find((t) => t.id === tecnicoId)?.nombre ?? 'sin responsable';
@@ -15,7 +16,7 @@ const nombreDe = (tecnicoId: string | null): string =>
  */
 export async function solicitarAsignacion(
   codigoEscrito: string,
-  nota: string,
+  empresa: string,
   tecnicoId: string
 ): Promise<Resultado | null> {
   const { tecnicos, incidentes, soloLectura } = appStore.get();
@@ -30,18 +31,20 @@ export async function solicitarAsignacion(
   const estado = estadoDelTecnico(destino, new Date());
   if (estado !== 'disponible') return falla(describirNoDisponibilidad(destino, estado));
 
-  // 1. Ya está en el tablero de hoy
+  // 1. Ya está abierto en el tablero de hoy (uno cerrado se ofrece reabrir más abajo)
   const enTablero = buscarIncidentePorCodigo(incidentes, codigo);
-  if (enTablero) {
+  if (enTablero && enTablero.estado !== 'cerrado') {
     if (enTablero.tecnicoId === tecnicoId) return falla(`${codigo} ya está asignado a ${destino.nombre}.`);
-    const confirmado = window.confirm(
-      `${codigo} ya está asignado a ${nombreDe(enTablero.tecnicoId)}.\n¿Reasignarlo a ${destino.nombre}?`
-    );
+    const confirmado = await confirmar({
+      titulo: `¿Reasignar ${codigo}?`,
+      mensaje: `${codigo} ya está asignado a ${nombreDe(enTablero.tecnicoId)}. ¿Reasignarlo a ${destino.nombre}?`,
+      aceptar: 'Reasignar'
+    });
     return confirmado ? reasignarIncidente(enTablero.id, tecnicoId) : null;
   }
 
   // 2. Caso nuevo
-  const creado = await asignarIncidente(codigo, nota, tecnicoId);
+  const creado = await asignarIncidente(codigo, empresa, tecnicoId);
   if (creado.ok || creado.motivo !== 'duplicado') return creado;
 
   // 3. Existe fuera del tablero de hoy: cerrado, o abierto con otro día/responsable
@@ -52,8 +55,13 @@ export async function solicitarAsignacion(
   const { id, estado: estadoCaso, tecnicoId: actual } = existente.data;
   const cerrado = estadoCaso === 'cerrado';
   const pregunta = cerrado
-    ? `${codigo} ya existe y está cerrado (último responsable: ${nombreDe(actual)}).\n¿Reabrirlo y asignarlo a ${destino.nombre}?`
-    : `${codigo} ya existe y lo tiene ${nombreDe(actual)}.\n¿Reasignarlo a ${destino.nombre}?`;
+    ? `${codigo} ya existe y está cerrado (último responsable: ${nombreDe(actual)}). ¿Reabrirlo y asignarlo a ${destino.nombre}?`
+    : `${codigo} ya existe y lo tiene ${nombreDe(actual)}. ¿Reasignarlo a ${destino.nombre}?`;
 
-  return window.confirm(pregunta) ? reasignarIncidente(id, tecnicoId, cerrado) : null;
+  const aceptado = await confirmar({
+    titulo: cerrado ? `¿Reabrir ${codigo}?` : `¿Reasignar ${codigo}?`,
+    mensaje: pregunta,
+    aceptar: cerrado ? 'Reabrir y asignar' : 'Reasignar'
+  });
+  return aceptado ? reasignarIncidente(id, tecnicoId, cerrado) : null;
 }

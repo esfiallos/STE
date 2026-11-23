@@ -4,6 +4,7 @@ import type { TecnicoCatalogo } from '../../types/noc';
 import { agregarTecnico, cambiarActivoTecnico } from '../actions/technicianActions';
 import { byId, clonarPlantilla, crearElemento, ref } from '../dom';
 import { abrirModal, establecerError } from './modal';
+import { confirmar } from '../ui/confirmar';
 
 const ID_MODAL = 'modalTechnicians';
 const ID_ERROR = 'techError';
@@ -82,12 +83,18 @@ export function iniciarModalTecnicos(): void {
     if (!tecnicoId || !tecnicoNombre) return;
 
     const desactivar = activo === 'true';
-    if (desactivar) {
-      const casos = appStore.get().incidentes.filter((i) => i.tecnicoId === tecnicoId).length;
-      const aviso = casos > 0 ? `\nTiene ${casos} caso(s) abierto(s): quedarán "por reasignar".` : '';
-      if (!window.confirm(`¿Desactivar a ${tecnicoNombre}?${aviso}`)) return;
+    if (!desactivar) {
+      void cambiarActivoTecnico(tecnicoId, tecnicoNombre, true);
+      return;
     }
-    void cambiarActivoTecnico(tecnicoId, tecnicoNombre, !desactivar);
+    const casos = appStore.get().casosAbiertos.filter((i) => i.tecnicoId === tecnicoId).length;
+    void confirmar({
+      titulo: `¿Desactivar a ${tecnicoNombre}?`,
+      mensaje: casos > 0 ? `Tiene ${casos} caso(s) abierto(s): quedarán "por reasignar".` : 'Deja de aparecer en la planificación.',
+      aceptar: 'Desactivar',
+      peligro: true,
+      ancla: evento.target.closest('[data-action="alternar-activo"]')
+    }).then((si) => si && void cambiarActivoTecnico(tecnicoId, tecnicoNombre, false));
   });
 
   // Mantiene la lista al día si cambian los datos con el modal abierto.
