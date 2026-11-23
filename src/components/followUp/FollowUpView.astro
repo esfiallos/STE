@@ -1,7 +1,14 @@
 ---
-// "Mi seguimiento" del técnico: sus casos abiertos. Lo dibuja scripts/followUp/followUpView.ts
-import { LARGO_MAXIMO_ACTUALIZACION, LARGO_MAXIMO_ETIQUETA } from '../../domain/followUp';
+// "Mi seguimiento" del técnico: sus casos abiertos, una fila por caso (D20, D19, §11.4).
+// Lo dibuja scripts/followUp/followUpView.ts
+import { LARGO_MAXIMO_DESCRIPCION, LARGO_MAXIMO_ETIQUETA } from '../../domain/followUp';
 import { AREAS_DE_CASO, LARGO_MAXIMO_EMPRESA } from '../../domain/areas';
+
+const GRUPOS = [
+  { id: 'traspaso', titulo: 'Recibidos en traspaso', icono: 'fa-right-left' },
+  { id: 'nuevos', titulo: 'Nuevos de hoy', icono: 'fa-inbox' },
+  { id: 'anteriores', titulo: 'De días anteriores', icono: 'fa-clock-rotate-left' }
+];
 ---
 
 <section class="panel-card followup" id="followUpView" aria-labelledby="followUpTitle">
@@ -18,68 +25,80 @@ import { AREAS_DE_CASO, LARGO_MAXIMO_EMPRESA } from '../../domain/areas';
 
   <p id="followUpStatus" class="board-status hidden" role="status"></p>
 
-  <div class="followup-section" data-grupo="traspaso">
-    <h3 class="followup-section__title"><i class="fa-solid fa-right-left" aria-hidden="true"></i> Recibidos en traspaso</h3>
-    <div class="followup-list" data-ref="lista"></div>
-  </div>
-  <div class="followup-section" data-grupo="nuevos">
-    <h3 class="followup-section__title"><i class="fa-solid fa-inbox" aria-hidden="true"></i> Nuevos de hoy</h3>
-    <div class="followup-list" data-ref="lista"></div>
-  </div>
-  <div class="followup-section" data-grupo="anteriores">
-    <h3 class="followup-section__title"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> De días anteriores</h3>
-    <div class="followup-list" data-ref="lista"></div>
-  </div>
-
-  <!-- Plantilla de un caso (la completa scripts/followUp/followUpView.ts) -->
-  <template id="tpl-seguimiento-caso">
-    <article class="followup-card" data-ref="tarjeta">
-      <header class="followup-card__head">
-        <button type="button" class="followup-code" data-action="copiar-codigo" title="Copiar número" data-ref="codigo"></button>
-        <span class="followup-chip" data-ref="origen"></span>
-        <span class="followup-chip followup-chip--fecha hidden" data-ref="fecha"></span>
-        <span class="followup-chip followup-chip--recordatorio hidden" data-ref="recordatorio"></span>
-      </header>
-      <p class="followup-card__desc" data-ref="descripcion"></p>
-      <p class="followup-card__handoff hidden" data-ref="notaRecibida"></p>
-
-      <div class="followup-controls">
-        <label class="followup-field">
-          <span>Área</span>
-          <select data-ref="area">
-            <option value="">Sin área</option>
-            {AREAS_DE_CASO.map((area) => <option value={area}>{area}</option>)}
-          </select>
-        </label>
-        <label class="followup-field">
-          <span>Empresa</span>
-          <input type="text" maxlength={LARGO_MAXIMO_EMPRESA} data-ref="empresa" placeholder="Sin empresa" />
-        </label>
-        <label class="followup-field">
-          <span>Estado</span>
-          <select data-ref="estado" data-action="cambiar-estado"></select>
-        </label>
-        <label class="followup-field">
-          <span>Etiqueta</span>
-          <input type="text" maxlength={LARGO_MAXIMO_ETIQUETA} data-ref="etiqueta" placeholder="Sin etiqueta" />
-        </label>
-      </div>
-
-      <label class="followup-field followup-field--full">
-        <span>Última actualización <small>(Ctrl + Enter para guardar)</small></span>
-        <textarea rows="2" maxlength={LARGO_MAXIMO_ACTUALIZACION} data-ref="actualizacion" placeholder="Qué pasó, qué falta, a quién se espera…"></textarea>
-      </label>
-
-      <footer class="followup-card__foot">
-        <span class="followup-meta" data-ref="meta"></span>
-        <div class="followup-actions">
-          <button type="button" class="btn btn-sm" data-action="ver-historial" aria-expanded="false">Historial</button>
-          <button type="button" class="btn btn-sm" data-action="copiar-resumen" title="Copiar como texto">
-            <i class="fa-regular fa-copy" aria-hidden="true"></i>
-          </button>
-          <button type="button" class="btn btn-sm btn-primary" data-action="guardar-actualizacion" disabled>Guardar</button>
+  {
+    GRUPOS.map((grupo) => (
+      <div class="followup-section" data-grupo={grupo.id}>
+        <button type="button" class="followup-section__title" data-action="alternar-grupo" aria-expanded="true">
+          <i class="fa-solid fa-chevron-down followup-section__chevron" aria-hidden="true" />
+          <i class={`fa-solid ${grupo.icono}`} aria-hidden="true" />
+          <span>{grupo.titulo}</span>
+          <span class="followup-section__count" data-ref="conteo">0</span>
+        </button>
+        <div class="followup-table" role="table" aria-label={grupo.titulo}>
+          <div class="followup-row followup-row--head" role="row">
+            <span role="columnheader">Caso</span>
+            <span role="columnheader">Empresa</span>
+            <span role="columnheader">Área</span>
+            <span role="columnheader">Estado</span>
+            <span role="columnheader">Etiqueta</span>
+            <span role="columnheader">Descripción <small>(Ctrl + Enter guarda)</small></span>
+            <span role="columnheader">Última actualización</span>
+            <span role="columnheader" class="sr-only">Acciones</span>
+          </div>
+          <div class="followup-list" data-ref="lista" role="rowgroup"></div>
         </div>
-      </footer>
+      </div>
+    ))
+  }
+
+  <!-- Una fila por caso (la completa scripts/followUp/followUpView.ts) -->
+  <template id="tpl-seguimiento-caso">
+    <article class="followup-row" role="row" data-ref="tarjeta">
+      <div class="followup-cell followup-cell--case" role="cell">
+        <button type="button" class="followup-code" data-action="copiar-codigo" title="Copiar número" data-ref="codigo"></button>
+        <div class="followup-chips">
+          <span class="followup-chip" data-ref="origen"></span>
+          <span class="followup-chip followup-chip--fecha hidden" data-ref="fecha"></span>
+          <span class="followup-chip followup-chip--recordatorio hidden" data-ref="recordatorio"></span>
+        </div>
+      </div>
+      <div class="followup-cell" role="cell">
+        <input type="text" maxlength={LARGO_MAXIMO_EMPRESA} data-ref="empresa" placeholder="Sin empresa" aria-label="Empresa" />
+      </div>
+      <div class="followup-cell" role="cell">
+        <select data-ref="area" aria-label="Área">
+          <option value="">Sin área</option>
+          {AREAS_DE_CASO.map((area) => <option value={area}>{area}</option>)}
+        </select>
+      </div>
+      <div class="followup-cell" role="cell">
+        <select data-ref="estado" aria-label="Estado"></select>
+      </div>
+      <div class="followup-cell followup-cell--tag" role="cell">
+        <input type="text" maxlength={LARGO_MAXIMO_ETIQUETA} data-ref="etiqueta" placeholder="Sin etiqueta" aria-label="Etiqueta" />
+      </div>
+      <div class="followup-cell followup-cell--desc" role="cell">
+        <textarea
+          rows="1"
+          maxlength={LARGO_MAXIMO_DESCRIPCION}
+          data-ref="descripcion"
+          aria-label="Descripción"
+          placeholder="Qué pasa, qué falta, a quién se espera…"></textarea>
+      </div>
+      <div class="followup-cell followup-cell--update" role="cell">
+        <span class="followup-ago" data-ref="hace"></span>
+        <button type="button" class="btn btn-sm followup-touch" data-action="marcar-actualizado" title="Lo revisé: sigue igual">
+          <i class="fa-solid fa-check" aria-hidden="true"></i> Actualizado
+        </button>
+      </div>
+      <div class="followup-cell followup-cell--actions" role="cell">
+        <button type="button" class="btn-inc-action" data-action="ver-historial" aria-expanded="false" title="Historial de responsables" aria-label="Historial de responsables">
+          <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="btn-inc-action" data-action="copiar-resumen" title="Copiar como texto" aria-label="Copiar como texto">
+          <i class="fa-regular fa-copy" aria-hidden="true"></i>
+        </button>
+      </div>
       <ol class="followup-history hidden" data-ref="historial"></ol>
     </article>
   </template>

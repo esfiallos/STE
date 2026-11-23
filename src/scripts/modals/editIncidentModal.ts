@@ -18,7 +18,7 @@ function trabajoDelTecnico(id: string): string | null {
     caso.estado && caso.estado !== 'en_curso' ? 'cambió el estado' : '',
     caso.area ? 'registró el área' : '',
     caso.etiqueta ? 'puso etiqueta' : '',
-    caso.descripcion || caso.ultimaActualizacion ? 'escribió una actualización' : ''
+    caso.descripcion ? 'escribió la descripción' : ''
   ].filter(Boolean);
   if (hecho.length === 0 && !caso.actividadTecnicoEn) return null;
   return `El técnico ya trabajó este caso${hecho.length ? ` (${hecho.join(', ')})` : ''}: se perderá.`;

@@ -1,6 +1,6 @@
 ---
 // "Traspaso" del técnico: armar la entrega de fin de turno y cerrar turno. Lo dibuja scripts/handover/handoverView.ts
-import { LARGO_MAXIMO_ACTUALIZACION, LARGO_MAXIMO_ETIQUETA } from '../../domain/followUp';
+import { LARGO_MAXIMO_DESCRIPCION, LARGO_MAXIMO_ETIQUETA } from '../../domain/followUp';
 import { ESTADOS_DE_SEGUIMIENTO } from '../../domain/followUp';
 import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
 ---
@@ -98,17 +98,13 @@ import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
           <span>Recordar el día</span>
           <input type="date" data-campo="recordatorioFecha" />
         </label>
-        <label class="followup-field handover-item__wide">
-          <span>Nota para quien recibe</span>
-          <input type="text" maxlength="500" data-campo="notaPersonalizada" placeholder="Se agrega a la descripción del reporte" />
-        </label>
         <label class="followup-field">
           <span>Qué recordar</span>
           <input type="text" maxlength="200" data-campo="recordatorioTexto" placeholder="Ej: VM programada 10:00" />
         </label>
         <label class="followup-field handover-item__full">
-          <span>Última actualización</span>
-          <textarea rows="2" maxlength={LARGO_MAXIMO_ACTUALIZACION} data-campo="ultimaActualizacion" placeholder="Obligatoria para entregar el caso"></textarea>
+          <span>Descripción <small>(la que recibe quien sigue; es la misma de tu seguimiento)</small></span>
+          <textarea rows="2" maxlength={LARGO_MAXIMO_DESCRIPCION} data-campo="descripcion" placeholder="Obligatoria para entregar el caso: qué pasa, qué falta…"></textarea>
         </label>
       </div>
     </article>

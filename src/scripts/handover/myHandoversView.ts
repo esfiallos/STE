@@ -16,6 +16,7 @@ import { byId } from '../dom';
 import { formatearFechaHora } from '../ui/format';
 import { crearTabla } from '../ui/table';
 import { mejorarCampoDeFecha } from '../ui/fecha';
+import { momentoCorto } from '../../domain/followUp';
 
 let tecnicoId = '';
 let consulta = 0;
@@ -26,7 +27,8 @@ const nombreDe = (id: string | null) => (id ? (appStore.get().catalogo.find((t) 
 const recordatorio = (i: ItemTraspasoEnviado) =>
   i.recordatorioFecha ? `${fechaCorta(i.recordatorioFecha)}${i.recordatorioTexto ? ` · ${i.recordatorioTexto}` : ''}` : '';
 
-const etiquetaYNota = (i: ItemTraspasoEnviado) => [i.etiqueta ? `[${i.etiqueta}]` : '', i.notaPersonalizada ?? i.nota ?? ''].filter(Boolean).join(' ');
+const etiquetaYNota = (i: ItemTraspasoEnviado) => [i.etiqueta ? `[${i.etiqueta}]` : '', i.descripcion ?? i.nota ?? ''].filter(Boolean).join(' ');
+const actualizado = (i: ItemTraspasoEnviado) => (i.actualizadoEn ? momentoCorto(i.actualizadoEn) : '');
 
 function pintarEstado(texto: string | null, esError = false): void {
   const estado = byId('myHandoversStatus');
@@ -73,7 +75,7 @@ function pintarEnviados(traspasos: TraspasoEnviado[], destinoDe: (id: string, fe
 
   byId('mySent').replaceChildren(
     crearTabla(
-      ['Caso', 'Empresa', 'Área', 'Estado', 'Entregado a', 'Detalle', 'Última actualización', 'Recordatorio'],
+      ['Caso', 'Empresa', 'Área', 'Estado', 'Entregado a', 'Descripción', 'Última actualización', 'Recordatorio'],
       [...items]
         .sort((a, b) => a.codigo.localeCompare(b.codigo, 'es', { numeric: true }))
         .map((i) => [
@@ -83,7 +85,7 @@ function pintarEnviados(traspasos: TraspasoEnviado[], destinoDe: (id: string, fe
           ETIQUETA_ESTADO_CASO[i.estado],
           i.estado === 'cerrado' ? 'Cerrado en el turno' : nombreDe(i.paraTecnicoId),
           etiquetaYNota(i),
-          i.ultimaActualizacion ?? '',
+          actualizado(i),
           recordatorio(i)
         ]),
       'No enviaste traspaso este día.'
@@ -111,12 +113,12 @@ function pintarRecibidos(traspasos: TraspasoEnviado[]): void {
       i.area ?? '',
       ETIQUETA_ESTADO_CASO[i.estado],
       etiquetaYNota(i),
-      i.ultimaActualizacion ?? '',
+      actualizado(i),
       recordatorio(i)
     ])
   );
   byId('myReceived').replaceChildren(
-    crearTabla(['Caso', 'De', 'Empresa', 'Área', 'Estado', 'Detalle', 'Última actualización', 'Recordatorio'], filas, 'No recibiste casos en traspaso para este día.')
+    crearTabla(['Caso', 'De', 'Empresa', 'Área', 'Estado', 'Descripción', 'Última actualización', 'Recordatorio'], filas, 'No recibiste casos en traspaso para este día.')
   );
 }
 

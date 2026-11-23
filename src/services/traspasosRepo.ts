@@ -18,6 +18,9 @@ interface FilaItem {
   para_tecnico_id: string | null;
   estado: EstadoCaso;
   etiqueta: string | null;
+  /** Desde la migración 12 (D21). Los ítems anteriores tienen nota_personalizada / ultima_actualizacion. */
+  descripcion?: string | null;
+  actualizado_en?: string | null;
   nota_personalizada: string | null;
   ultima_actualizacion: string | null;
   recordatorio_fecha: string | null;
@@ -35,17 +38,21 @@ interface FilaCaso {
 
 const COLUMNAS_TRASPASO = 'id, de_tecnico_id, fecha_operativa, turno_origen, estado, enviado_en';
 const COLUMNAS_ITEM =
-  'traspaso_id, caso_id, para_tecnico_id, estado, etiqueta, nota_personalizada, ultima_actualizacion, recordatorio_fecha, recordatorio_texto, fecha_destino';
+  'traspaso_id, caso_id, para_tecnico_id, estado, etiqueta, descripcion, actualizado_en, nota_personalizada, ultima_actualizacion, recordatorio_fecha, recordatorio_texto, fecha_destino';
+
+/** La descripción del ítem; en traspasos anteriores a la 12, la nota o el texto de última actualización. */
+const descripcionDe = (f: FilaItem): string | null =>
+  f.descripcion?.trim() || f.nota_personalizada?.trim() || f.ultima_actualizacion?.trim() || null;
 
 const aItem = (f: FilaItem): ItemTraspaso => ({
   casoId: f.caso_id,
   paraTecnicoId: f.para_tecnico_id,
   estado: f.estado,
   etiqueta: f.etiqueta,
-  notaPersonalizada: f.nota_personalizada,
-  ultimaActualizacion: f.ultima_actualizacion,
+  descripcion: descripcionDe(f),
   recordatorioFecha: f.recordatorio_fecha,
-  recordatorioTexto: f.recordatorio_texto
+  recordatorioTexto: f.recordatorio_texto,
+  actualizadoEn: f.actualizado_en ?? null
 });
 
 const aTraspaso = (f: FilaTraspaso, items: ItemTraspaso[]): Traspaso => ({
@@ -106,8 +113,7 @@ export async function guardarItems(traspasoId: string, items: ItemTraspaso[], so
       para_tecnico_id: i.paraTecnicoId,
       estado: i.estado,
       etiqueta: i.etiqueta,
-      nota_personalizada: i.notaPersonalizada,
-      ultima_actualizacion: i.ultimaActualizacion,
+      descripcion: i.descripcion,
       recordatorio_fecha: i.recordatorioFecha,
       recordatorio_texto: i.recordatorioTexto
     }));
@@ -189,35 +195,6 @@ export async function listarRecibidos(tecnicoId: string, fecha: string): Promise
   return completar(data as FilaTraspaso[], items);
 }
 
-/** Nota que dejó quien entregó cada caso (el traspaso más reciente en que lo recibí). */
-export interface NotaRecibida {
-  deTecnicoId: string;
-  nota: string;
-}
-
-export async function notasDeTraspasosRecibidos(tecnicoId: string, casoIds: string[]): Promise<Resultado<Map<string, NotaRecibida>>> {
-  if (casoIds.length === 0) return exito(new Map());
-  const respuesta = await supabase
-    .from('traspaso_items')
-    .select(COLUMNAS_ITEM)
-    .eq('para_tecnico_id', tecnicoId)
-    .in('caso_id', casoIds)
-    .order('fecha_destino', { ascending: false });
-  if (respuesta.error) return errorDeBaseDeDatos(respuesta.error, 'No se pudieron cargar las notas del traspaso');
-  const items = (respuesta.data as FilaItem[]).filter((i) => i.fecha_destino && i.nota_personalizada?.trim());
-  if (items.length === 0) return exito(new Map());
-
-  const { data, error } = await supabase.from('traspasos').select('id, de_tecnico_id').in('id', [...new Set(items.map((i) => i.traspaso_id))]);
-  if (error) return errorDeBaseDeDatos(error, 'No se pudieron cargar las notas del traspaso');
-  const emisor = new Map((data as { id: string; de_tecnico_id: string }[]).map((t) => [t.id, t.de_tecnico_id]));
-
-  const notas = new Map<string, NotaRecibida>();
-  for (const i of items) {
-    if (!notas.has(i.caso_id)) notas.set(i.caso_id, { deTecnicoId: emisor.get(i.traspaso_id) ?? '', nota: i.nota_personalizada!.trim() });
-  }
-  return exito(notas);
-}
-
 /** Todos los traspasos en los que viajó un caso (ficha del buscador; dispatch y coordinación). */
 export async function listarTraspasosDelCaso(casoId: string): Promise<Resultado<TraspasoDelCaso[]>> {
   const respuesta = await supabase.from('traspaso_items').select(COLUMNAS_ITEM).eq('caso_id', casoId);
@@ -245,8 +222,7 @@ export async function listarTraspasosDelCaso(casoId: string): Promise<Resultado<
           fechaDestino: i.fecha_destino,
           estado: i.estado,
           etiqueta: i.etiqueta,
-          notaPersonalizada: i.nota_personalizada,
-          ultimaActualizacion: i.ultima_actualizacion,
+          descripcion: descripcionDe(i),
           enviadoEn: t.enviado_en
         };
       })

@@ -50,8 +50,8 @@ function crearResultado(caso: CasoEncontrado): HTMLElement {
   ref(fragmento, 'empresa').textContent = oGuion(caso.cliente);
   ref(fragmento, 'area').textContent = oGuion(caso.area);
   ref(fragmento, 'nota').textContent = oGuion(caso.descripcion ?? caso.nota);
-  ref(fragmento, 'actualizacion').textContent = caso.ultimaActualizacion
-    ? `${caso.ultimaActualizacion}${caso.ultimaActualizacionEn ? ` · ${formatearFechaHora(caso.ultimaActualizacionEn)}` : ''}${caso.ultimaActualizacionPor ? ` · ${caso.ultimaActualizacionPor}` : ''}`
+  ref(fragmento, 'actualizacion').textContent = caso.ultimaActualizacionEn
+    ? `${formatearFechaHora(caso.ultimaActualizacionEn)}${caso.ultimaActualizacionPor ? ` · ${caso.ultimaActualizacionPor}` : ''}`
     : '—';
   ref(fragmento, 'creado').textContent = `${formatearFechaHora(caso.creadoEn)}${caso.creadoPor ? ` · ${caso.creadoPor}` : ''}`;
   ref(fragmento, 'actividad').textContent = caso.actividadTecnicoEn ? formatearFechaHora(caso.actividadTecnicoEn) : '—';
@@ -92,8 +92,7 @@ async function cargarFicha(tarjeta: HTMLElement, casoId: string): Promise<void> 
                 `${formatearFechaCorta(t.fecha)}: ${nombreDe(t.deTecnicoId)} → ${t.estado === 'cerrado' ? 'lo cerró' : nombreDe(t.paraTecnicoId)}`,
                 ETIQUETA_ESTADO_CASO[t.estado],
                 t.etiqueta ? `[${t.etiqueta}]` : '',
-                t.notaPersonalizada ? `Nota: ${t.notaPersonalizada}` : '',
-                t.ultimaActualizacion ? `Últ. act.: ${t.ultimaActualizacion}` : ''
+                t.descripcion ? `Descripción: ${t.descripcion}` : ''
               ]
                 .filter(Boolean)
                 .join(' · ')

@@ -1,17 +1,25 @@
-import { actualizarSeguimiento, type CambiosDeSeguimiento } from '../../services/casosRepo';
+import { actualizarSeguimiento, marcarActualizado, type CambiosDeSeguimiento } from '../../services/casosRepo';
 import { marcarLeida, marcarTodasLeidas } from '../../services/notificacionesRepo';
 import { appStore } from '../../state/appStore';
 import { cargarDatos } from '../../state/sync';
-import type { Resultado } from '../../types/result';
+import { exito, type Resultado } from '../../types/result';
 import { copiarAlPortapapeles } from '../ui/clipboard';
 import { reproducirSonido } from '../ui/sound';
 import { mostrarAviso } from '../ui/toast';
 
-/** El técnico actualiza estado, etiqueta o última actualización de uno de sus casos. */
+/** El técnico actualiza estado, etiqueta, área, empresa o descripción de uno de sus casos. */
 export async function guardarSeguimiento(casoId: string, cambios: CambiosDeSeguimiento): Promise<Resultado> {
   const resultado = await actualizarSeguimiento(casoId, cambios);
   if (resultado.ok) await cargarDatos();
   return resultado;
+}
+
+/** Botón "Actualizado" (D19): marca la fecha de última actualización sin cambiar nada más. */
+export async function marcarCasoActualizado(casoId: string): Promise<Resultado> {
+  const resultado = await marcarActualizado(casoId);
+  if (!resultado.ok) return resultado;
+  await cargarDatos();
+  return exito();
 }
 
 export async function copiarTexto(texto: string, descripcion: string): Promise<void> {

@@ -228,7 +228,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 
 | **10. Tablero del día** ✅ | Tablero y panel = solo lo asignado hoy por dispatch (vacío a las 06:00), Cancelar y Editar del dispatch en lugar de cerrar, empresa al crear, bitácora solo supervisión (§11.1–11.2, §11.12) · `11` | 9 |
 | **11. Base visual** ✅ | Inter + paleta navy, panel de confirmación, selector de fecha rápido, combobox, auto-animate + Motion (§11.7–11.10) | — (paralelo a 10) |
-| **12. Seguimiento v2** | Descripción única + "Última actualización" como fecha y botón, filas horizontales, etiquetas locales con combobox, nota del traspaso = descripción, verificación traspaso → seguimiento (§11.3–11.6) · `12` | 10, 11 |
+| **12. Seguimiento v2** ✅ | Descripción única + "Última actualización" como fecha y botón, filas horizontales, etiquetas locales con combobox, nota del traspaso = descripción, verificación traspaso → seguimiento (§11.3–11.6) · `12` | 10, 11 |
 | **13. Filtros** | Tipo de caso (FRESH · Tarea · Incidente) y filtros por técnico, área, estado y tipo en todas las vistas de casos (§11.11) | 12 |
 
 > Orden revisado el 19/11/2026 al sumar los requerimientos de §10. Cada fase con su migración `sql/0N_*.sql`.
@@ -424,7 +424,7 @@ usuario al empezar la fase que lo usa.
   empresa)` (cambia la firma en la 11). La tarjeta del tablero muestra la empresa. `casos.nota` queda solo como
   histórico (se sigue mostrando si tiene texto).
 
-### 11.3 Seguimiento: descripción y última actualización (fase 12)
+### 11.3 Seguimiento: descripción y última actualización (fase 12) — ✅
 - **D19. "Última actualización" es una fecha, no un texto.** Es el momento en que el técnico tocó el caso por última
   vez. La actualizan: cambiar área, empresa, estado, etiqueta o descripción, **o** el botón **"Actualizado"** (un
   clic: "lo revisé, sigue igual"). Unifica `actividad_tecnico_en` (D9): es la misma fecha y reinicia las alertas
@@ -437,7 +437,7 @@ usuario al empezar la fase que lo usa.
   (solo el responsable); `ultima_actualizacion_en/por` = cualquier edición del técnico. `ultima_actualizacion`
   (texto) deja de escribirse (no se borra la columna).
 
-### 11.4 Seguimiento en tarjetas horizontales (fase 12)
+### 11.4 Seguimiento en tarjetas horizontales (fase 12) — ✅
 - En días cargados hay más de 20 casos: cada caso pasa a ser **una fila** (ancho completo, ~56 px):
   `tipo · código (copiar) · empresa · área · estado · etiqueta · descripción (1 línea, clic para expandir) ·
   última actualización + botón Actualizado · menú (historial, copiar resumen)`.
@@ -446,7 +446,7 @@ usuario al empezar la fase que lo usa.
   tiene olvidado antes que coordinación.
 - Bajo 1100 px la fila se parte en dos líneas; en móvil, tarjeta.
 
-### 11.5 La nota del traspaso **es** la descripción (fase 12)
+### 11.5 La nota del traspaso **es** la descripción (fase 12) — ✅
 - **D21.** El técnico trabaja su caso en Mi seguimiento y cierra turno traspasándolo con **el último estado de esa
   descripción**. En la pestaña Traspaso el campo "Nota para quien recibe" muestra la descripción del caso (editable);
   al enviar se guarda en el caso. Desaparece el cuadro "Última actualización" del traspaso.
@@ -454,12 +454,14 @@ usuario al empezar la fase que lo usa.
   `traspaso_items` guarda la descripción enviada (foto para Mis traspasos); el reporte (Outlook/texto/TSV) muestra
   Descripción y "Últ. actualización: hora". Lo recibido en Mi seguimiento ya trae la descripción: deja de hacer
   falta la "nota de quien entregó" aparte (se sigue viendo en el historial del caso).
-- **Verificación pedida:** al cerrar turno los casos deben aparecer en el **Mi seguimiento del receptor** (incluido
+- Implementado: la descripción del traspaso es la del caso (se guarda en el caso al salir del campo) en vez de una
+  copia editable aparte, así nunca hay dos versiones. `traspaso_items.descripcion` guarda la foto al enviar.
+- **Verificación pedida (✅ con pruebas, falta en DEV):** al cerrar turno los casos deben aparecer en el **Mi seguimiento del receptor** (incluido
   el destino del día siguiente). Hoy la prueba de app solo revisa al que entrega y el backend simulado elige mal la
   fecha destino (`jornadas.find` por técnico, sin fecha). Se agrega: prueba de app con sesión del receptor,
   prueba SQL de `casos_abiertos` con RLS del receptor (mismo día y D+1) y revisión en DEV con dos usuarios.
 
-### 11.6 Etiquetas con combobox y catálogo propio (fase 12)
+### 11.6 Etiquetas con combobox y catálogo propio (fase 12) — ✅
 - **D22.** La etiqueta se elige en un **combobox** (escribir filtra; flechas + Enter; muestra sugeridas y creadas)
   con la opción **"Crear «texto»"**. Se usa igual en Mi seguimiento, Traspaso y filtros.
 - **Confirmado (21/11): etiquetas propias locales.** Su función es la del formato de `traspasos-noc`: un

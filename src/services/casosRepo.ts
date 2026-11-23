@@ -54,7 +54,8 @@ function aIncidente(fila: FilaCasoAbierto): Incidente {
 export interface CambiosDeSeguimiento {
   estado?: EstadoCaso;
   etiqueta?: string | null;
-  ultimaActualizacion?: string | null;
+  /** Qué pasa con el caso (D20). */
+  descripcion?: string | null;
   /** Una de AREAS_DE_CASO (la base rechaza otra). */
   area?: string | null;
   /** Empresa (columna `cliente`). */
@@ -65,13 +66,20 @@ export async function actualizarSeguimiento(id: string, cambios: CambiosDeSeguim
   const fila: Record<string, unknown> = {};
   if (cambios.estado !== undefined) fila.estado = cambios.estado;
   if (cambios.etiqueta !== undefined) fila.etiqueta = cambios.etiqueta;
-  if (cambios.ultimaActualizacion !== undefined) fila.ultima_actualizacion = cambios.ultimaActualizacion;
+  if (cambios.descripcion !== undefined) fila.descripcion = cambios.descripcion;
   if (cambios.area !== undefined) fila.area = cambios.area;
   if (cambios.empresa !== undefined) fila.cliente = cambios.empresa;
 
   const { error } = await supabase.from('casos').update(fila).eq('id', id);
   if (error) return errorDeBaseDeDatos(error, 'No se pudo actualizar el caso');
   return exito();
+}
+
+/** Botón "Actualizado" (D19): el técnico confirma que revisó su caso. Devuelve la hora que guardó la base. */
+export async function marcarActualizado(id: string): Promise<Resultado<string>> {
+  const { data, error } = await supabase.rpc('marcar_actualizado', { p_caso: id });
+  if (error) return errorDeBaseDeDatos(error, 'No se pudo marcar el caso como actualizado');
+  return exito(String(data ?? new Date().toISOString()));
 }
 
 interface FilaResponsable {

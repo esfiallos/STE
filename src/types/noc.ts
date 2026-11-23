@@ -87,8 +87,9 @@ export interface Incidente {
   area?: string | null;
   descripcion?: string | null;
   etiqueta?: string | null;
-  /** Texto corto que escribe el técnico; la base guarda quién y cuándo. */
+  /** Histórico (antes de la fase 12): texto de "última actualización". El texto vigente es `descripcion`. */
   ultimaActualizacion?: string | null;
+  /** Última vez que el técnico tocó el caso (D19). */
   ultimaActualizacionEn?: string | null;
   ultimaActualizacionPor?: string | null;
   /** Última edición del técnico responsable (migración 07). */
@@ -160,11 +161,12 @@ export interface ItemTraspaso {
   paraTecnicoId: string | null;
   estado: EstadoCaso;
   etiqueta: string | null;
-  /** Nota para quien recibe (se adjunta a la descripción del reporte). */
-  notaPersonalizada: string | null;
-  ultimaActualizacion: string | null;
+  /** Descripción con la que se entrega: la del caso, editable en el traspaso (D21). */
+  descripcion: string | null;
   recordatorioFecha: string | null;
   recordatorioTexto: string | null;
+  /** Solo en traspasos enviados: última actualización del caso al enviarse. */
+  actualizadoEn?: string | null;
 }
 
 export type EstadoTraspaso = 'borrador' | 'enviado';
@@ -261,8 +263,8 @@ export interface TraspasoDelCaso {
   fechaDestino: string | null;
   estado: EstadoCaso;
   etiqueta: string | null;
-  notaPersonalizada: string | null;
-  ultimaActualizacion: string | null;
+  /** Descripción con la que viajó el caso. */
+  descripcion: string | null;
   enviadoEn: string | null;
 }
 

@@ -111,24 +111,35 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
     const traspaso = db.traspasos!.find((t) => t.id === id);
     if (!traspaso || traspaso.estado !== 'borrador') return json({ code: 'P0001', message: 'Este traspaso ya fue enviado.' }, 400);
     const items = db.traspaso_items!.filter((i) => i.traspaso_id === id);
-    const pendiente = items.find((i) => i.estado !== 'cerrado' && (!i.para_tecnico_id || !String(i.ultima_actualizacion ?? '').trim()));
-    if (pendiente) return json({ code: 'P0001', message: 'Falta receptor o última actualización.' }, 400);
+    const descripcionDe = (i: Fila) =>
+      String(i.descripcion ?? '').trim() || String(db.casos!.find((c) => c.id === i.caso_id)?.descripcion ?? '').trim() || null;
+    const pendiente = items.find((i) => i.estado !== 'cerrado' && (!i.para_tecnico_id || !descripcionDe(i)));
+    if (pendiente) return json({ code: 'P0001', message: 'Falta receptor o descripción.' }, 400);
+    const ahora = new Date().toISOString();
     let movidos = 0;
     for (const item of items) {
       const caso = db.casos!.find((c) => c.id === item.caso_id)!;
+      const descripcion = descripcionDe(item);
       if (item.estado === 'cerrado') {
-        Object.assign(caso, { estado: 'cerrado' });
+        Object.assign(caso, { estado: 'cerrado', descripcion });
+        Object.assign(item, { descripcion, actualizado_en: caso.ultima_actualizacion_en ?? null });
         continue;
       }
-      const destino = db.jornadas!.find((j) => j.tecnico_id === item.para_tecnico_id)?.fecha_operativa ?? traspaso.fecha_operativa;
+      // El día del receptor: su jornada de hoy o de mañana (la primera desde el día del traspaso)
+      const destino =
+        db.jornadas!
+          .filter((j) => j.tecnico_id === item.para_tecnico_id && String(j.fecha_operativa) >= String(traspaso.fecha_operativa))
+          .map((j) => String(j.fecha_operativa))
+          .sort()[0] ?? traspaso.fecha_operativa;
       if (ORIGENES_DEL_TABLERO.includes((caso._origen ?? 'dispatch') as OrigenResponsable)) {
         Object.assign(caso, { _tableroFecha: caso._fecha, _tableroTecnico: caso.tecnico_actual_id });
       }
       Object.assign(caso, {
-        tecnico_actual_id: item.para_tecnico_id, estado: item.estado, etiqueta: item.etiqueta, ultima_actualizacion: item.ultima_actualizacion,
+        tecnico_actual_id: item.para_tecnico_id, estado: item.estado, etiqueta: item.etiqueta, descripcion,
+        ultima_actualizacion_en: descripcion !== (caso.descripcion ?? null) ? ahora : caso.ultima_actualizacion_en,
         recordatorio_fecha: item.recordatorio_fecha, recordatorio_texto: item.recordatorio_texto, _origen: 'traspaso', _fecha: destino
       });
-      item.fecha_destino = destino;
+      Object.assign(item, { fecha_destino: destino, descripcion, actualizado_en: caso.ultima_actualizacion_en ?? null });
       movidos++;
     }
     Object.assign(traspaso, { estado: 'enviado', turno_origen: 'turnoA', enviado_en: new Date().toISOString() });
@@ -191,6 +202,13 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
           resuelta_en: new Date().toISOString(), vence_en: parametros.p_aprobar ? new Date(Date.now() + 3_600_000).toISOString() : null, respuesta_vista: false
         });
         return json(null);
+      }
+      if (tabla === 'marcar_actualizado') {
+        const caso = db.casos!.find((c) => c.id === parametros.p_caso);
+        if (!caso) return json({ code: '42501', message: 'Solo el responsable puede marcar su caso como actualizado.' }, 403);
+        const ahora = new Date().toISOString();
+        Object.assign(caso, { ultima_actualizacion_en: ahora, actividad_tecnico_en: ahora, ultima_actualizacion_por: 'prueba@noc.test' });
+        return json(ahora);
       }
       if (tabla === 'cancelar_caso') {
         const caso = db.casos!.find((c) => c.id === parametros.p_caso);
@@ -260,7 +278,11 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
         const original = (db[tabla] ?? []).find((f) => f.id === fila.id) ?? fila;
         const cambiaResponsable =
           tabla === 'casos' && ('tecnico_actual_id' in cambios || (original.estado === 'cerrado' && cambios.estado !== 'cerrado'));
+        // Imita el trigger (D19): editar los datos del técnico marca la última actualización
+        const delTecnico = tabla === 'casos' && !('codigo' in cambios) && !('tecnico_actual_id' in cambios) &&
+          ['estado', 'etiqueta', 'area', 'cliente', 'descripcion'].some((k) => k in cambios);
         Object.assign(original, cambios);
+        if (delTecnico) Object.assign(original, { ultima_actualizacion_en: new Date().toISOString(), ultima_actualizacion_por: 'prueba@noc.test' });
         if (cambiaResponsable) {
           original._fecha = fechaOperativa(new Date());
           original._origen = 'reasignacion';

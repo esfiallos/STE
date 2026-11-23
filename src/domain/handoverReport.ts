@@ -4,6 +4,7 @@
  * texto plano y TSV para Excel. Todo el texto del usuario se escapa: el HTML resultante es seguro.
  */
 import type { EstadoCaso, TurnoTecnico } from '../types/noc';
+import { ETIQUETAS_SUGERIDAS, momentoCorto } from './followUp';
 import { ETIQUETA_ESTADO_CASO } from './handover';
 import { ORDEN_DE_TIPO, tipoDeCaso } from './handoverBalance';
 
@@ -14,9 +15,10 @@ export interface FilaDeReporte {
   area: string | null;
   estado: EstadoCaso;
   etiqueta: string | null;
-  /** Nota personalizada de quien entrega; si no hay, la nota del caso. */
+  /** Descripción con la que se entrega (D21); si no hay, la nota histórica del caso. */
   descripcion: string | null;
-  ultimaActualizacion: string | null;
+  /** Última vez que el técnico tocó el caso (ISO); se muestra como "Últ. act.: 21/11 14:05". */
+  ultimaActualizacionEn: string | null;
   recordatorioFecha: string | null;
   recordatorioTexto: string | null;
 }
@@ -59,8 +61,8 @@ export function asignacionEnTexto(destino: DestinoDeBloque | null): string {
   return `TURNO ${destino.turno.slice(-1)}`;
 }
 
-/** Prioridad de las etiquetas al ordenar (las desconocidas van después, sin etiqueta al final). */
-const PRIORIDAD_DE_ETIQUETA: Record<string, number> = { 'Crítico': 1, 'Escalar': 2, 'VM': 3, 'Monitoreo': 4, 'Pendiente cliente': 5 };
+/** Prioridad de las etiquetas al ordenar: el orden de las sugeridas; las propias después, sin etiqueta al final. */
+const PRIORIDAD_DE_ETIQUETA: Record<string, number> = Object.fromEntries(ETIQUETAS_SUGERIDAS.map((e, i) => [e, i + 1]));
 
 export function ordenarFilas(filas: FilaDeReporte[], orden: OrdenDeReporte = 'tipo'): FilaDeReporte[] {
   const porCodigo = (a: FilaDeReporte, b: FilaDeReporte) => a.codigo.localeCompare(b.codigo, 'es', { numeric: true });
@@ -141,6 +143,7 @@ export const TEMA_CORREO = {
     'VM': { fondo: '#D6ECF3', texto: '#14536A' },
     'Monitoreo': { fondo: '#DCEBF5', texto: '#1F5A7A' },
     'Pendiente cliente': { fondo: '#FFE9B0', texto: '#7A4B03' },
+    'Seguimiento': { fondo: '#E2F0E4', texto: '#2F5E35' },
     otra: { fondo: '#EFE7DC', texto: '#5C4630' }
   } as Record<string, { fondo: string; texto: string }>
 } as const;
@@ -151,7 +154,7 @@ type Tema = typeof TEMA_CORREO;
 function partesDelDetalle(fila: FilaDeReporte) {
   return {
     descripcion: fila.descripcion?.trim() || null,
-    actualizacion: fila.ultimaActualizacion?.trim() || null,
+    actualizacion: fila.ultimaActualizacionEn ? momentoCorto(fila.ultimaActualizacionEn) || null : null,
     recordatorio: fila.recordatorioFecha
       ? `Recordatorio ${fechaCorta(fila.recordatorioFecha)}${fila.recordatorioTexto?.trim() ? `: ${fila.recordatorioTexto.trim()}` : ''}`
       : null

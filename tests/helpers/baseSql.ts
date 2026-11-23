@@ -18,6 +18,7 @@ export const MIGRACIONES = {
   ronda: () => leerSql('09_v2_ronda.sql'),
   planificacion: () => leerSql('10_v2_planificacion.sql'),
   tableroDelDia: () => leerSql('11_v2_tablero_del_dia.sql'),
+  seguimientoDescripcion: () => leerSql('12_v2_seguimiento_descripcion.sql'),
   demo: () => leerSql('03_datos_demo_dev.sql')
 };
 

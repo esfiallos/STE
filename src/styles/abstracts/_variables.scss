@@ -39,6 +39,20 @@ $color-peligro: #be123c;
 $color-peligro-hover: #9f1239;
 $color-peligro-suave: #fff1f2;
 
+// Atraso de un caso sin actualizar (2 h usa el ámbar del almuerzo, 6 h el rojo de peligro)
+$color-atraso-medio: #f97316;
+
+// Etiquetas (D22): fondo y texto por color (domain/followUp.ts → colorDeEtiqueta)
+$colores-etiqueta: (
+  critico: (#fde2dd, #8e2412),
+  escalar: (#eadcf5, #5b2a86),
+  vm: (#d6ecf3, #14536a),
+  monitoreo: (#dcebf5, #1f5a7a),
+  pendiente: (#ffe9b0, #7a4b03),
+  seguimiento: (#e2f0e4, #2f5e35),
+  otra: ($navy-50, #475569)
+);
+
 // Almuerzo (ámbar)
 $color-almuerzo-fondo: #fffbeb;
 $color-almuerzo-borde: #fcd34d;

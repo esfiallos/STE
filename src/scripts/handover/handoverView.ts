@@ -13,7 +13,7 @@ import {
 } from '../../domain/handoverDraft';
 import { repartirCasos, type ModoDeReparto } from '../../domain/handoverBalance';
 import { armarBloques, reporteHtml, reporteTexto, reporteTsv, type OrdenDeReporte } from '../../domain/handoverReport';
-import { ETIQUETAS_SUGERIDAS } from '../../domain/followUp';
+import { momentoCorto } from '../../domain/followUp';
 import { debeTraspasarse } from '../../domain/handover';
 import { nombreDeTurno } from '../../domain/shifts';
 import { fechaOperativa, sumarDias } from '../../domain/time';
@@ -27,7 +27,8 @@ import { formatearFechaHora, formatearFechaLarga } from '../ui/format';
 import { mostrarAviso } from '../ui/toast';
 import { confirmar } from '../ui/confirmar';
 import { mejorarCampoDeFecha } from '../ui/fecha';
-import { mejorarCombobox } from '../ui/combobox';
+import { mejorarCampoDeEtiqueta } from '../ui/etiquetas';
+import { guardarSeguimiento } from '../actions/followUpActions';
 
 const ESPERA_GUARDADO_MS = 700;
 
@@ -203,7 +204,13 @@ function crearItem(item: ItemTraspaso, caso: Incidente, lista: ReceptorTraspaso[
   tarjeta.classList.toggle('has-problem', problemas.some((p) => p.casoId === caso.id));
 
   ref(fragmento, 'codigo').textContent = caso.codigo;
-  ref(fragmento, 'meta').textContent = [caso.cliente, caso.area, caso.nota].filter(Boolean).join(' · ');
+  ref(fragmento, 'meta').textContent = [
+    caso.cliente,
+    caso.area,
+    caso.ultimaActualizacionEn ? `Últ. act. ${momentoCorto(caso.ultimaActualizacionEn)}` : 'Sin actualizar'
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const campo = <T extends HTMLElement>(nombre: string) => fragmento.querySelector<T>(`[data-campo="${nombre}"]`)!;
   campo<HTMLInputElement>('candado').checked = candados.has(caso.id);
@@ -221,9 +228,8 @@ function crearItem(item: ItemTraspaso, caso: Incidente, lista: ReceptorTraspaso[
 
   const etiqueta = campo<HTMLInputElement>('etiqueta');
   etiqueta.value = item.etiqueta ?? '';
-  mejorarCombobox(etiqueta, { opciones: () => ETIQUETAS_SUGERIDAS, permitirCrear: true, vacio: 'Sin etiqueta' });
-  campo<HTMLInputElement>('notaPersonalizada').value = item.notaPersonalizada ?? '';
-  campo<HTMLTextAreaElement>('ultimaActualizacion').value = item.ultimaActualizacion ?? '';
+  mejorarCampoDeEtiqueta(etiqueta);
+  campo<HTMLTextAreaElement>('descripcion').value = item.descripcion ?? '';
   const fecha = campo<HTMLInputElement>('recordatorioFecha');
   fecha.value = item.recordatorioFecha ?? '';
   fecha.min = contexto?.fecha ?? '';
@@ -365,6 +371,14 @@ async function confirmarCierre(): Promise<void> {
   await cargarTraspaso();
 }
 
+async function guardarDescripcionDelCaso(casoId: string, texto: string): Promise<void> {
+  const caso = misCasos().find((c) => c.id === casoId);
+  const descripcion = texto.trim() || null;
+  if (!caso || descripcion === (caso.descripcion ?? null)) return;
+  const resultado = await guardarSeguimiento(casoId, { descripcion });
+  if (!resultado.ok) mostrarAviso(resultado.error, 'error');
+}
+
 function campoDe(evento: Event): { campo: HTMLElement; casoId: string } | null {
   const campo = evento.target;
   if (!(campo instanceof HTMLElement) || !campo.dataset.campo) return null;
@@ -381,7 +395,7 @@ export function iniciarTraspaso(miTecnicoId: string): void {
     const objetivo = campoDe(evento);
     if (!objetivo || !(objetivo.campo instanceof HTMLInputElement || objetivo.campo instanceof HTMLTextAreaElement)) return;
     const nombre = objetivo.campo.dataset.campo!;
-    if (!['etiqueta', 'notaPersonalizada', 'ultimaActualizacion', 'recordatorioTexto'].includes(nombre)) return;
+    if (!['etiqueta', 'descripcion', 'recordatorioTexto'].includes(nombre)) return;
     cambiarItem(objetivo.casoId, { [nombre]: objetivo.campo.value });
     pintarResumen();
   });
@@ -406,6 +420,10 @@ export function iniciarTraspaso(miTecnicoId: string): void {
       case 'recordatorioFecha':
         cambiarItem(casoId, { recordatorioFecha: valor || null });
         break;
+      case 'descripcion':
+        // Es la descripción del caso (D21): se guarda en el caso y se ve igual en Mi seguimiento.
+        void guardarDescripcionDelCaso(casoId, valor);
+        return;
       default:
         return;
     }
