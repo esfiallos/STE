@@ -2,6 +2,7 @@
 import type { PGlite } from '@electric-sql/pglite';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { asignacionesDelDia, ORIGENES_DEL_TABLERO, type AsignacionDeCaso } from '../../src/domain/assignments';
+import { tipoDeCaso } from '../../src/domain/caseType';
 import type { OrigenResponsable } from '../../src/types/noc';
 import { actuarComo, crearBaseSupabase, MIGRACIONES } from '../helpers/baseSql';
 
@@ -166,6 +167,19 @@ describe('tablero del día (migración 11)', () => {
     const caso = await uno<{ cliente: string; nota: string | null }>(`select cliente, nota from casos where codigo = 'INC-RONDA'`);
     expect(caso).toEqual({ cliente: 'Gamma', nota: null });
     expect((await tablero()).map((t) => t.codigo)).toContain('INC-RONDA');
+  });
+
+  it('migración 13: tipo_de_caso coincide con el dominio y el tablero trae área y tipo', async () => {
+    await db.exec(MIGRACIONES.seguimientoDescripcion());
+    await db.exec(MIGRACIONES.filtros());
+    await db.exec(MIGRACIONES.filtros()); // se puede ejecutar dos veces
+    for (const codigo of ['#SR-1201', '#inc-8841', ' sctask0098402', 'INC0045101', 'RITM001', '#OTRO5', '']) {
+      const { tipo } = await uno<{ tipo: string }>('select tipo_de_caso($1) tipo', [codigo]);
+      expect(tipo).toBe(tipoDeCaso(codigo));
+    }
+    await db.exec(`update casos set area = 'CPE' where codigo = 'INC-RONDA'`);
+    const fila = await uno<{ area: string; tipo: string }>(`select area, tipo from tablero_del_dia where codigo = 'INC-RONDA'`);
+    expect(fila).toEqual({ area: 'CPE', tipo: 'INC' });
   });
 
   it('la bitácora solo la leen dispatch y coordinación', async () => {

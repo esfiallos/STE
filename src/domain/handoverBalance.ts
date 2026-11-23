@@ -9,19 +9,10 @@
  * (desempate: menos casos de ese mismo tipo; luego el orden de la lista de receptores).
  */
 
-export type TipoDeCaso = 'INC' | 'SCTASK' | 'FRESH' | 'OTRO';
+import { ORDEN_DE_TIPO, tipoDeCaso, type TipoDeCaso } from './caseType';
 
-/** Tipo por el prefijo del código: INC0045101 · SCTASK0098402 · #INC-8841 (Freshdesk) · RITM… */
-export function tipoDeCaso(codigo: string): TipoDeCaso {
-  const c = codigo.trim().toUpperCase();
-  if (c.startsWith('#')) return 'FRESH';
-  if (c.startsWith('SCTASK')) return 'SCTASK';
-  if (c.startsWith('INC')) return 'INC';
-  return 'OTRO';
-}
-
-/** Orden de reparto y de presentación: primero INC, luego SCTASK, luego Fresh. */
-export const ORDEN_DE_TIPO: Readonly<Record<TipoDeCaso, number>> = { INC: 1, SCTASK: 2, FRESH: 3, OTRO: 4 };
+// El tipo de caso vive en caseType.ts; se reexporta para quien ya lo importaba desde aquí.
+export { ORDEN_DE_TIPO, tipoDeCaso, type TipoDeCaso };
 
 export interface CasoParaRepartir {
   id: string;

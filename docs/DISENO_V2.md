@@ -229,7 +229,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **10. Tablero del día** ✅ | Tablero y panel = solo lo asignado hoy por dispatch (vacío a las 06:00), Cancelar y Editar del dispatch en lugar de cerrar, empresa al crear, bitácora solo supervisión (§11.1–11.2, §11.12) · `11` | 9 |
 | **11. Base visual** ✅ | Inter + paleta navy, panel de confirmación, selector de fecha rápido, combobox, auto-animate + Motion (§11.7–11.10) | — (paralelo a 10) |
 | **12. Seguimiento v2** ✅ | Descripción única + "Última actualización" como fecha y botón, filas horizontales, etiquetas locales con combobox, nota del traspaso = descripción, verificación traspaso → seguimiento (§11.3–11.6) · `12` | 10, 11 |
-| **13. Filtros** | Tipo de caso (FRESH · Tarea · Incidente) y filtros por técnico, área, estado y tipo en todas las vistas de casos (§11.11) | 12 |
+| **13. Filtros** ✅ | Tipo de caso (FRESH · Tarea · Incidente) y filtros por técnico, área, estado y tipo en todas las vistas de casos (§11.11) | 12 |
 
 > Orden revisado el 19/11/2026 al sumar los requerimientos de §10. Cada fase con su migración `sql/0N_*.sql`.
 > Fases 10–13 sumadas el 21/11/2026 (§11, calidad de vida).
@@ -510,13 +510,17 @@ usuario al empezar la fase que lo usa.
   chips). Solo se importan desde `scripts/ui/` (un envoltorio que apaga todo con `prefers-reduced-motion`); el FLIP
   del tablero sigue en `ui/motion.ts`.
 
-### 11.11 Filtros y tipo de caso (fase 13)
+### 11.11 Filtros y tipo de caso (fase 13) — ✅ `sql/13_v2_filtros.sql`
 - **Tipo de caso** por prefijo del código (`domain/caseType.ts`, = función SQL `tipo_de_caso()` con prueba):
   `#SR…` o `#INC…` → **FRESH** · `SCTASK…` → **Tarea** · `INC…` → **Incidente** · otro → **Otro**. Se muestra como
   chip en tarjetas y filas.
 - Filtros combinables: **técnico · área · estado · tipo** (+ el buscador de texto que ya existe), en Tablero,
   Mi seguimiento (sin técnico), Traspaso, Buscar casos y Panel. Un solo módulo de dominio (`caseFilters.ts`) y un
   componente de barra reutilizable; chips con contador y "Limpiar". Se recuerdan por vista en `sessionStorage`.
+- Implementado: FRESH es solo `#SR…`/`#INC…` (otro `#` cuenta como Otro). En el Panel, con filtros las estadísticas
+  se calculan en el navegador con el tablero del día (mismo criterio D17) para no consultar la base por cada
+  combinación. En el Traspaso el filtro de técnico es el **receptor**. La migración 13 suma `area` y `tipo` a
+  `tablero_del_dia`.
 
 ### 11.12 Bitácora solo para supervisión (fase 10) — ✅
 - **D28.** La pestaña **Bitácora** la ven solo **dispatch y coordinación** (`[data-supervision-only]`). El técnico no
@@ -524,5 +528,6 @@ usuario al empezar la fase que lo usa.
   es_coordinador()`. **Supuesto:** el Historial (snapshots) sigue igual para todos.
 
 ### 11.13 Despliegue
-- Cola de migraciones para DEV y luego PROD, en orden: **07 → 08 → 09 → 10 → 11 → 12**. Cada nueva es
+- Cola de migraciones para DEV y luego PROD, en orden: **07 → 08 → 09 → 10 → 11 → 12 → 13** (al 22/11/2026 ya
+  están aplicadas hasta la 11 en ambas). Cada nueva es
   idempotente, con prueba en `tests/sql/` y en `MIGRACIONES`.

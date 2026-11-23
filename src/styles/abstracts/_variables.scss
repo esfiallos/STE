@@ -53,6 +53,14 @@ $colores-etiqueta: (
   otra: ($navy-50, #475569)
 );
 
+// Tipo de caso (§11.11): fondo y texto del chip
+$colores-tipo: (
+  fresh: (#ccfbf1, #0f766e),
+  sctask: (#ede9fe, #5b21b6),
+  inc: ($navy-100, $navy-800),
+  otro: (#f1f5f9, #475569)
+);
+
 // Almuerzo (ámbar)
 $color-almuerzo-fondo: #fffbeb;
 $color-almuerzo-borde: #fcd34d;

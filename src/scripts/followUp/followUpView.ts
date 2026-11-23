@@ -22,6 +22,9 @@ import { confirmar } from '../ui/confirmar';
 import { mejorarCampoDeEtiqueta } from '../ui/etiquetas';
 import { formatearFechaCorta, formatearFechaHora } from '../ui/format';
 import { mostrarAviso } from '../ui/toast';
+import { filtrarCasos, hayFiltros } from '../../domain/caseFilters';
+import { crearBarraDeFiltros, type BarraDeFiltros } from '../features/caseFilters';
+import { pintarTipo } from '../ui/tipoDeCaso';
 
 /**
  * "Mi seguimiento" (fase 12): una fila por caso para que entren 20+ casos en pantalla (§11.4).
@@ -37,6 +40,7 @@ let renderPendiente = false;
 /** Casos con el historial desplegado (se conserva al redibujar). */
 const historialAbierto = new Set<string>();
 const gruposColapsados = new Set<string>();
+let barra: BarraDeFiltros | null = null;
 
 const vista = () => byId('followUpView');
 
@@ -72,6 +76,7 @@ function crearFila(caso: Incidente, hoy: string, ahora: Date): HTMLElement {
   fila.dataset.atraso = String(nivelDeAtraso(caso, ahora));
 
   ref(fragmento, 'codigo').textContent = caso.codigo;
+  pintarTipo(ref(fragmento, 'tipo'), caso.codigo);
   ref(fragmento, 'origen').textContent = caso.origenResponsable ? ETIQUETA_ORIGEN[caso.origenResponsable] : 'Asignado';
 
   const fecha = ref(fragmento, 'fecha');
@@ -109,7 +114,7 @@ function crearFila(caso: Incidente, hoy: string, ahora: Date): HTMLElement {
   return fila;
 }
 
-function pintarGrupo(grupo: keyof GruposDeSeguimiento, casos: Incidente[], hoy: string, ahora: Date): void {
+function pintarGrupo(grupo: keyof GruposDeSeguimiento, casos: Incidente[], hoy: string, ahora: Date, filtrando: boolean): void {
   const seccion = vista().querySelector<HTMLElement>(`[data-grupo="${grupo}"]`)!;
   seccion.classList.toggle('hidden', grupo === 'anteriores' && casos.length === 0);
   seccion.classList.toggle('is-collapsed', gruposColapsados.has(grupo));
@@ -118,7 +123,13 @@ function pintarGrupo(grupo: keyof GruposDeSeguimiento, casos: Incidente[], hoy: 
   ref(seccion, 'lista').replaceChildren(
     ...(casos.length > 0
       ? casos.map((c) => crearFila(c, hoy, ahora))
-      : [crearElemento('p', 'empty-incidents', grupo === 'traspaso' ? 'No tienes casos recibidos en traspaso.' : 'No tienes casos nuevos hoy.')])
+      : [
+          crearElemento(
+            'p',
+            'empty-incidents',
+            filtrando ? 'Ningún caso coincide con los filtros.' : grupo === 'traspaso' ? 'No tienes casos recibidos en traspaso.' : 'No tienes casos nuevos hoy.'
+          )
+        ])
   );
 }
 
@@ -138,10 +149,13 @@ export function renderizarSeguimiento(): void {
 
   const ahora = new Date();
   const casos = misCasos();
-  const grupos = agruparSeguimiento(casos, tecnicoId, fechaOperativa);
-  pintarGrupo('traspaso', grupos.traspaso, fechaOperativa, ahora);
-  pintarGrupo('nuevos', grupos.nuevos, fechaOperativa, ahora);
-  pintarGrupo('anteriores', grupos.anteriores, fechaOperativa, ahora);
+  barra?.actualizar(casos);
+  const filtros = barra?.filtros();
+  const filtrando = !!filtros && hayFiltros(filtros);
+  const grupos = agruparSeguimiento(filtros ? filtrarCasos(casos, filtros) : casos, tecnicoId, fechaOperativa);
+  pintarGrupo('traspaso', grupos.traspaso, fechaOperativa, ahora, filtrando);
+  pintarGrupo('nuevos', grupos.nuevos, fechaOperativa, ahora, filtrando);
+  pintarGrupo('anteriores', grupos.anteriores, fechaOperativa, ahora, filtrando);
 
   const pendientes = sinDescripcion(casos).length;
   byId('followUpSummary').textContent =
@@ -249,6 +263,11 @@ export function resaltarCaso(casoId: string): void {
 export function iniciarSeguimiento(miTecnicoId: string): void {
   tecnicoId = miTecnicoId;
   const raiz = vista();
+  barra = crearBarraDeFiltros(byId('followUpFilters'), {
+    clave: 'seguimiento',
+    campos: ['tipo', 'area', 'estado'],
+    alCambiar: () => renderizarSeguimiento()
+  });
 
   raiz.addEventListener('click', (evento) => {
     if (!(evento.target instanceof Element)) return;

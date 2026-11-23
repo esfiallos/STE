@@ -125,6 +125,8 @@ interface FilaTableroDelDia {
   nota: string | null;
   estado: EstadoCaso;
   etiqueta: string | null;
+  /** Desde la migración 13. */
+  area?: string | null;
   tecnico_asignado_id: string | null;
   asignado_en: string;
   origen: OrigenResponsable;
@@ -138,7 +140,7 @@ interface FilaTableroDelDia {
 export async function listarTableroDelDia(fecha: string): Promise<Resultado<Incidente[]>> {
   const { data, error } = await supabase
     .from('tablero_del_dia')
-    .select('id, codigo, cliente, nota, estado, etiqueta, tecnico_asignado_id, asignado_en, origen, creado_en')
+    .select('id, codigo, cliente, nota, estado, etiqueta, tecnico_asignado_id, asignado_en, origen, creado_en, area')
     .eq('fecha_operativa', fecha)
     .order('asignado_en', { ascending: true });
   if (error) return errorDeBaseDeDatos(error, 'No se pudo cargar el tablero del día');
@@ -150,6 +152,7 @@ export async function listarTableroDelDia(fecha: string): Promise<Resultado<Inci
       cliente: f.cliente,
       estado: f.estado,
       etiqueta: f.etiqueta,
+      area: f.area ?? null,
       tecnicoId: f.tecnico_asignado_id,
       creadoEn: f.asignado_en ?? f.creado_en,
       fechaResponsable: fecha,

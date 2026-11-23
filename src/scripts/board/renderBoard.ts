@@ -10,6 +10,7 @@ import { animarCambiosDelTablero, continuarAnimaciones, medirCasos } from '../ui
 import type { ContextoTablero } from './boardContext';
 import { crearVistaIncidente } from './incidentView';
 import { crearVistaTurno } from './shiftView';
+import { filtrarCasos } from '../../domain/caseFilters';
 
 let claveAEnfocar: string | null = null;
 /** Estado del último dibujo, para animar lo que cambió en el siguiente. */
@@ -96,7 +97,7 @@ export function renderizarTablero(): void {
     miTecnicoId: estado.perfil?.rol === 'tecnico' ? estado.perfil.tecnicoId : null
   };
 
-  const todos = unirTecnicosConIncidentes(estado.tecnicos, estado.incidentes);
+  const todos = unirTecnicosConIncidentes(estado.tecnicos, filtrarCasos(estado.incidentes, estado.filtrosTablero));
   const tecnicos = estado.filtroTecnico ? todos.filter((t) => t.id === estado.filtroTecnico) : todos;
 
   const turnos = TURNOS.map((turno) =>

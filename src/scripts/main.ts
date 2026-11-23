@@ -38,6 +38,7 @@ import { iniciarAvisoDeSolicitudes } from './planning/planningRequestsSync';
 import { iniciarCampanaDeSolicitudes } from './planning/requestsBell';
 import { RUTAS } from './routes';
 import { mostrarAviso } from './ui/toast';
+import { iniciarFiltrosDelTablero } from './features/boardFilters';
 
 /** Los estados "en almuerzo" y "disponible" dependen de la hora: se refrescan solos. */
 const REFRESCO_DE_HORA_MS = 30_000;
@@ -82,6 +83,7 @@ async function iniciar(): Promise<void> {
   iniciarModalAsignar();
   iniciarModalAlmuerzo();
   iniciarModalEdicionDeCaso();
+  iniciarFiltrosDelTablero();
   iniciarModalTecnicos();
   iniciarAccionesDeLaBarra();
   iniciarBuscador();

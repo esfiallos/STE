@@ -13,6 +13,8 @@ import type { CasoEncontrado } from '../../types/noc';
 import { byId, clonarPlantilla, crearElemento, ref } from '../dom';
 import { formatearFechaCorta, formatearFechaHora } from '../ui/format';
 import { animarLista } from '../ui/animacion';
+import { filtrarCasos } from '../../domain/caseFilters';
+import { crearBarraDeFiltros, type BarraDeFiltros } from '../features/caseFilters';
 
 let consulta = 0;
 let resultados: CasoEncontrado[] = [];
@@ -122,15 +124,31 @@ export async function buscarCaso(termino: string): Promise<void> {
         ? `Se muestran los primeros ${resultados.length}: afina la búsqueda para ver otros.`
         : null
   );
+  pintarResultados();
+}
+
+const filtrable = (c: CasoEncontrado) => ({ caso: c, codigo: c.codigo, tecnicoId: c.tecnicoActualId, area: c.area, estado: c.estado });
+
+/** Dibuja los resultados que pasan los filtros (los filtros no vuelven a consultar la base). */
+function pintarResultados(): void {
+  const todos = resultados.map(filtrable);
+  barraBusqueda?.actualizar(todos);
+  const visibles = (barraBusqueda ? filtrarCasos(todos, barraBusqueda.filtros()) : todos).map((v) => v.caso);
   const contenedor = byId('caseSearchResults');
   animarLista(contenedor);
-  contenedor.replaceChildren(...resultados.map(crearResultado));
+  contenedor.replaceChildren(
+    ...(visibles.length > 0 || resultados.length === 0
+      ? visibles.map(crearResultado)
+      : [crearElemento('p', 'empty-incidents', `Ninguno de los ${resultados.length} resultados coincide con los filtros.`)])
+  );
   // Si hay un único resultado, se abre su ficha
-  if (resultados.length === 1) {
-    const tarjeta = byId('caseSearchResults').querySelector<HTMLElement>('[data-caso-id]')!;
-    abrirFicha(tarjeta, resultados[0]!.id);
+  if (visibles.length === 1) {
+    const tarjeta = contenedor.querySelector<HTMLElement>('[data-caso-id]')!;
+    abrirFicha(tarjeta, visibles[0]!.id);
   }
 }
+
+let barraBusqueda: BarraDeFiltros | null = null;
 
 function abrirFicha(tarjeta: HTMLElement, casoId: string): void {
   const ficha = ref(tarjeta, 'ficha');
@@ -142,6 +160,12 @@ function abrirFicha(tarjeta: HTMLElement, casoId: string): void {
 }
 
 export function iniciarBuscadorDeCasos(): void {
+  barraBusqueda = crearBarraDeFiltros(byId('caseSearchFilters'), {
+    clave: 'busqueda',
+    campos: ['tipo', 'area', 'estado', 'tecnico'],
+    tecnicos: () => appStore.get().catalogo.map((t) => ({ id: t.id, nombre: t.nombre })),
+    alCambiar: () => pintarResultados()
+  });
   byId('caseSearchForm').addEventListener('submit', (evento) => {
     evento.preventDefault();
     void buscarCaso(byId<HTMLInputElement>('caseSearchInput').value);

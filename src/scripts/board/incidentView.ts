@@ -1,6 +1,7 @@
 import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
 import type { Incidente } from '../../types/noc';
 import { clonarPlantilla, ref } from '../dom';
+import { pintarTipo } from '../ui/tipoDeCaso';
 
 interface OpcionesVistaIncidente {
   posicion: number;
@@ -25,6 +26,7 @@ export function crearVistaIncidente(incidente: Incidente, opciones: OpcionesVist
   tarjeta.classList.toggle('is-closed', cerrado);
   ref(fragmento, 'indice').textContent = String(posicion);
   ref(fragmento, 'codigo').textContent = incidente.codigo;
+  pintarTipo(ref(fragmento, 'tipo'), incidente.codigo);
 
   const empresa = ref(fragmento, 'empresa');
   if (incidente.cliente) empresa.textContent = incidente.cliente;

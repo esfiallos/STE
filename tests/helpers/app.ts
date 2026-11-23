@@ -58,6 +58,7 @@ export async function iniciarApp(
   const { iniciarFiltroPorTecnico } = await import('../../src/scripts/features/techFilter');
   const { solicitarAsignacion } = await import('../../src/scripts/modals/assignFlow');
   const { iniciarModalEdicionDeCaso } = await import('../../src/scripts/modals/editIncidentModal');
+  const { iniciarFiltrosDelTablero } = await import('../../src/scripts/features/boardFilters');
 
   appStore.set({ perfil: { nombre: 'Prueba', rol, tecnicoId }, soloLectura: rol !== 'dispatch' });
   document.body.classList.toggle('solo-lectura', rol !== 'dispatch');
@@ -68,6 +69,7 @@ export async function iniciarApp(
   iniciarModalAsignar();
   iniciarModalEdicionDeCaso();
   iniciarFiltroPorTecnico();
+  iniciarFiltrosDelTablero();
   iniciarEventosDelTablero();
   iniciarDragAndDrop(aplicarRenderPendiente);
   appStore.subscribe(solicitarRender);

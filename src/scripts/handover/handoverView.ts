@@ -29,6 +29,8 @@ import { confirmar } from '../ui/confirmar';
 import { mejorarCampoDeFecha } from '../ui/fecha';
 import { mejorarCampoDeEtiqueta } from '../ui/etiquetas';
 import { guardarSeguimiento } from '../actions/followUpActions';
+import { filtrarCasos } from '../../domain/caseFilters';
+import { crearBarraDeFiltros, type BarraDeFiltros } from '../features/caseFilters';
 
 const ESPERA_GUARDADO_MS = 700;
 
@@ -297,7 +299,18 @@ export function renderizarTraspaso(): void {
   const lista = receptores();
   const casos = new Map(misCasos().map((c) => [c.id, c]));
   const problemas = problemasDelTraspaso(items, [...casos.values()], lista, contexto!.fecha);
-  byId('handoverItems').replaceChildren(...items.flatMap((i) => (casos.has(i.casoId) ? [crearItem(i, casos.get(i.casoId)!, lista, problemas)] : [])));
+  // Los filtros solo ocultan ítems: los problemas y el reporte siguen considerando todo el traspaso.
+  const filtrables = items.flatMap((i) => {
+    const caso = casos.get(i.casoId);
+    return caso ? [{ item: i, caso, codigo: caso.codigo, area: caso.area, estado: i.estado, tecnicoId: i.paraTecnicoId }] : [];
+  });
+  barraTraspaso?.actualizar(filtrables);
+  const visibles = barraTraspaso ? filtrarCasos(filtrables, barraTraspaso.filtros()) : filtrables;
+  byId('handoverItems').replaceChildren(
+    ...(visibles.length > 0 || filtrables.length === 0
+      ? visibles.map((v) => crearItem(v.item, v.caso, lista, problemas))
+      : [crearElemento('p', 'empty-incidents', 'Ningún caso del traspaso coincide con los filtros.')])
+  );
   pintarResumen();
 }
 
@@ -379,6 +392,8 @@ async function guardarDescripcionDelCaso(casoId: string, texto: string): Promise
   if (!resultado.ok) mostrarAviso(resultado.error, 'error');
 }
 
+let barraTraspaso: BarraDeFiltros | null = null;
+
 function campoDe(evento: Event): { campo: HTMLElement; casoId: string } | null {
   const campo = evento.target;
   if (!(campo instanceof HTMLElement) || !campo.dataset.campo) return null;
@@ -389,6 +404,13 @@ function campoDe(evento: Event): { campo: HTMLElement; casoId: string } | null {
 export function iniciarTraspaso(miTecnicoId: string): void {
   tecnicoId = miTecnicoId;
   const lista = byId('handoverItems');
+  barraTraspaso = crearBarraDeFiltros(byId('handoverFilters'), {
+    clave: 'traspaso',
+    campos: ['tipo', 'area', 'estado', 'tecnico'],
+    todosLosTecnicos: 'Todos los receptores',
+    tecnicos: () => receptores().map((r) => ({ id: r.tecnicoId, nombre: r.nombre })),
+    alCambiar: () => renderizarTraspaso()
+  });
 
   // Texto: se guarda en el modelo al escribir, sin redibujar la lista.
   lista.addEventListener('input', (evento) => {

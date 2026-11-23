@@ -12,6 +12,7 @@ import type {
   Vista
 } from '../types/noc';
 import { createStore } from './createStore';
+import { FILTROS_VACIOS, type FiltrosDeCasos } from '../domain/caseFilters';
 
 export type EstadoCarga = 'cargando' | 'listo' | 'error';
 
@@ -44,6 +45,8 @@ export interface AppState {
   busqueda: string;
   /** Id del técnico al que se filtra el tablero ('' = todos). */
   filtroTecnico: string;
+  /** Filtros de tipo, área y estado del tablero (§11.11; el de técnico es filtroTecnico). */
+  filtrosTablero: FiltrosDeCasos;
   turnosColapsados: TurnoId[];
   /** Ids de los incidentes cuyo comentario está desplegado. */
   notasAbiertas: string[];
@@ -69,6 +72,7 @@ export const appStore = createStore<AppState>({
   vista: 'tablero',
   busqueda: '',
   filtroTecnico: '',
+  filtrosTablero: { ...FILTROS_VACIOS },
   turnosColapsados: [],
   notasAbiertas: [],
   claveFormulario: null,
