@@ -1,7 +1,7 @@
 import { describirNoDisponibilidad, estadoDelTecnico, ETIQUETA_ESTADO } from '../../domain/availability';
 import { estaEnAlmuerzo } from '../../domain/lunch';
 import { incidenteCoincide } from '../../domain/search';
-import { horarioDelTecnico } from '../../domain/shifts';
+import { horarioDelTecnico, tramoDelTurnoC } from '../../domain/shifts';
 import { obtenerIniciales } from '../../domain/technicians';
 import type { TecnicoConIncidentes, TurnoId } from '../../types/noc';
 import { clonarPlantilla, crearElemento, ref } from '../dom';
@@ -33,7 +33,7 @@ export function crearVistaTecnico(tecnico: TecnicoConIncidentes, turnoId: TurnoI
   ref(fragmento, 'conteo').textContent =
     `${tecnico.incidentes.length} caso(s)` + (cerrados > 0 ? ` · ${cerrados} cerrado(s)` : '');
 
-  // Etiqueta de estado (solo tablero vivo) y horario propio del comodín
+  // Etiqueta de estado (solo tablero vivo) y horario propio del comodín o del tramo de C (C1, C2)
   const etiquetaEstado = ref(fragmento, 'estado');
   if (estado) {
     etiquetaEstado.textContent = ETIQUETA_ESTADO[estado];
@@ -44,7 +44,9 @@ export function crearVistaTecnico(tecnico: TecnicoConIncidentes, turnoId: TurnoI
 
   const etiquetaHorario = ref(fragmento, 'horario');
   const horario = horarioDelTecnico(tecnico);
+  const tramoC = tecnico.turno === 'turnoC' ? tramoDelTurnoC(tecnico.horarioInicio, tecnico.horarioFin) : null;
   if (tecnico.turno === 'comodin' && horario) etiquetaHorario.textContent = `Comodín ${horario.inicio} - ${horario.fin}`;
+  else if (tramoC && horario) etiquetaHorario.textContent = `${tramoC} ${horario.inicio} - ${horario.fin}`;
   else etiquetaHorario.remove();
 
   // Botón "+" : deshabilitado (con el motivo) cuando el técnico no está disponible

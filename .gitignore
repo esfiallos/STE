@@ -21,3 +21,6 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 .idea/
+
+# Documentación interna (usuarios reales, correos, procedimientos de administración): solo local
+docs/interno/

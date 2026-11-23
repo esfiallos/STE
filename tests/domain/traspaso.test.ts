@@ -3,7 +3,7 @@ import { AREAS_DE_CASO, esAreaValida } from '../../src/domain/areas';
 import { ETIQUETAS_SUGERIDAS } from '../../src/domain/followUp';
 import { combinarBorrador, entradasDelReporte, itemInicial, normalizarItem, problemasDelTraspaso, receptoresDelTraspaso } from '../../src/domain/handoverDraft';
 import { repartirCasos, tipoDeCaso, type CasoParaRepartir } from '../../src/domain/handoverBalance';
-import { armarBloques, fechaEnTexto, reporteHtml, reporteTexto, reporteTsv, type FilaDeReporte } from '../../src/domain/handoverReport';
+import { armarBloques, esPaletaCorreo, fechaEnTexto, PALETAS_CORREO, reporteHtml, reporteTexto, reporteTsv, temaDeCorreo, type FilaDeReporte } from '../../src/domain/handoverReport';
 import type { Incidente, ItemTraspaso, Jornada, ReceptorTraspaso } from '../../src/types/noc';
 
 const HOY = '2026-11-09';
@@ -94,6 +94,28 @@ describe('borrador del traspaso', () => {
       'Carlos turnoC',
       'Ana turnoA'
     ]);
+  });
+
+  it('puedo quedarme un caso para mi turno de mañana si ese turno recibe del mío, nunca para hoy', () => {
+    const cat = [{ id: 'marta', nombre: 'Marta', activo: true }, { id: 'ana', nombre: 'Ana', activo: true }];
+    const comodinHoyYManana = [jornada('marta', 'comodin'), jornada('marta', 'comodin', MANANA), jornada('ana', 'turnoA', MANANA)];
+    expect(receptoresDelTraspaso('comodin', HOY, comodinHoyYManana, cat, 'marta').map((r) => `${r.tecnicoId} ${r.fecha}`))
+      .toEqual([`ana ${MANANA}`, `marta ${MANANA}`]);
+    // A hoy y A mañana: A no entrega a A, así que no puede quedárselo
+    const aHoyYManana = [jornada('ana', 'turnoA'), jornada('ana', 'turnoA', MANANA)];
+    expect(receptoresDelTraspaso('turnoA', HOY, aHoyYManana, cat, 'ana')).toEqual([]);
+  });
+
+  it('los tramos de C (C1, C2, C1 + C2) reciben de B igual que el turno C y entregan a A del día siguiente', () => {
+    const conHorario = (tecnicoId: string, inicio: string, fin: string, fecha = HOY): Jornada => ({ ...jornada(tecnicoId, 'turnoC', fecha), horarioInicio: inicio, horarioFin: fin });
+    const deNoche = [
+      jornada('luis', 'turnoB'), conHorario('carlos', '22:00', '00:00'), conHorario('sofia', '00:00', '06:00'),
+      conHorario('tomas', '22:00', '06:00'), jornada('ana', 'turnoA', MANANA)
+    ];
+    const cat = ['luis', 'carlos', 'sofia', 'tomas', 'ana'].map((id) => ({ id, nombre: id, activo: true }));
+    expect(receptoresDelTraspaso('turnoB', HOY, deNoche, cat, 'luis').map((r) => r.tecnicoId)).toEqual(['carlos', 'sofia', 'tomas', 'ana']);
+    // C1 no entrega a C2: todo C entrega a A/Comodín del día siguiente
+    expect(receptoresDelTraspaso('turnoC', HOY, deNoche, cat, 'carlos').map((r) => r.tecnicoId)).toEqual(['ana']);
   });
 
   const casoBase = (id: string, extra: Partial<Incidente> = {}): Incidente => ({
@@ -201,5 +223,33 @@ describe('reporte del traspaso', () => {
     expect(tsv.split('\n')[0]).toBe('TECNICO:\tLuis\tASIGNACION:\tTURNO B\t\t');
     expect(tsv).toContain('INC1\tACME <SA>\tCORE IP\tEn curso\t[VM] Caída & corte · Recordatorio 10/11: VM 10:00\t09/11 14:05');
     expect(reporteTsv([{ destino: luis, filas: [fila('INC5', { descripcion: 'a\tb\nc' })] }])).toContain('\ta b c\t');
+  });
+});
+
+describe('paletas de la tabla del traspaso', () => {
+  const fila: FilaDeReporte = {
+    codigo: 'INC1', empresa: 'ACME', area: null, estado: 'en_curso', etiqueta: null, descripcion: 'x',
+    ultimaActualizacionEn: null, recordatorioFecha: null, recordatorioTexto: null
+  };
+  const bloques = () => armarBloques([{ destino: { nombre: 'Luis', turno: 'turnoB', fecha: HOY }, fila }]);
+
+  it('cada paleta cambia el marco de la tabla; una desconocida usa la cálida de siempre', () => {
+    expect(PALETAS_CORREO.map((p) => p.id)).toEqual(['calido', 'azul', 'verde', 'grafito', 'morado', 'vino']);
+    expect(esPaletaCorreo('azul')).toBe(true);
+    expect(esPaletaCorreo('rosa')).toBe(false);
+    expect(temaDeCorreo('nada').barraFondo).toBe(temaDeCorreo('calido').barraFondo);
+    for (const p of PALETAS_CORREO) {
+      expect(temaDeCorreo(p.id).barraFondo).toBe(p.marco.barraFondo);
+      // Los chips por turno no cambian: se reconocen igual en cualquier paleta
+      expect(temaDeCorreo(p.id).turnos.turnoB).toEqual(temaDeCorreo('calido').turnos.turnoB);
+    }
+  });
+
+  it('el HTML usa los colores de la paleta elegida', () => {
+    const azul = PALETAS_CORREO.find((p) => p.id === 'azul')!.marco;
+    const html = reporteHtml(bloques(), { tema: temaDeCorreo('azul') });
+    expect(html).toContain(azul.barraFondo);
+    expect(html).toContain(azul.encabezadoFondo);
+    expect(html).not.toContain(temaDeCorreo('calido').barraFondo);
   });
 });

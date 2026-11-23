@@ -13,7 +13,7 @@ describe('contraseña nueva', () => {
 
 describe('correo', () => {
   it('reconoce la forma básica', () => {
-    expect(esCorreoValido(' ana@tigo.com.hn ')).toBe(true);
+    expect(esCorreoValido(' ana@empresa.hn ')).toBe(true);
     expect(esCorreoValido('ana@')).toBe(false);
     expect(esCorreoValido('')).toBe(false);
   });

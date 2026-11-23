@@ -14,7 +14,7 @@ import type { CambiosDelTablero } from '../../domain/boardChanges';
 
 const DURACION_FLIP_MS = 320;
 /** Lo que dura la animación de clase más larga (ver `_motion.scss`). */
-export const DURACION_ANIMACION_MS = 900;
+export const DURACION_ANIMACION_MS = 1600;
 const CURVA = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
 
 export type Posiciones = Map<string, DOMRect>;

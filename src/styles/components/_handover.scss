@@ -91,21 +91,55 @@
   }
 }
 
+.handover-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+}
+
+.handover-item__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .handover-item__meta {
-  flex: 1;
+  flex: 1 1 12rem;
   min-width: 0;
   font-size: 0.8rem;
   color: $color-texto-suave;
   overflow-wrap: anywhere;
 }
 
+// Candado: un chip que se marca/desmarca (el checkbox real queda oculto pero accesible)
 .handover-lock {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.8rem;
+  gap: 0.35rem;
+  margin-left: auto;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid $color-borde;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: $color-texto-suave;
   cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    border-color: $color-acento;
+  }
+
+  &:has(input:checked) {
+    border-color: $color-acento;
+    background-color: $color-acento-suave;
+    color: $color-acento;
+  }
+
+  &:has(input:focus-visible) {
+    box-shadow: 0 0 0 2px $color-foco;
+  }
 }
 
 .handover-item__grid {
@@ -166,6 +200,44 @@
   }
   .handover-copy {
     margin-top: 0;
+  }
+}
+
+// Paleta de la tabla: círculos de color (radio oculto pero accesible con teclado)
+.handover-palette {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  &__label {
+    font-size: 0.8rem;
+    color: $color-texto-suave;
+    margin-right: 0.15rem;
+  }
+
+  &__swatch {
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    background-color: var(--muestra);
+    border: 2px solid var(--muestra-borde);
+    cursor: pointer;
+    transition: transform 0.12s ease;
+
+    &:hover {
+      transform: scale(1.12);
+    }
+
+    &:has(input:checked) {
+      box-shadow:
+        0 0 0 2px $color-superficie,
+        0 0 0 4px $color-acento;
+    }
+
+    &:has(input:focus-visible) {
+      outline: 2px solid $color-foco;
+      outline-offset: 3px;
+    }
   }
 }
 

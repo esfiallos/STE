@@ -126,9 +126,12 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
         continue;
       }
       // El día del receptor: su jornada de hoy o de mañana (la primera desde el día del traspaso)
+      // (quien se queda su propio caso lo recibe en su turno de mañana, nunca el mismo día)
+      const propio = item.para_tecnico_id === traspaso.de_tecnico_id;
       const destino =
         db.jornadas!
-          .filter((j) => j.tecnico_id === item.para_tecnico_id && String(j.fecha_operativa) >= String(traspaso.fecha_operativa))
+          .filter((j) => j.tecnico_id === item.para_tecnico_id &&
+            (propio ? String(j.fecha_operativa) > String(traspaso.fecha_operativa) : String(j.fecha_operativa) >= String(traspaso.fecha_operativa)))
           .map((j) => String(j.fecha_operativa))
           .sort()[0] ?? traspaso.fecha_operativa;
       if (ORIGENES_DEL_TABLERO.includes((caso._origen ?? 'dispatch') as OrigenResponsable)) {

@@ -16,11 +16,11 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
    §8 decisiones D1–D28, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 36 archivos, 259 pruebas). En una máquina cargada
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 37 archivos, ~270 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Fases 1–13 hechas (todo el plan de calidad de vida) (`docs/DISENO_V2.md` §11, reglas
-   D16–D28, todas decididas). Siguiente: aplicar 12 y 13 en Supabase (DEV y luego PROD),
-   poblar perfiles, probar contra DEV con los tres roles y publicar (§9, §11.13).
+4. Fases 1–14 hechas (`docs/DISENO_V2.md` §11–§12, reglas D16–D31, todas decididas). Migraciones 04–15
+   aplicadas en DEV y PROD y perfiles poblados. Siguiente: probar contra DEV con los tres roles y publicar
+   (§9, §11.13).
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
@@ -43,11 +43,12 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 11. Base visual | ✅ | §11.7–11.10: Inter + navy, `ui/confirmar.ts` (adiós `window.confirm`), `ui/fecha.ts`, combobox, `@formkit/auto-animate` + `motion` |
 | 12. Seguimiento v2 | ✅ | §11.3–11.6: descripción única, última actualización = fecha + botón, filas horizontales, etiquetas propias locales (localStorage) con combobox, nota del traspaso = descripción · `sql/12` |
 | 13. Filtros | ✅ | §11.11: tipo de caso (FRESH `#SR`/`#INC` · Tarea `SCTASK` · Incidente `INC`) + filtros técnico/área/estado/tipo |
+| 14. Turno C por tramos y pulido | ✅ | §12: C1 22–00 / C2 00–06 (D29, `sql/14`), paletas de la tabla del traspaso (D30), destello al soltar, tarjetas sin superposición, quedarse un caso para mañana (D31, `sql/15`) |
 
 **Bases de datos (revisado con el conector el 22/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
 DEV = `DEV` (`bofqefbxziqxzrdujihd`).
-- DEV y PROD: **04 a 11 aplicadas; la 12 y la 13 aún no** (la app de `desarrollo` ya las necesita: lee
-  `traspaso_items.descripcion`, llama a `marcar_actualizado` y pide `area` a `tablero_del_dia`).
+- DEV y PROD: **04 a 15 aplicadas** (la 14 y la 15 el 22/11/2026) (verificado el 22/11/2026: `marcar_actualizado`, `traspaso_items.descripcion`/
+  `actualizado_en`, `tipo_de_caso`, `tablero_del_dia.area`/`tipo`).
 - Detalle 04–11 (vista `tablero_del_dia`, `cancelar_caso`, ronda con `p_empresa`, política
   `bitacora_leer_supervision`). Crons: `snapshot-operativo` 11:59 UTC (= 05:59 Honduras), `recordatorios-traspaso`
   y `alertas-coordinacion` cada 5 min. DEV tiene perfiles dispatch, técnico y coordinador; PROD aún no tiene
@@ -55,6 +56,13 @@ DEV = `DEV` (`bofqefbxziqxzrdujihd`).
 - 19/11/2026, a pedido del usuario: se vaciaron todas las tablas de `public` en DEV y PROD (casos, jornadas,
   técnicos, perfiles, traspasos, notificaciones, snapshots y bitácora). Se conservan los usuarios de `auth` y
   `entorno_dev` en DEV. El usuario las poblará al terminar la nueva arquitectura: sin perfiles nadie entra.
+- 22/11/2026, a pedido del usuario: se volvió a vaciar `public` **y `auth.users`** en DEV y PROD y se crearon las
+  cuentas reales (12 técnicos con su ficha en `tecnicos`, 3 dispatch, 1 coordinador; DEV además un coordinador de
+  prueba). Sin casos ni jornadas. Las cuentas se crearon **sin contraseña** (la pone el usuario). Procedimiento para
+  altas, cambios de rol y bajas: `docs/interno/ALTA_DE_USUARIOS.md` (local, no se versiona).
+- DEV tiene el escenario de datos de prueba con los técnicos reales (copia local `docs/interno/03_datos_demo_dev_real.sql`,
+  misma lógica que `sql/03_datos_demo_dev.sql`; cargado el 22/11/2026; repetible, relativo al día en que
+  se corre). Qué contiene y qué probar con cada usuario: `docs/interno/DATOS_DE_PRUEBA.md` (local, no se versiona).
 - PROD: la app publicada (`main`, que aún usa `incidentes`) **no funciona** hasta publicar la v2.
 
 **Configuración pendiente (la hace el usuario):** en Supabase DEV y PROD agregar `/restablecer/` a
@@ -195,7 +203,7 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
 - Pruebas: `tests/sql/seguimiento-descripcion-v2.test.ts` (incluye que cada receptor ve el caso en `casos_abiertos`,
   mismo día y día siguiente) y en `tests/app/traspaso.test.ts` "cada receptor ve el caso en su Mi seguimiento". El
   backend simulado ya elige la fecha destino por la jornada del receptor desde el día del traspaso.
-- No verificado en el navegador (sin sesión). Antes de probar en DEV hay que aplicar la 12.
+- No verificado en el navegador (sin sesión).
 
 ### Fase 13 — Filtros ✅ (qué quedó)
 - `sql/13_v2_filtros.sql`: `tipo_de_caso(codigo)` (= `domain/caseType.ts`, prueba de coincidencia en
@@ -216,8 +224,9 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
 - No verificado en el navegador (sin sesión).
 
 ### Otros pendientes conocidos
-- `03_datos_demo_dev.sql` no crea perfiles: para probar el rol técnico, enlazar un perfil a un técnico demo
-  (`insert into perfiles (id, nombre, rol, tecnico_id) ...`).
+- `03_datos_demo_dev.sql` no crea perfiles ni usuarios y usa **nombres ficticios** (en el repo no va ningún nombre ni
+  correo real; lo real vive en `docs/interno/`, ignorada por git). Busca los técnicos por nombre y crea los que falten.
+  Apaga `casos_antes_de_guardar_trg` durante la carga para fijar fechas pasadas y lo enciende antes del commit.
 - Las alertas de escritorio solo salen si el técnico las activa y la pestaña no está a la vista.
 
 ---
@@ -292,7 +301,8 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - Casos y técnicos **no se borran**: los casos se cierran, los técnicos se desactivan. Única excepción (D25, fase
   10): **Cancelar** del dispatch borra un caso asignado por error, vía RPC y con copia en la bitácora.
 - Reglas duplicadas a propósito en SQL y TS, con prueba que verifica que coincidan:
-  `desfase_traspaso()` = `domain/handover.ts`; horarios de comodín (`jornada_horario_comodin`) = `HORARIOS_COMODIN`.
+  `desfase_traspaso()` = `domain/handover.ts`; horarios de comodín y de C (`jornada_horario_valido`,
+  `horarios_turno_c()`) = `HORARIOS_COMODIN` / `HORARIOS_TURNO_C`.
 - Navegar con `irA()` (`scripts/routes.ts`), no con `window.location.replace` directo (las pruebas lo sustituyen).
 
 ## Dominio clave
@@ -304,10 +314,11 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - El dispatch **no cierra** casos: edita código/empresa o **cancela** (D25, el caso deja de existir).
 - "Última actualización" es una **fecha** (cualquier edición del técnico o el botón Actualizado) y el texto del caso
   es la **descripción**, que es también la nota del traspaso (D19–D21, fase 12).
-- Turnos: A 06–14, B 14–22, C 22–06. **Comodín**: 06–16, 07–17 u 08–18; aparece en los turnos que toca.
+- Turnos: A 06–14, B 14–22, C por tramos **C1 22–00** y **C2 00–06** (toda la noche = C1 + C2, D29).
+  **Comodín**: 06–16, 07–17 u 08–18; aparece en los turnos que toca.
   El turno es **por día** (tabla `jornadas`), lo planifica el dispatch por semana; el almuerzo también.
 - Destinos de traspaso: A → B/Comodín (mismo día) · B y Comodín → C (mismo día) o A/Comodín (día siguiente) ·
-  C → A/Comodín (día siguiente).
+  C (cualquier tramo) → A/Comodín (día siguiente). Uno mismo cuenta como receptor solo para su turno de mañana (D31).
 - Un técnico recibe casos solo si está `disponible` (en horario y fuera de almuerzo) → `domain/availability.ts`.
 - Un código de caso existe una sola vez en todo el historial. Asignar uno cerrado ofrece reabrirlo.
 - Estados: En curso · Pausado · Resuelto · Cerrado. Al cerrar turno todo lo no cerrado se traspasa (fase 5).
@@ -335,7 +346,12 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - `12_v2_seguimiento_descripcion.sql`: descripción editable por el técnico, última actualización como fecha,
   `marcar_actualizado()`, `enviar_traspaso` con descripción, foto en `traspaso_items` (D19–D21). Sin cron.
 - `13_v2_filtros.sql`: `tipo_de_caso()` y `tablero_del_dia` con `area` y `tipo` (§11.11). Sin cron.
-- `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`); no toca `perfiles`.
+- `14_v2_turno_c_variantes.sql`: tramos C1/C2 (`horarios_turno_c()`, `jornada_horario_valido`), inicio/fin de turno
+  y ronda por tramo, `describir_turno` con el tramo (D29). Sin cron.
+- `15_v2_traspaso_propio.sql`: `enviar_traspaso` acepta entregarse un caso a uno mismo para mañana (nuevo tramo en
+  `caso_responsables`) y la carga en 0 ignora lo que ya es para un turno futuro (D31). Sin cron.
+- `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`, requiere 04–14); escenario de prueba completo
+  y repetible; no toca `perfiles` ni `auth`. Guía: `docs/interno/DATOS_DE_PRUEBA.md` (local, no se versiona).
 - Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
   **con** `tecnico_id`; sin él no tiene seguimiento ni notificaciones.
 - Cambios de esquema → nuevo archivo `sql/0N_*.sql` idempotente + prueba en `tests/sql/` + agregarlo a

@@ -60,7 +60,7 @@ describe('esquema y migración v3', () => {
   });
 
   it('la bitácora la escriben los triggers con el usuario de la sesión', async () => {
-    await db.exec(`select set_config('request.jwt.claims','{"email":"emerson@tigo.com.hn"}', false)`);
+    await db.exec(`select set_config('request.jwt.claims','{"email":"ana@noc.test"}', false)`);
     await db.exec(`insert into incidentes (codigo, nota, tecnico_id) values ('INC777','Fibra','${LUIS}')`);
     await pausa();
     await db.exec(`update incidentes set tecnico_id = '${ANA}' where codigo = 'INC777'`);
@@ -74,7 +74,7 @@ describe('esquema y migración v3', () => {
     );
 
     expect(rows.map((r) => r.accion)).toEqual(['incidente_asignado', 'incidente_reasignado', 'almuerzo_actualizado', 'incidente_eliminado']);
-    expect(rows.every((r) => r.usuario_email === 'emerson@tigo.com.hn')).toBe(true);
+    expect(rows.every((r) => r.usuario_email === 'ana@noc.test')).toBe(true);
     expect(rows[0]).toMatchObject({ tecnico: 'Luis', detalle: 'Fibra' });
     expect(rows[1]!.detalle).toBe('De Luis a Ana');
     expect(rows[3]).toMatchObject({ tecnico: 'Ana' });
@@ -114,7 +114,7 @@ describe('esquema y migración v3', () => {
     expect((await h('%')).rows).toHaveLength(0); // el % no es comodín
 
     expect((await db.query(`select * from buscar_en_bitacora('INC777')`)).rows).toHaveLength(3);
-    expect((await db.query(`select * from buscar_en_bitacora('emerson')`)).rows.length).toBeGreaterThan(0);
+    expect((await db.query(`select * from buscar_en_bitacora('ana@noc')`)).rows.length).toBeGreaterThan(0);
   });
 
   it('nadie puede generar snapshots ni escribir la bitácora desde la app', async () => {

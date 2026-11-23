@@ -3,7 +3,8 @@
  * listo para volver a copiar. Solo lectura.
  */
 import { entradasDelReporte } from '../../domain/handoverDraft';
-import { armarBloques, fechaCorta, reporteHtml, reporteTexto, reporteTsv, type DestinoDeBloque } from '../../domain/handoverReport';
+import { armarBloques, fechaCorta, reporteHtml, reporteTexto, reporteTsv, temaDeCorreo, type DestinoDeBloque } from '../../domain/handoverReport';
+import { leerPaletaDelCorreo } from './paletaDelCorreo';
 import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
 import { nombreDeTurno } from '../../domain/shifts';
 import { fechaOperativa, sumarDias } from '../../domain/time';
@@ -100,7 +101,7 @@ function pintarEnviados(traspasos: TraspasoEnviado[], destinoDe: (id: string, fe
   }
   const casos = items.map((i) => ({ id: i.casoId, codigo: i.codigo, cliente: i.cliente, area: i.area, nota: i.nota }));
   const bloques = armarBloques(entradasDelReporte(items, casos, destinos));
-  salidas = { html: reporteHtml(bloques), texto: reporteTexto(bloques), tsv: reporteTsv(bloques) };
+  salidas = { html: reporteHtml(bloques, { tema: temaDeCorreo(leerPaletaDelCorreo()) }), texto: reporteTexto(bloques), tsv: reporteTsv(bloques) };
   byId('myHandoversCopy').classList.toggle('hidden', items.length === 0);
 }
 

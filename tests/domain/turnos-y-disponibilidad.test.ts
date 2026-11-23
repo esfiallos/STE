@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { describirNoDisponibilidad, estadoDelTecnico } from '../../src/domain/availability';
-import { horarioDelTecnico, tecnicosDelTurno, turnosDelTecnico } from '../../src/domain/shifts';
+import { abreviaturaDeJornada, opcionDeJornada, OPCIONES_DE_JORNADA, valorDeJornada } from '../../src/domain/planning';
+import { horarioDelTecnico, nombreDeJornada, tecnicosDelTurno, tramoDelTurnoC, turnosDelTecnico } from '../../src/domain/shifts';
 import type { Tecnico } from '../../src/types/noc';
 
 const tecnico = (extra: Partial<Tecnico>): Tecnico => ({
@@ -47,5 +48,45 @@ describe('disponibilidad', () => {
   it('explica por qué no está disponible', () => {
     expect(describirNoDisponibilidad(ana, 'almuerzo')).toBe('Ana está en su almuerzo hasta las 12:30.');
     expect(describirNoDisponibilidad(ana, 'fuera-de-horario')).toBe('Ana está fuera de su horario (06:00 - 14:00).');
+  });
+});
+
+describe('turno C por tramos (C1 22-00, C2 00-06)', () => {
+  const c1 = tecnico({ turno: 'turnoC', horarioInicio: '22:00', horarioFin: '00:00' });
+  const c2 = tecnico({ turno: 'turnoC', horarioInicio: '00:00', horarioFin: '06:00' });
+  const noche = tecnico({ turno: 'turnoC', horarioInicio: '22:00', horarioFin: '06:00' });
+
+  it('cada tramo tiene su horario y sigue en la sección del turno C', () => {
+    expect(horarioDelTecnico(c1)).toEqual({ inicio: '22:00', fin: '00:00' });
+    expect(horarioDelTecnico(c2)).toEqual({ inicio: '00:00', fin: '06:00' });
+    expect(horarioDelTecnico(tecnico({ turno: 'turnoC' }))).toEqual({ inicio: '22:00', fin: '06:00' });
+    expect([c1, c2, noche].map((t) => turnosDelTecnico(t))).toEqual([['turnoC'], ['turnoC'], ['turnoC']]);
+  });
+
+  it('la disponibilidad respeta el tramo', () => {
+    expect([estadoDelTecnico(c1, a(23)), estadoDelTecnico(c1, a(1))]).toEqual(['disponible', 'fuera-de-horario']);
+    expect([estadoDelTecnico(c2, a(23)), estadoDelTecnico(c2, a(1))]).toEqual(['fuera-de-horario', 'disponible']);
+    expect([estadoDelTecnico(noche, a(23)), estadoDelTecnico(noche, a(1))]).toEqual(['disponible', 'disponible']);
+    expect(describirNoDisponibilidad({ ...c1, nombre: 'Luis' }, 'fuera-de-horario')).toBe('Luis está fuera de su horario (22:00 - 00:00).');
+  });
+
+  it('nombres: C1, C2 y C1 + C2 (quien hace toda la noche tiene los dos)', () => {
+    expect([c1, c2, noche].map(nombreDeJornada)).toEqual(['Turno C1', 'Turno C2', 'Turno C1 + C2']);
+    expect(tramoDelTurnoC('23:00', '06:00')).toBeNull();
+    expect(nombreDeJornada(tecnico({ turno: 'comodin', horarioInicio: '07:00', horarioFin: '17:00' }))).toBe('Comodín 07:00–17:00');
+  });
+
+  it('la planificación ofrece los tres tramos de C (y ya no un C sin horario)', () => {
+    const deC = OPCIONES_DE_JORNADA.filter((o) => o.turno === 'turnoC');
+    expect(deC.map((o) => [o.etiqueta, o.horarioInicio, o.horarioFin])).toEqual([
+      ['Turno C1 (22:00-00:00)', '22:00', '00:00'],
+      ['Turno C2 (00:00-06:00)', '00:00', '06:00'],
+      ['Turno C1 + C2 (22:00-06:00)', '22:00', '06:00']
+    ]);
+    expect(opcionDeJornada('turnoC')).toBeUndefined();
+    expect(valorDeJornada({ turno: 'turnoC', horarioInicio: '00:00', horarioFin: '06:00' })).toBe('turnoC-00:00-06:00');
+    // Una jornada C guardada antes de la migración 14 (sin horario) es toda la noche
+    expect(valorDeJornada({ turno: 'turnoC', horarioInicio: null, horarioFin: null })).toBe('turnoC-22:00-06:00');
+    expect(abreviaturaDeJornada({ turno: 'turnoC', horarioInicio: '22:00', horarioFin: '00:00' })).toBe('Turno C1');
   });
 });

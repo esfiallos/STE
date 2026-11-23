@@ -110,45 +110,149 @@ export function escaparHtml(texto: string | null | undefined): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Paleta cálida del correo (fondo blanco). Se cambia aquí sin tocar el generador. */
-export const TEMA_CORREO = {
-  fuente: "Calibri, 'Segoe UI', Arial, sans-serif",
-  ancho: 900,
-  borde: '#E8D5BC',
-  barraFondo: '#FBE3C2',
-  barraTexto: '#5C2E0E',
-  barraTenue: '#8A5A2B',
-  rotulo: '#B4540A',
-  fechaFondo: '#FFF4E3',
-  fechaTexto: '#7A3E12',
-  encabezadoFondo: '#FDEEDB',
-  encabezadoTexto: '#6B3410',
-  encabezadoBorde: '#F2B97A',
-  filaFondo: '#FFFFFF',
-  filaAlterna: '#FFFAF3',
-  filaBorde: '#F1E2CF',
-  filaTexto: '#3F2A1A',
-  filaTenue: '#7A6450',
-  codigoTexto: '#8A3B0B',
-  turnos: {
-    turnoA: { fondo: '#FFEFB8', texto: '#7A4B03', borde: '#E6B422' },
-    comodin: { fondo: '#DFF2D8', texto: '#2F5E1F', borde: '#8BC37A' },
-    turnoB: { fondo: '#F9C99B', texto: '#6B2D08', borde: '#E08A3C' },
-    turnoC: { fondo: '#E3DDF5', texto: '#3E2A7A', borde: '#9C8AD6' },
-    cerrados: { fondo: '#ECECEC', texto: '#4A4A4A', borde: '#B8B8B8' }
-  },
-  etiquetas: {
-    'Crítico': { fondo: '#FBD9D3', texto: '#8E2412' },
-    'Escalar': { fondo: '#EADCF5', texto: '#5B2A86' },
-    'VM': { fondo: '#D6ECF3', texto: '#14536A' },
-    'Monitoreo': { fondo: '#DCEBF5', texto: '#1F5A7A' },
-    'Pendiente cliente': { fondo: '#FFE9B0', texto: '#7A4B03' },
-    'Seguimiento': { fondo: '#E2F0E4', texto: '#2F5E35' },
-    otra: { fondo: '#EFE7DC', texto: '#5C4630' }
-  } as Record<string, { fondo: string; texto: string }>
-} as const;
+interface ColorDeChip {
+  fondo: string;
+  texto: string;
+  borde: string;
+}
 
-type Tema = typeof TEMA_CORREO;
+/** Colores del marco de la tabla (lo que cambia entre paletas). Fondo blanco: se lee bien en Outlook. */
+export interface ColoresDelMarco {
+  borde: string;
+  barraFondo: string;
+  barraTexto: string;
+  barraTenue: string;
+  rotulo: string;
+  fechaFondo: string;
+  fechaTexto: string;
+  encabezadoFondo: string;
+  encabezadoTexto: string;
+  encabezadoBorde: string;
+  filaAlterna: string;
+  filaBorde: string;
+  filaTexto: string;
+  filaTenue: string;
+  codigoTexto: string;
+}
+
+export interface TemaCorreo extends ColoresDelMarco {
+  fuente: string;
+  ancho: number;
+  filaFondo: string;
+  /** Chip de asignación de cada bloque (siempre el mismo color por turno, para reconocerlo). */
+  turnos: Record<TurnoTecnico | 'cerrados', ColorDeChip>;
+  etiquetas: Record<string, { fondo: string; texto: string }>;
+}
+
+export type IdPaletaCorreo = 'calido' | 'azul' | 'verde' | 'grafito' | 'morado' | 'vino';
+
+/** Paletas que el técnico puede elegir para la tabla del traspaso (se recuerda en su navegador). */
+export const PALETAS_CORREO: readonly { id: IdPaletaCorreo; nombre: string; muestra: string; marco: ColoresDelMarco }[] = [
+  {
+    id: 'calido',
+    nombre: 'Cálido',
+    muestra: '#FBE3C2',
+    marco: {
+      borde: '#E8D5BC', barraFondo: '#FBE3C2', barraTexto: '#5C2E0E', barraTenue: '#8A5A2B', rotulo: '#B4540A',
+      fechaFondo: '#FFF4E3', fechaTexto: '#7A3E12', encabezadoFondo: '#FDEEDB', encabezadoTexto: '#6B3410',
+      encabezadoBorde: '#F2B97A', filaAlterna: '#FFFAF3', filaBorde: '#F1E2CF', filaTexto: '#3F2A1A',
+      filaTenue: '#7A6450', codigoTexto: '#8A3B0B'
+    }
+  },
+  {
+    id: 'azul',
+    nombre: 'Azul',
+    muestra: '#DCE8F6',
+    marco: {
+      borde: '#C9D8EA', barraFondo: '#DCE8F6', barraTexto: '#10304F', barraTenue: '#3F5F80', rotulo: '#1D5FA8',
+      fechaFondo: '#EEF4FB', fechaTexto: '#1B3F66', encabezadoFondo: '#E5EEF8', encabezadoTexto: '#17375A',
+      encabezadoBorde: '#8FB2DA', filaAlterna: '#F6F9FD', filaBorde: '#DFE8F2', filaTexto: '#1F2A37',
+      filaTenue: '#5B6B7E', codigoTexto: '#1D4E89'
+    }
+  },
+  {
+    id: 'verde',
+    nombre: 'Verde',
+    muestra: '#DCEFE0',
+    marco: {
+      borde: '#CFE3D3', barraFondo: '#DCEFE0', barraTexto: '#173F22', barraTenue: '#3F6B49', rotulo: '#2E7D43',
+      fechaFondo: '#F0F8F1', fechaTexto: '#1E4D2A', encabezadoFondo: '#E6F3E8', encabezadoTexto: '#1C4526',
+      encabezadoBorde: '#93C79F', filaAlterna: '#F7FBF7', filaBorde: '#E0EDE2', filaTexto: '#22312A',
+      filaTenue: '#5A6E60', codigoTexto: '#23683A'
+    }
+  },
+  {
+    id: 'grafito',
+    nombre: 'Grafito',
+    muestra: '#E4E7EB',
+    marco: {
+      borde: '#D5D9DE', barraFondo: '#E4E7EB', barraTexto: '#1F2933', barraTenue: '#52606D', rotulo: '#3E4C59',
+      fechaFondo: '#F3F4F6', fechaTexto: '#323F4B', encabezadoFondo: '#ECEEF1', encabezadoTexto: '#283440',
+      encabezadoBorde: '#AAB2BC', filaAlterna: '#F8F9FA', filaBorde: '#E4E7EB', filaTexto: '#1F2933',
+      filaTenue: '#616E7C', codigoTexto: '#243B53'
+    }
+  },
+  {
+    id: 'morado',
+    nombre: 'Morado',
+    muestra: '#E8E0F7',
+    marco: {
+      borde: '#DCD3EE', barraFondo: '#E8E0F7', barraTexto: '#2E1A5E', barraTenue: '#5B4A86', rotulo: '#6B3FB5',
+      fechaFondo: '#F5F1FC', fechaTexto: '#3D2A75', encabezadoFondo: '#EFE9FA', encabezadoTexto: '#34205F',
+      encabezadoBorde: '#B49DE0', filaAlterna: '#FAF8FE', filaBorde: '#E9E3F5', filaTexto: '#2A2238',
+      filaTenue: '#6A6080', codigoTexto: '#4F2C9A'
+    }
+  },
+  {
+    id: 'vino',
+    nombre: 'Vino',
+    muestra: '#F6DEE1',
+    marco: {
+      borde: '#EBCFD3', barraFondo: '#F6DEE1', barraTexto: '#5A1420', barraTenue: '#8A4250', rotulo: '#A3243A',
+      fechaFondo: '#FCF1F2', fechaTexto: '#6E1C2A', encabezadoFondo: '#F9E8EA', encabezadoTexto: '#5E1824',
+      encabezadoBorde: '#DE9AA5', filaAlterna: '#FEF8F9', filaBorde: '#F2E1E3', filaTexto: '#3A2226',
+      filaTenue: '#7D5E63', codigoTexto: '#8C1D31'
+    }
+  }
+];
+
+export const PALETA_POR_DEFECTO: IdPaletaCorreo = 'calido';
+
+export function esPaletaCorreo(valor: unknown): valor is IdPaletaCorreo {
+  return PALETAS_CORREO.some((p) => p.id === valor);
+}
+
+/** Tema completo del correo con el marco de la paleta elegida (una desconocida usa la cálida). */
+export function temaDeCorreo(paleta: string | null | undefined = PALETA_POR_DEFECTO): TemaCorreo {
+  const marco = (PALETAS_CORREO.find((p) => p.id === paleta) ?? PALETAS_CORREO[0]!).marco;
+  return {
+    fuente: "Calibri, 'Segoe UI', Arial, sans-serif",
+    ancho: 900,
+    filaFondo: '#FFFFFF',
+    ...marco,
+    turnos: {
+      turnoA: { fondo: '#FFEFB8', texto: '#7A4B03', borde: '#E6B422' },
+      comodin: { fondo: '#DFF2D8', texto: '#2F5E1F', borde: '#8BC37A' },
+      turnoB: { fondo: '#F9C99B', texto: '#6B2D08', borde: '#E08A3C' },
+      turnoC: { fondo: '#E3DDF5', texto: '#3E2A7A', borde: '#9C8AD6' },
+      cerrados: { fondo: '#ECECEC', texto: '#4A4A4A', borde: '#B8B8B8' }
+    },
+    etiquetas: {
+      'Crítico': { fondo: '#FBD9D3', texto: '#8E2412' },
+      'Escalar': { fondo: '#EADCF5', texto: '#5B2A86' },
+      'VM': { fondo: '#D6ECF3', texto: '#14536A' },
+      'Monitoreo': { fondo: '#DCEBF5', texto: '#1F5A7A' },
+      'Pendiente cliente': { fondo: '#FFE9B0', texto: '#7A4B03' },
+      'Seguimiento': { fondo: '#E2F0E4', texto: '#2F5E35' },
+      otra: { fondo: '#EFE7DC', texto: '#5C4630' }
+    }
+  };
+}
+
+/** Paleta cálida (la de siempre). Se mantiene por compatibilidad. */
+export const TEMA_CORREO: TemaCorreo = temaDeCorreo(PALETA_POR_DEFECTO);
+
+type Tema = TemaCorreo;
 
 /** Texto de la celda Detalle: [ETIQUETA] descripción · última actualización · recordatorio. */
 function partesDelDetalle(fila: FilaDeReporte) {

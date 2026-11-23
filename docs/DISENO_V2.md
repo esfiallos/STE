@@ -230,6 +230,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **11. Base visual** ✅ | Inter + paleta navy, panel de confirmación, selector de fecha rápido, combobox, auto-animate + Motion (§11.7–11.10) | — (paralelo a 10) |
 | **12. Seguimiento v2** ✅ | Descripción única + "Última actualización" como fecha y botón, filas horizontales, etiquetas locales con combobox, nota del traspaso = descripción, verificación traspaso → seguimiento (§11.3–11.6) · `12` | 10, 11 |
 | **13. Filtros** ✅ | Tipo de caso (FRESH · Tarea · Incidente) y filtros por técnico, área, estado y tipo en todas las vistas de casos (§11.11) | 12 |
+| **14. Turno C por tramos y pulido** ✅ | C1 22–00 / C2 00–06 (D29), color de la tabla del traspaso (D30), destello al soltar un caso, tarjetas sin chips superpuestos, quedarse un caso para mañana (D31) (§12) · `14`, `15` | 13 |
 
 > Orden revisado el 19/11/2026 al sumar los requerimientos de §10. Cada fase con su migración `sql/0N_*.sql`.
 > Fases 10–13 sumadas el 21/11/2026 (§11, calidad de vida).
@@ -249,6 +250,8 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 - **D7. Comodín:** horarios fijos 06–16, 07–17, 08–18. Almuerzos a elección del dispatch.
 - **D8–D15** (19/11/2026): ver §10. Cambian D3 (hay un tercer rol, **coordinador**) y D5 (la planificación la
   hace coordinación; el dispatch solo la edita por día con solicitud aprobada).
+- **D29–D31** (22/11/2026): ver §12. Cambian D6 (los tramos de C cuentan como "turno C"; uno puede entregarse a sí
+  mismo para su turno de mañana) y D2 (la carga en 0 cuenta solo los casos de hoy).
 - **D16–D28** (21/11/2026): ver §11. D25 es la única excepción a "los casos no se borran" (Cancelar del dispatch). Cambian D8 (el dispatch crea con código + **empresa**), D9 (la actividad del
   técnico **es** la "última actualización", ahora una fecha) y §3.3 (el texto del caso es la **descripción**).
 
@@ -528,6 +531,44 @@ usuario al empezar la fase que lo usa.
   es_coordinador()`. **Supuesto:** el Historial (snapshots) sigue igual para todos.
 
 ### 11.13 Despliegue
-- Cola de migraciones para DEV y luego PROD, en orden: **07 → 08 → 09 → 10 → 11 → 12 → 13** (al 22/11/2026 ya
-  están aplicadas hasta la 11 en ambas). Cada nueva es
+- Cola de migraciones para DEV y luego PROD, en orden: **07 → … → 14 → 15** (al 22/11/2026 están aplicadas
+  todas, hasta la 15, en ambas). Cada nueva es
   idempotente, con prueba en `tests/sql/` y en `MIGRACIONES`.
+
+---
+
+## 12. Requerimientos v2.3 (22/11/2026)
+
+Revisión del usuario sobre DEV con datos de prueba (`docs/interno/DATOS_DE_PRUEBA.md`, local y sin versionar).
+
+### 12.1 Turno C por tramos (fase 14) — ✅ `sql/14_v2_turno_c_variantes.sql`
+- **D29.** El turno C se planifica por tramos: **C1 22:00–00:00** y **C2 00:00–06:00**. Quien hace toda la noche
+  tiene los dos: se guarda como `turnoC` 22:00–06:00 y se muestra "C1 + C2". No hay un "C" sin tramo: la jornada C
+  siempre lleva horario (`jornada_horario_valido`); las que había sin horario pasaron a C1 + C2.
+- Disponibilidad, ronda, recordatorios y alertas de coordinación usan el horario del tramo (`inicio_de_turno`
+  suma un día a las horas antes de las 06:00: C2 empieza a las 00:00 del día siguiente en el reloj).
+- **Traspasos sin cambios (decisión del usuario):** todo tramo es "turno C": recibe de B/Comodín el mismo día y
+  entrega a A/Comodín del día siguiente. C1 **no** entrega a C2.
+- `HORARIOS_TURNO_C` (`domain/shifts.ts`) = `public.horarios_turno_c()`, con prueba de coincidencia.
+
+### 12.2 Color de la tabla del traspaso — ✅
+- **D30.** Seis paletas predefinidas (Cálido, Azul, Verde, Grafito, Morado, Vino) para el marco de la tabla que
+  se copia a Outlook; los chips por turno y por etiqueta no cambian. Cada técnico elige la suya en la vista previa
+  del Traspaso y queda en su navegador (`localStorage` `panel-noc:paleta-traspaso`); Mis traspasos usa la misma.
+
+### 12.3 Pulido visual — ✅
+- Tarjeta del tablero: código + tipo en la primera línea (el tipo baja si no cabe), empresa + estado en la
+  segunda. Ya no se superponen los chips. Encabezado del ítem de traspaso con chip de tipo y candado "Fijar".
+- Al soltar o reasignar un caso, la tarjeta se tiñe del color de acento y vuelve despacio a su color (1,6 s).
+
+### 12.4 Quedarse un caso para mañana — ✅ `sql/15_v2_traspaso_propio.sql`
+- **D31.** Al cerrar turno, el técnico puede entregarse un caso **a sí mismo para su turno de mañana**, si está
+  planificado mañana en un turno que reciba del suyo según D6 (p. ej. comodín hoy y comodín mañana, o B hoy y A
+  mañana). Para el mismo día, nunca. En la lista de receptores aparece como "Nombre (tú) · turno · mañana"; el
+  reparto automático no lo usa (hay que elegirlo a mano o marcarse en la lista).
+- El caso no cambia de dueño pero sí de día: se cierra el tramo de hoy en `caso_responsables` y se abre uno con
+  origen `traspaso` y la fecha de mañana. En Mi seguimiento sale en "Recibido en traspaso · Para tu turno del dd/mm".
+  No genera aviso (es suyo); la bitácora anota "Se queda con X para su turno del dd/mm".
+- **Carga en 0 (D2) solo con lo de hoy:** lo que ya es para un turno futuro (propio o que otro le entregó para
+  mañana) no impide cerrar el turno de hoy ni aparece en el traspaso de hoy; se entrega al cerrar ese turno.
+

@@ -125,27 +125,53 @@ describe('corte con técnicos de nombre repetido', () => {
   });
 });
 
-describe('datos de demostración (modelo v2)', () => {
-  it('cargan la semana planificada y los casos sin tocar los perfiles', async () => {
+describe('datos de prueba de DEV (03, modelo v2 completo)', () => {
+  it('arman el escenario relativo a hoy, se pueden repetir y no tocan los perfiles', async () => {
     const db = await crearBaseSupabase();
-    await db.exec(MIGRACIONES.esquema());
-    await db.exec(MIGRACIONES.v3());
-    await db.exec(MIGRACIONES.v4());
-    await db.exec(MIGRACIONES.corte());
+    for (const m of ['esquema', 'v3', 'v4', 'corte', 'seguimiento', 'traspasos', 'coordinador', 'ronda',
+                     'planificacion', 'tableroDelDia', 'seguimientoDescripcion', 'filtros', 'turnoC', 'traspasoPropio'] as const) {
+      await db.exec(MIGRACIONES[m]());
+    }
     await db.exec(`
       create table public.entorno_dev (id int);
-      insert into auth.users (id) values ('${U_DISPATCH}');
+      insert into auth.users (id, email) values ('${U_DISPATCH}', 'dispatch@noc.test');
       insert into perfiles (id, nombre, rol) values ('${U_DISPATCH}','Dispatch','dispatch');
     `);
     await db.exec(MIGRACIONES.demo());
     await db.exec(MIGRACIONES.demo()); // se puede repetir
 
     const n = async (sql: string) => (await db.query<{ n: number }>(sql)).rows[0]!.n;
-    expect(await n('select count(*)::int n from tecnicos')).toBe(6);
-    expect(await n('select count(*)::int n from jornadas')).toBe(42);
-    expect(await n('select count(*)::int n from jornadas where fecha_operativa = fecha_operativa()')).toBe(6);
-    expect(await n('select count(*)::int n from casos_abiertos')).toBe(6);
+    const codigos = async (sql: string) => (await db.query<{ codigo: string }>(sql)).rows.map((r) => r.codigo).sort();
+
+    expect(await n('select count(*)::int n from tecnicos where activo')).toBe(12);
     expect(await n('select count(*)::int n from perfiles')).toBe(1);
-    expect(await n('select count(*)::int n from historial_snapshots')).toBe(1);
+    // Hoy descansan Diana y Raúl
+    expect(await n('select count(*)::int n from jornadas where fecha_operativa = fecha_operativa()')).toBe(10);
+    // Tablero de hoy: 14 abiertos/resueltos + 3 cerrados, todos asignados por el dispatch hoy, de los 4 tipos
+    expect(await n('select count(*)::int n from tablero_del_dia where fecha_operativa = fecha_operativa()')).toBe(17);
+    expect(await n('select count(distinct tipo)::int n from tablero_del_dia where fecha_operativa = fecha_operativa()')).toBe(4);
+    // Por reasignar: abiertos de quien hoy no trabaja
+    expect(await codigos(`
+      select c.codigo from casos_abiertos c
+      where not exists (select 1 from jornadas j where j.tecnico_id = c.tecnico_actual_id and j.fecha_operativa = fecha_operativa())
+    `)).toEqual(['INC0099004', 'INC0099005', 'SCTASK0199002']);
+    // Ana recibió dos casos por traspaso para hoy
+    expect(await codigos(`
+      select codigo from casos_abiertos
+      where tecnico_actual_id = (select id from tecnicos where nombre = 'Ana Pérez')
+        and origen_responsable = 'traspaso' and fecha_responsable = fecha_operativa()
+    `)).toEqual(['INC0099002', 'SCTASK0199001']);
+    // INC0099001 pasó por Luis → Tomás → Bruno → Luis
+    expect(await n(`select count(*)::int n from caso_responsables r join casos c on c.id = r.caso_id where c.codigo = 'INC0099001'`)).toBe(4);
+    expect(await n('select count(*)::int n from caso_responsables where hasta < desde')).toBe(0);
+    expect(await n(`select count(*)::int n from traspasos where estado = 'enviado'`)).toBe(3);
+    expect(await n(`select count(*)::int n from traspasos where estado = 'borrador'`)).toBe(1);
+    expect(await n(`select count(*)::int n from notificaciones where tipo = 'recordatorio'`)).toBe(2);
+    expect(await n(`select count(*)::int n from alertas_coordinacion where tipo = 'recordatorio_sin_jornada'`)).toBe(1);
+    expect(await n('select count(*)::int n from solicitudes_planificacion')).toBe(3);
+    expect(await n('select count(*)::int n from historial_snapshots')).toBe(3);
+    expect(await n(`select count(*)::int n from casos where estado = 'cerrado' and cerrado_en is null`)).toBe(0);
+    // El trigger de casos queda encendido
+    expect(await n(`select count(*)::int n from pg_trigger where tgname = 'casos_antes_de_guardar_trg' and tgenabled = 'O'`)).toBe(1);
   });
 });

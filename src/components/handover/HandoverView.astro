@@ -3,6 +3,7 @@
 import { LARGO_MAXIMO_DESCRIPCION, LARGO_MAXIMO_ETIQUETA } from '../../domain/followUp';
 import { ESTADOS_DE_SEGUIMIENTO } from '../../domain/followUp';
 import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
+import { PALETAS_CORREO } from '../../domain/handoverReport';
 ---
 
 <section class="panel-card handover" id="handoverView" aria-labelledby="handoverTitle">
@@ -54,6 +55,15 @@ import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
           <label class="handover-inline">
             <input type="checkbox" id="handoverTags" checked /> Mostrar etiquetas
           </label>
+          <div class="handover-palette" role="radiogroup" aria-label="Color de la tabla">
+            <span class="handover-palette__label">Color</span>
+            {PALETAS_CORREO.map((p) => (
+              <label class="handover-palette__swatch" title={p.nombre} style={`--muestra: ${p.muestra}; --muestra-borde: ${p.marco.encabezadoBorde};`}>
+                <input type="radio" name="handoverPalette" class="sr-only" value={p.id} />
+                <span class="sr-only">{p.nombre}</span>
+              </label>
+            ))}
+          </div>
         </div>
         <iframe id="handoverPreview" class="handover-preview__frame" title="Vista previa del correo de traspaso" sandbox=""></iframe>
         <div class="handover-copy">
@@ -72,12 +82,16 @@ import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
   <!-- Un caso del traspaso (lo completa scripts/handover/handoverView.ts) -->
   <template id="tpl-traspaso-item">
     <article class="handover-item" data-ref="item">
-      <header class="followup-card__head">
-        <span class="followup-code" data-ref="codigo"></span>
+      <header class="handover-item__head">
+        <span class="handover-item__title">
+          <span class="followup-code" data-ref="codigo"></span>
+          <span class="case-type" data-ref="tipo"></span>
+        </span>
         <span class="handover-item__meta" data-ref="meta"></span>
         <label class="handover-lock" title="Con candado, el reparto automático no lo mueve">
-          <input type="checkbox" data-campo="candado" /> <i class="fa-solid fa-lock" aria-hidden="true"></i>
-          <span class="sr-only">Candado</span>
+          <input type="checkbox" class="sr-only" data-campo="candado" />
+          <i class="fa-solid fa-lock" aria-hidden="true"></i>
+          <span>Fijar</span>
         </label>
       </header>
       <div class="handover-item__grid">

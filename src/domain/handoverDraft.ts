@@ -11,6 +11,8 @@ const ORDEN_DE_TURNO: Record<TurnoTecnico, number> = { turnoA: 1, comodin: 2, tu
 
 /**
  * Técnicos planificados que pueden recibir de quien entrega (D6), con el día en que reciben.
+ * Quien entrega también puede quedarse un caso para **su** turno de mañana si está planificado en uno que
+ * pueda recibir de su turno (p. ej. comodín hoy y comodín mañana, D31); el mismo día, nunca.
  * `jornadas` debe traer el día de quien entrega y el siguiente. Orden: día, turno, nombre.
  */
 export function receptoresDelTraspaso(
@@ -22,7 +24,7 @@ export function receptoresDelTraspaso(
 ): ReceptorTraspaso[] {
   const porId = new Map(catalogo.map((t) => [t.id, t]));
   return jornadas
-    .filter((j) => j.tecnicoId !== miTecnicoId && porId.get(j.tecnicoId)?.activo)
+    .filter((j) => (j.tecnicoId !== miTecnicoId || j.fecha !== fechaOrigen) && porId.get(j.tecnicoId)?.activo)
     .filter((j) => puedeRecibirTraspaso(turnoOrigen, fechaOrigen, j.turno, j.fecha))
     .map((j) => ({
       tecnicoId: j.tecnicoId,

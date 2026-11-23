@@ -20,6 +20,8 @@ export const MIGRACIONES = {
   tableroDelDia: () => leerSql('11_v2_tablero_del_dia.sql'),
   seguimientoDescripcion: () => leerSql('12_v2_seguimiento_descripcion.sql'),
   filtros: () => leerSql('13_v2_filtros.sql'),
+  turnoC: () => leerSql('14_v2_turno_c_variantes.sql'),
+  traspasoPropio: () => leerSql('15_v2_traspaso_propio.sql'),
   demo: () => leerSql('03_datos_demo_dev.sql')
 };
 
