@@ -8,6 +8,31 @@ interface Props {
 
 const { title } = Astro.props;
 const esDesarrollo = import.meta.env.PUBLIC_APP_ENV === 'development';
+
+// Política de contenido (D35): solo scripts propios, conexiones a nuestro Supabase y estilos/fuentes propios o del
+// CDN de iconos. 'unsafe-inline' en estilos hace falta por los style="" del reporte del traspaso y las muestras de
+// color. En `astro dev` no se aplica: Vite inyecta scripts en línea para recargar en caliente.
+// GitHub Pages no permite cabeceras: frame-ancestors (anti-clickjacking) no funciona desde <meta>.
+const supabase = (() => {
+  try {
+    return new URL(import.meta.env.PUBLIC_SUPABASE_URL ?? '');
+  } catch {
+    return null;
+  }
+})();
+const politicaDeContenido = esDesarrollo
+  ? null
+  : [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+      "font-src 'self' data: https://cdnjs.cloudflare.com",
+      "img-src 'self' data:",
+      `connect-src 'self'${supabase ? ` ${supabase.origin} wss://${supabase.host}` : ''}`,
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'"
+    ].join('; ');
 ---
 
 <!doctype html>
@@ -16,11 +41,16 @@ const esDesarrollo = import.meta.env.PUBLIC_APP_ENV === 'development';
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
+    {politicaDeContenido && <meta http-equiv="Content-Security-Policy" content={politicaDeContenido} />}
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>{esDesarrollo ? `[DEV] ${title}` : title}</title>
-    <!-- FontAwesome para iconos -->
+    <!-- FontAwesome para iconos (integrity: si el CDN sirviera otro archivo, el navegador no lo carga) -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
     />
   </head>
   <body>

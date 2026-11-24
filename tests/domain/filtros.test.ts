@@ -10,6 +10,8 @@ import {
   type CasoFiltrable
 } from '../../src/domain/caseFilters';
 import { ETIQUETA_TIPO, tipoDeCaso } from '../../src/domain/caseType';
+import { ordenarPorAtraso } from '../../src/domain/followUp';
+import type { Incidente } from '../../src/types/noc';
 
 describe('tipo de caso (§11.11)', () => {
   it('FRESH = #SR o #INC · Tarea = SCTASK · Incidente = INC · lo demás, Otro', () => {
@@ -47,9 +49,40 @@ describe('filtros de casos', () => {
   });
 
   it('lee filtros guardados descartando valores inválidos', () => {
-    expect(filtrosDesdeTexto('{"tipo":"INC","estado":"pausado","area":"CPE","tecnico":"ana"}')).toEqual({ tipo: 'INC', estado: 'pausado', area: 'CPE', tecnico: 'ana' });
+    expect(filtrosDesdeTexto('{"tipo":"INC","estado":"pausado","area":"CPE","tecnico":"ana"}')).toEqual({ tipo: 'INC', estado: 'pausado', area: 'CPE', tecnico: 'ana', atraso: '' });
+    expect(filtrosDesdeTexto('{"atraso":"24"}').atraso).toBe('24');
+    expect(filtrosDesdeTexto('{"atraso":"99"}').atraso).toBe('');
     expect(filtrosDesdeTexto('{"tipo":"X","estado":3}')).toEqual(FILTROS_VACIOS);
     expect(filtrosDesdeTexto('no es json')).toEqual(FILTROS_VACIOS);
     expect(filtrosDesdeTexto(null)).toEqual(FILTROS_VACIOS);
+  });
+});
+
+describe('filtro por tiempo sin actualizar (D33)', () => {
+  const ahora = new Date('2026-11-10T12:00:00Z');
+  const hace = (horas: number) => new Date(ahora.getTime() - horas * 3_600_000).toISOString();
+  const casos: CasoFiltrable[] = [
+    { codigo: 'INC1', tecnicoId: 'ana', creadoEn: hace(1) },
+    { codigo: 'INC2', tecnicoId: 'ana', creadoEn: hace(30), ultimaActualizacionEn: hace(3) },
+    { codigo: 'INC3', tecnicoId: 'ana', creadoEn: hace(5) },
+    { codigo: 'INC4', tecnicoId: 'ana', creadoEn: hace(30), sinTraspasoDesde: hace(20) },
+    { codigo: 'INC5', tecnicoId: 'ana', creadoEn: hace(48), estado: 'cerrado' }
+  ];
+  const codigos = (atraso: typeof FILTROS_VACIOS.atraso) =>
+    filtrarCasos(casos, { ...FILTROS_VACIOS, atraso }, ahora).map((c) => c.codigo);
+
+  it('cuenta desde lo más reciente entre la última actualización y la llegada, sin los cerrados', () => {
+    expect(codigos('2')).toEqual(['INC2', 'INC3', 'INC4']);
+    expect(codigos('4')).toEqual(['INC3', 'INC4']);
+    expect(codigos('24')).toEqual(['INC4']);
+  });
+
+  it('"Quedó sin traspaso" usa lo que calcula la base', () => {
+    expect(codigos('sin_traspaso')).toEqual(['INC4']);
+    expect(cuantosFiltros({ ...FILTROS_VACIOS, atraso: '6' })).toBe(1);
+  });
+
+  it('ordena los más olvidados primero, con los que quedaron sin traspaso adelante', () => {
+    expect(ordenarPorAtraso(casos.slice(0, 4) as Incidente[], ahora).map((c) => c.codigo)).toEqual(['INC4', 'INC3', 'INC2', 'INC1']);
   });
 });

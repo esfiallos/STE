@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buscarIncidentePorCodigo, normalizarCodigo, unirTecnicosConIncidentes } from '../../src/domain/assignments';
+import {
+  buscarIncidentePorCodigo,
+  casosPorReasignar,
+  motivoPorReasignar,
+  normalizarCodigo,
+  unirTecnicosConIncidentes
+} from '../../src/domain/assignments';
 import { calcularMetricas } from '../../src/domain/metrics';
 import { incidenteCoincide, tecnicoCoincide } from '../../src/domain/search';
 import { obtenerIniciales } from '../../src/domain/technicians';
@@ -65,5 +71,23 @@ describe('búsqueda', () => {
   it('obtiene iniciales', () => {
     expect(obtenerIniciales('Ana Pérez')).toBe('AP');
     expect(obtenerIniciales('Luis')).toBe('LU');
+  });
+});
+
+describe('"Por reasignar" (D33)', () => {
+  const caso = (id: string, tecnicoId: string | null, extra: Partial<Incidente> = {}): Incidente =>
+    ({ id, codigo: id.toUpperCase(), nota: null, tecnicoId, creadoEn: '', estado: 'en_curso', ...extra });
+  const casos = [
+    caso('c1', 'ana'),
+    caso('c2', null),
+    caso('c3', 'pedro'),
+    caso('c4', 'luis', { sinTraspasoDesde: '2026-11-09T20:00:00Z' }),
+    caso('c5', 'pedro', { estado: 'cerrado' })
+  ];
+
+  it('incluye los sin responsable, los de quien no trabaja hoy y los de un turno que terminó sin traspaso', () => {
+    expect(casosPorReasignar(casos, tecnicos).map((c) => c.id)).toEqual(['c2', 'c3', 'c4']);
+    const deHoy = new Set(tecnicos.map((t) => t.id));
+    expect(casos.map((c) => motivoPorReasignar(c, deHoy))).toEqual([null, 'sin_responsable', 'no_trabaja_hoy', 'turno_sin_traspaso', null]);
   });
 });

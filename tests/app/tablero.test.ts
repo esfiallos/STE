@@ -169,6 +169,19 @@ describe('tablero del día (D16): solo lo que asignó el dispatch hoy', () => {
     expect(app.qa('.reassign-strip')).toHaveLength(0);
   });
 
+  it('un caso cuyo turno terminó sin traspaso pasa a "por reasignar" aunque su responsable trabaje hoy (D33)', async () => {
+    const datos = datosBase();
+    datos.casos.push({
+      id: 'i3', codigo: 'INC3', nota: null, estado: 'en_curso', tecnico_actual_id: 'ana', creado_en: '', _fecha: '2026-11-08',
+      sin_traspaso_desde: '2026-11-08T20:00:00Z'
+    });
+    const app = await iniciarApp(datos);
+
+    const franja = app.q<HTMLElement>('.reassign-strip');
+    expect(franja.textContent).toContain('Por reasignar (1)');
+    expect(franja.querySelector('.reassign-strip__owner--alerta')!.textContent).toBe('Ana Pérez: terminó su turno (08/11 14:00) sin traspasarlo');
+  });
+
   it('un cerrado sigue en su columna, atenuado y sin acciones; un traspasado sigue donde lo puso el dispatch', async () => {
     const datos = datosBase();
     datos.casos.push(

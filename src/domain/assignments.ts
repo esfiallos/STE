@@ -83,8 +83,23 @@ export function casosHastaElDia(casos: Incidente[], fecha: string): Incidente[] 
   return casos.filter((caso) => !caso.fechaResponsable || caso.fechaResponsable <= fecha);
 }
 
-/** Casos abiertos sin responsable, o cuyo responsable no trabaja hoy: el dispatch debe reasignarlos. */
+/** Por qué un caso está en "Por reasignar" (null si no lo está). */
+export type MotivoPorReasignar = 'sin_responsable' | 'no_trabaja_hoy' | 'turno_sin_traspaso';
+
+export function motivoPorReasignar(caso: Incidente, tecnicosDeHoy: ReadonlySet<string>): MotivoPorReasignar | null {
+  if (caso.estado === 'cerrado') return null;
+  if (caso.tecnicoId === null) return 'sin_responsable';
+  if (!tecnicosDeHoy.has(caso.tecnicoId)) return 'no_trabaja_hoy';
+  // D33: su turno terminó y no lo traspasó (la BD ya descontó la gracia)
+  if (caso.sinTraspasoDesde) return 'turno_sin_traspaso';
+  return null;
+}
+
+/**
+ * Casos abiertos sin responsable, cuyo responsable no trabaja hoy o cuyo turno terminó sin traspasarlos:
+ * el dispatch debe reasignarlos.
+ */
 export function casosPorReasignar(casos: Incidente[], tecnicosDeHoy: Tecnico[]): Incidente[] {
   const deHoy = new Set(tecnicosDeHoy.map((t) => t.id));
-  return casos.filter((caso) => caso.estado !== 'cerrado' && (caso.tecnicoId === null || !deHoy.has(caso.tecnicoId)));
+  return casos.filter((caso) => motivoPorReasignar(caso, deHoy) !== null);
 }

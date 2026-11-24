@@ -91,10 +91,34 @@ export type NivelDeAtraso = 0 | (typeof NIVELES_DE_ATRASO)[number];
  * coordinación (que solo cuentan horas dentro del turno) las calcula la base.
  */
 export function nivelDeAtraso(caso: Pick<Incidente, 'ultimaActualizacionEn' | 'creadoEn'>, ahora: Date): NivelDeAtraso {
-  const referencias = [caso.ultimaActualizacionEn, caso.creadoEn].filter((v): v is string => !!v).map((v) => Date.parse(v)).filter((n) => !Number.isNaN(n));
-  if (referencias.length === 0) return 0;
-  const horas = (ahora.getTime() - Math.max(...referencias)) / 3_600_000;
+  const horas = horasSinActualizar(caso, ahora);
+  if (horas === null) return 0;
   return ([...NIVELES_DE_ATRASO].reverse().find((n) => horas >= n) ?? 0) as NivelDeAtraso;
+}
+
+/**
+ * Horas que lleva el caso sin actualizar, desde lo más reciente entre su última actualización y la hora en que
+ * le llegó a su responsable (sin reiniciarse por turno). Null si no hay ninguna fecha válida.
+ */
+export function horasSinActualizar(
+  caso: Partial<Pick<Incidente, 'ultimaActualizacionEn' | 'creadoEn'>>,
+  ahora: Date
+): number | null {
+  const referencias = [caso.ultimaActualizacionEn, caso.creadoEn].filter((v): v is string => !!v).map((v) => Date.parse(v)).filter((n) => !Number.isNaN(n));
+  if (referencias.length === 0) return null;
+  return (ahora.getTime() - Math.max(...referencias)) / 3_600_000;
+}
+
+/** Cómo se ordenan los casos dentro de cada grupo de Mi seguimiento. */
+export type OrdenDeSeguimiento = 'asignacion' | 'atraso';
+
+/** Los que más tiempo llevan sin actualizar primero (los que quedaron sin traspaso, antes que todos). */
+export function ordenarPorAtraso<T extends Pick<Incidente, 'ultimaActualizacionEn' | 'creadoEn' | 'sinTraspasoDesde'>>(
+  casos: readonly T[],
+  ahora: Date
+): T[] {
+  const peso = (c: T) => (c.sinTraspasoDesde ? 1e9 : 0) + (horasSinActualizar(c, ahora) ?? 0);
+  return [...casos].sort((a, b) => peso(b) - peso(a));
 }
 
 /** "recién", "hace 12 min", "hace 3 h", "hace 2 d". */
@@ -145,7 +169,8 @@ const TEXTO_NOTIFICACION: Record<TipoNotificacion, string> = {
   reasignado: 'Te reasignaron',
   traspaso: 'Recibiste en traspaso',
   recordatorio: 'Recordatorio:',
-  cancelado: 'El dispatch canceló'
+  cancelado: 'El dispatch canceló',
+  cierre_pendiente: 'Traspaso pendiente:'
 };
 
 export function describirNotificacion(notificacion: Pick<Notificacion, 'tipo' | 'detalle'>): string {

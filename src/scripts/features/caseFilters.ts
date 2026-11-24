@@ -2,6 +2,8 @@ import { AREAS_DE_CASO } from '../../domain/areas';
 import {
   conteoPorTipo,
   cuantosFiltros,
+  ETIQUETA_ATRASO,
+  FILTROS_DE_ATRASO,
   filtrarCasos,
   filtrosDesdeTexto,
   FILTROS_VACIOS,
@@ -90,6 +92,9 @@ export function crearBarraDeFiltros(contenedor: HTMLElement, opciones: OpcionesD
     }
     if (campo === 'estado') {
       selects.set(campo, lista('estado', 'Filtrar por estado', [['', 'Todos los estados'], ...ESTADOS_DE_SEGUIMIENTO.map((e): [string, string] => [e, ETIQUETA_ESTADO_CASO[e]])]));
+    }
+    if (campo === 'atraso') {
+      selects.set(campo, lista('atraso', 'Filtrar por tiempo sin actualizar', [['', 'Cualquier actualización'], ...FILTROS_DE_ATRASO.map((a): [string, string] => [a, ETIQUETA_ATRASO[a]])]));
     }
   }
   listas.append(...selects.values());

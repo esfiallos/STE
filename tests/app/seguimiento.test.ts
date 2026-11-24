@@ -31,8 +31,8 @@ function datosDeAna() {
   return datos;
 }
 
-async function abrirSeguimiento() {
-  const app = await iniciarApp(datosDeAna(), { rol: 'tecnico', tecnicoId: 'ana' });
+async function abrirSeguimiento(datos = datosDeAna()) {
+  const app = await iniciarApp(datos, { rol: 'tecnico', tecnicoId: 'ana' });
   vi.doMock('../../src/services/notificacionesRepo', async (original) => ({
     ...(await original<typeof import('../../src/services/notificacionesRepo')>()),
     suscribirNotificaciones: () => () => undefined
@@ -142,6 +142,38 @@ describe('mi seguimiento', () => {
     expect(titulo.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('marca lo que quedó sin traspaso y filtra por tiempo sin actualizar (D33)', async () => {
+    const datos = datosDeAna();
+    datos.casos[0]!.sin_traspaso_desde = '2026-11-09T14:00:00Z';
+    const app = await abrirSeguimiento(datos);
+
+    const chip = app.tarjeta('INC1').querySelector<HTMLElement>('[data-ref="sinTraspaso"]')!;
+    expect(chip.classList.contains('hidden')).toBe(false);
+    expect(chip.textContent).toBe('Sin traspasar desde 09/11 08:00');
+    expect(app.tarjeta('INC2').querySelector('[data-ref="sinTraspaso"]')!.classList.contains('hidden')).toBe(true);
+
+    const filtro = app.q<HTMLSelectElement>('#followUpFilters [data-filtro="atraso"]');
+    filtro.value = 'sin_traspaso';
+    filtro.dispatchEvent(new Event('change', { bubbles: true }));
+    expect([...app.codigosDe('traspaso'), ...app.codigosDe('nuevos')]).toEqual(['INC1']);
+
+    filtro.value = '4'; // 10:00: INC1 llegó 06:00 (4 h) e INC2 se actualizó 05:00 (5 h); INC3 es para mañana
+    filtro.dispatchEvent(new Event('change', { bubbles: true }));
+    expect([...app.codigosDe('traspaso'), ...app.codigosDe('nuevos')]).toEqual(['INC2', 'INC1']);
+    filtro.value = '';
+    filtro.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  it('el orden "más tiempo sin actualizar" pone primero lo más olvidado', async () => {
+    const app = await abrirSeguimiento();
+    const orden = app.q<HTMLSelectElement>('#followUpOrder');
+    orden.value = 'atraso';
+    orden.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(app.codigosDe('traspaso')).toEqual(['INC2', 'INC3']);
+    orden.value = 'asignacion';
+    orden.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
   it('muestra el historial de responsables y copia el resumen como texto', async () => {
     const app = await abrirSeguimiento();
     app.click(app.tarjeta('INC2').querySelector('[data-action="ver-historial"]')!);
@@ -159,6 +191,21 @@ describe('mi seguimiento', () => {
 });
 
 describe('notificaciones', () => {
+  it('el aviso de traspaso pendiente lleva a la pestaña Traspaso (D34)', async () => {
+    const datos = datosDeAna();
+    datos.notificaciones = [{
+      id: 'n9', tecnico_id: 'ana', tipo: 'cierre_pendiente', caso_id: null, leida: false, creado_en: '2026-11-09T19:30:00Z',
+      detalle: 'tu turno termina a las 14:00 y tienes 2 caso(s) por traspasar'
+    }];
+    const app = await abrirSeguimiento(datos);
+    window.location.hash = '';
+
+    const aviso = app.q<HTMLElement>('#notifList [data-notificacion-id="n9"]');
+    expect(aviso.textContent).toContain('Traspaso pendiente: tu turno termina a las 14:00 y tienes 2 caso(s) por traspasar');
+    aviso.click();
+    expect(window.location.hash).toBe('#traspaso');
+  });
+
   it('la campana cuenta las no leídas; abrir una la marca y lleva al caso', async () => {
     const app = await abrirSeguimiento();
     expect(app.q('#notifCount').textContent).toBe('1');

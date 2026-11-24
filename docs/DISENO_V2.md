@@ -231,6 +231,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **12. Seguimiento v2** ✅ | Descripción única + "Última actualización" como fecha y botón, filas horizontales, etiquetas locales con combobox, nota del traspaso = descripción, verificación traspaso → seguimiento (§11.3–11.6) · `12` | 10, 11 |
 | **13. Filtros** ✅ | Tipo de caso (FRESH · Tarea · Incidente) y filtros por técnico, área, estado y tipo en todas las vistas de casos (§11.11) | 12 |
 | **14. Turno C por tramos y pulido** ✅ | C1 22–00 / C2 00–06 (D29), color de la tabla del traspaso (D30), destello al soltar un caso, tarjetas sin chips superpuestos, quedarse un caso para mañana (D31) (§12) · `14`, `15` | 13 |
+| **15. Seguridad y casos perdidos** ✅ | Lectura solo con perfil (D32), turno terminado sin traspaso → "Por reasignar" + alerta (D33), aviso previo al técnico (D34), filtro y orden por tiempo sin actualizar, CSP + SRI (D35) (§13) · `16` | 14 |
 
 > Orden revisado el 19/11/2026 al sumar los requerimientos de §10. Cada fase con su migración `sql/0N_*.sql`.
 > Fases 10–13 sumadas el 21/11/2026 (§11, calidad de vida).
@@ -250,6 +251,8 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 - **D7. Comodín:** horarios fijos 06–16, 07–17, 08–18. Almuerzos a elección del dispatch.
 - **D8–D15** (19/11/2026): ver §10. Cambian D3 (hay un tercer rol, **coordinador**) y D5 (la planificación la
   hace coordinación; el dispatch solo la edita por día con solicitud aprobada).
+- **D32–D35** (23/11/2026): ver §13. Matizan D2: si un técnico no cierra turno, el caso no se pierde: la base lo
+  detecta 30 min después del fin del turno y lo devuelve al dispatch ("Por reasignar") y a coordinación (alerta).
 - **D29–D31** (22/11/2026): ver §12. Cambian D6 (los tramos de C cuentan como "turno C"; uno puede entregarse a sí
   mismo para su turno de mañana) y D2 (la carga en 0 cuenta solo los casos de hoy).
 - **D16–D28** (21/11/2026): ver §11. D25 es la única excepción a "los casos no se borran" (Cancelar del dispatch). Cambian D8 (el dispatch crea con código + **empresa**), D9 (la actividad del
@@ -571,4 +574,51 @@ Revisión del usuario sobre DEV con datos de prueba (`docs/interno/DATOS_DE_PRUE
   No genera aviso (es suyo); la bitácora anota "Se queda con X para su turno del dd/mm".
 - **Carga en 0 (D2) solo con lo de hoy:** lo que ya es para un turno futuro (propio o que otro le entregó para
   mañana) no impide cerrar el turno de hoy ni aparece en el traspaso de hoy; se entrega al cerrar ese turno.
+
+---
+
+## 13. Requerimientos v2.4 · seguridad y casos perdidos (23/11/2026)
+
+> Origen: auditoría del 23/11/2026. El objetivo del sistema es que ningún caso se pierda entre turnos; el
+> traspaso solo funciona si el técnico lo hace. Si se le olvida, antes nadie se enteraba: las alertas de
+> coordinación se callaban al terminar su turno y "Por reasignar" solo miraba si el responsable trabaja hoy.
+
+### 13.1 Lectura solo con perfil — ✅ `sql/16_v2_proteccion_de_casos.sql`
+- **D32.** `casos`, `caso_responsables`, `jornadas`, `tecnicos` (y por tanto `casos_abiertos`, `tablero_del_dia` y
+  Realtime) solo los lee quien tiene fila en `perfiles` (`tiene_perfil()`). Antes bastaba cualquier sesión de
+  Supabase: con el registro abierto, cualquiera con la URL y la clave publicable (públicas en el JS) podía crearse
+  una cuenta y leer todo. `tecnicos_de_la_ronda()` igual.
+- Además (configuración, la hace el usuario): desactivar *Allow new users to sign up* en DEV y PROD
+  (`docs/ENTORNOS_Y_DESPLIEGUE.md` §1 paso 9).
+
+### 13.2 Turno terminado sin traspaso — ✅
+- **D33.** Un caso queda "sin traspaso" si el turno en que su responsable lo tenía (su tramo vigente en
+  `caso_responsables`) terminó hace más de `gracia_cierre_de_turno()` (**30 min**) y ese técnico no envió el
+  traspaso de ese día **después** de recibir el caso (lo que llega tras enviar el traspaso también cuenta).
+  `turno_sin_traspaso(tecnico, fecha, desde)` lo calcula; `casos_abiertos.sin_traspaso_desde` = fin de ese turno.
+- Efectos: el caso entra en **"Por reasignar"** del dispatch aunque el técnico trabaje hoy ("Ana: terminó su turno
+  (dd/mm hh:mm) sin traspasarlo", en rojo); en **Mi seguimiento** lleva el chip "Sin traspasar desde dd/mm hh:mm";
+  coordinación recibe la alerta **`turno_sin_traspaso`** (crítica, va primero; una por caso y turno; se da por
+  leída sola al traspasarse, reasignarse o cerrarse el caso).
+- Las alertas 2/4/6 h (D12) no cambian: siguen contando solo dentro del turno.
+
+### 13.3 Aviso previo — ✅
+- **D34.** 30 min antes del fin de su turno, si no ha enviado el traspaso y tiene casos de hoy, el técnico recibe
+  la notificación `cierre_pendiente` ("Traspaso pendiente: tu turno termina a las 14:00 y tienes N caso(s) por
+  traspasar"), una por turno. Al tocarla abre la pestaña Traspaso.
+- 13.2 y 13.3 los hace `vigilar_cierres_de_turno()` (pg_cron `cierres-de-turno`, cada 5 min).
+
+### 13.4 Tiempo sin actualizar — ✅
+- Filtro **"Sin actualizar"** (+2 h, +4 h, +6 h, +1 día, "Quedó sin traspaso") en Mi seguimiento y Buscar casos
+  (`caseFilters.ts`, campo `atraso`). Cuenta desde lo más reciente entre la última actualización y la llegada al
+  responsable, sin reiniciarse por turno (`horasSinActualizar`); los cerrados no cuentan.
+- Mi seguimiento: **Ordenar** "Por asignación" / "Más tiempo sin actualizar" (lo sin traspaso primero).
+
+### 13.5 Endurecimiento del cliente — ✅
+- **D35.** CSP por `<meta>` en `Layout.astro` (solo en compilación de producción; `astro dev` inyecta scripts en
+  línea): `script-src 'self'`, `connect-src` solo el Supabase configurado (https + wss), `object-src 'none'`,
+  `base-uri`/`form-action 'self'`. `style-src` necesita `'unsafe-inline'` por los `style=""` del reporte del
+  traspaso. Font Awesome del CDN con `integrity` (SRI). GitHub Pages no permite cabeceras: `frame-ancestors`
+  (clickjacking) no se puede fijar desde `<meta>`.
+- Verificado con `astro preview` (variables de prueba): login funciona, sin violaciones de CSP, íconos cargan.
 
