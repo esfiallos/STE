@@ -1,4 +1,4 @@
-import { casosHastaElDia, casosPorReasignar, unirTecnicosConIncidentes } from '../../domain/assignments';
+import { casosHastaElDia, casosPorReasignar, motivoPorReasignar, unirTecnicosConIncidentes } from '../../domain/assignments';
 import { cambiosDelTablero, fotoDelTablero, hayCambios, type FotoDelTablero } from '../../domain/boardChanges';
 import { incidenteCoincide, normalizarBusqueda } from '../../domain/search';
 import { tecnicosDelTurno, TURNOS } from '../../domain/shifts';
@@ -11,6 +11,7 @@ import type { ContextoTablero } from './boardContext';
 import { crearVistaIncidente } from './incidentView';
 import { crearVistaTurno } from './shiftView';
 import { filtrarCasos } from '../../domain/caseFilters';
+import { momentoCorto } from '../../domain/followUp';
 
 let claveAEnfocar: string | null = null;
 /** Estado del último dibujo, para animar lo que cambió en el siguiente. */
@@ -42,12 +43,15 @@ function crearFranjaPorReasignar(casos: Incidente[], estado: AppState, termino: 
     crearElemento(
       'p',
       'reassign-strip__help',
-      'Casos abiertos cuyo responsable no trabaja hoy. Arrástralos a un técnico disponible.'
+      'Casos abiertos cuyo responsable no trabaja hoy o terminó su turno sin traspasarlos. Arrástralos a un técnico disponible.'
     )
   );
 
   const lista = crearElemento('div', 'reassign-strip__list');
+  const deHoy = new Set(estado.tecnicos.map((t) => t.id));
   casos.forEach((caso, indice) => {
+    const motivo = motivoPorReasignar(caso, deHoy);
+    const nombre = caso.tecnicoId ? (nombres.get(caso.tecnicoId) ?? '?') : '';
     const item = crearElemento('div', 'reassign-strip__item');
     item.append(
       crearVistaIncidente(caso, {
@@ -60,8 +64,12 @@ function crearFranjaPorReasignar(casos: Incidente[], estado: AppState, termino: 
       }),
       crearElemento(
         'span',
-        'reassign-strip__owner',
-        caso.tecnicoId ? `Último: ${nombres.get(caso.tecnicoId) ?? '?'}` : 'Sin responsable'
+        `reassign-strip__owner${motivo === 'turno_sin_traspaso' ? ' reassign-strip__owner--alerta' : ''}`,
+        motivo === 'sin_responsable'
+          ? 'Sin responsable'
+          : motivo === 'turno_sin_traspaso' && caso.sinTraspasoDesde
+            ? `${nombre}: terminó su turno (${momentoCorto(caso.sinTraspasoDesde)}) sin traspasarlo`
+            : `Último: ${nombre} (no trabaja hoy)`
       )
     );
     lista.append(item);

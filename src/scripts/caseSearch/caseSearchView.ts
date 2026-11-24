@@ -127,7 +127,16 @@ export async function buscarCaso(termino: string): Promise<void> {
   pintarResultados();
 }
 
-const filtrable = (c: CasoEncontrado) => ({ caso: c, codigo: c.codigo, tecnicoId: c.tecnicoActualId, area: c.area, estado: c.estado });
+const filtrable = (c: CasoEncontrado) => ({
+  caso: c,
+  codigo: c.codigo,
+  tecnicoId: c.tecnicoActualId,
+  area: c.area,
+  estado: c.estado,
+  ultimaActualizacionEn: c.ultimaActualizacionEn,
+  creadoEn: c.creadoEn,
+  sinTraspasoDesde: appStore.get().casosAbiertos.find((a) => a.id === c.id)?.sinTraspasoDesde ?? null
+});
 
 /** Dibuja los resultados que pasan los filtros (los filtros no vuelven a consultar la base). */
 function pintarResultados(): void {
@@ -162,7 +171,7 @@ function abrirFicha(tarjeta: HTMLElement, casoId: string): void {
 export function iniciarBuscadorDeCasos(): void {
   barraBusqueda = crearBarraDeFiltros(byId('caseSearchFilters'), {
     clave: 'busqueda',
-    campos: ['tipo', 'area', 'estado', 'tecnico'],
+    campos: ['tipo', 'area', 'estado', 'tecnico', 'atraso'],
     tecnicos: () => appStore.get().catalogo.map((t) => ({ id: t.id, nombre: t.nombre })),
     alCambiar: () => pintarResultados()
   });

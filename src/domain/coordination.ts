@@ -21,6 +21,7 @@ export function describirAlerta(alerta: Pick<AlertaCoordinacion, 'tipo' | 'nivel
   const caso = alerta.detalle ?? 'Un caso';
   const tecnico = alerta.tecnicoNombre ?? 'su responsable';
   if (alerta.tipo === 'recordatorio_sin_jornada') return `Recordatorio de ${caso} y ${tecnico} no tiene turno ese día`;
+  if (alerta.tipo === 'turno_sin_traspaso') return `${caso}: ${tecnico} terminó su turno sin traspasarlo`;
   return `${caso}: ${alerta.nivel} h sin actualización de ${tecnico}`;
 }
 
@@ -36,7 +37,14 @@ export function alertasActivas(alertas: AlertaCoordinacion[]): AlertaCoordinacio
     const actual = porCaso.get(clave);
     if (!actual || (a.nivel ?? 0) > (actual.nivel ?? 0)) porCaso.set(clave, a);
   }
-  return [...porCaso.values()].sort((a, b) => (b.nivel ?? 0) - (a.nivel ?? 0) || b.creadoEn.localeCompare(a.creadoEn));
+  return [...porCaso.values()].sort(
+    (a, b) => pesoDeAlerta(b) - pesoDeAlerta(a) || b.creadoEn.localeCompare(a.creadoEn)
+  );
+}
+
+/** Orden de las alertas: un turno que terminó sin traspaso va primero (el caso no tiene a nadie). */
+function pesoDeAlerta(alerta: Pick<AlertaCoordinacion, 'tipo' | 'nivel'>): number {
+  return alerta.tipo === 'turno_sin_traspaso' ? 100 : (alerta.nivel ?? 0);
 }
 
 /** Ids de las alertas no leídas del mismo caso y tipo (al atender una se marcan todas). */
@@ -46,6 +54,7 @@ export function alertasHermanas(alertas: AlertaCoordinacion[], alerta: AlertaCoo
 
 /** Gravedad visual de una alerta. */
 export function gravedadDeAlerta(alerta: Pick<AlertaCoordinacion, 'tipo' | 'nivel'>): 'aviso' | 'alta' | 'critica' {
+  if (alerta.tipo === 'turno_sin_traspaso') return 'critica';
   if (alerta.tipo !== 'sin_actualizacion') return 'aviso';
   return alerta.nivel === 6 ? 'critica' : alerta.nivel === 4 ? 'alta' : 'aviso';
 }

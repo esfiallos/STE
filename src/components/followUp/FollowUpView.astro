@@ -17,6 +17,13 @@ const GRUPOS = [
       <h2 id="followUpTitle" class="planning-title">Mi seguimiento</h2>
       <p id="followUpSummary" class="planning-help"></p>
     </div>
+    <label class="handover-inline followup-order">
+      Ordenar
+      <select id="followUpOrder">
+        <option value="asignacion">Por asignación</option>
+        <option value="atraso">Más tiempo sin actualizar</option>
+      </select>
+    </label>
     <button id="btnCopyAllCases" type="button" class="btn">
       <i class="fa-regular fa-copy" aria-hidden="true"></i>
       <span>Copiar todos (texto)</span>
@@ -62,6 +69,7 @@ const GRUPOS = [
           <span class="followup-chip" data-ref="origen"></span>
           <span class="followup-chip followup-chip--fecha hidden" data-ref="fecha"></span>
           <span class="followup-chip followup-chip--recordatorio hidden" data-ref="recordatorio"></span>
+          <span class="followup-chip followup-chip--sin-traspaso hidden" data-ref="sinTraspaso"></span>
         </div>
       </div>
       <div class="followup-cell" role="cell">

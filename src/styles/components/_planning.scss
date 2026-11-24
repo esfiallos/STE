@@ -33,6 +33,11 @@
   color: $color-texto-suave;
 }
 
+.reassign-strip__owner--alerta {
+  color: $color-peligro;
+  font-weight: 600;
+}
+
 // Planificación semanal
 .planning-toolbar {
   display: flex;

@@ -278,6 +278,12 @@
   color: $color-peligro;
 }
 
+.followup-chip--sin-traspaso {
+  background-color: $color-peligro;
+  color: $color-texto-sobre-marca;
+  font-weight: 600;
+}
+
 .followup-card__handoff {
   padding: 0.4rem 0.6rem;
   border-radius: $radio-sm;

@@ -25,6 +25,8 @@ interface FilaCasoAbierto {
   actividad_tecnico_en?: string | null;
   recordatorio_fecha?: string | null;
   recordatorio_texto?: string | null;
+  /** Desde la migración 16. */
+  sin_traspaso_desde?: string | null;
 }
 
 function aIncidente(fila: FilaCasoAbierto): Incidente {
@@ -46,7 +48,8 @@ function aIncidente(fila: FilaCasoAbierto): Incidente {
     ultimaActualizacionPor: fila.ultima_actualizacion_por ?? null,
     actividadTecnicoEn: fila.actividad_tecnico_en ?? null,
     recordatorioFecha: fila.recordatorio_fecha ?? null,
-    recordatorioTexto: fila.recordatorio_texto ?? null
+    recordatorioTexto: fila.recordatorio_texto ?? null,
+    sinTraspasoDesde: fila.sin_traspaso_desde ?? null
   };
 }
 

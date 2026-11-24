@@ -50,6 +50,12 @@ La app se niega a arrancar si el entorno no coincide con el modo (por ejemplo, u
    Gmail permite unos 500 correos al día, de sobra para recuperar contraseñas. Si más adelante hay un dominio
    propio, un servicio transaccional (Resend, Brevo, SendGrid) es mejor para la entrega. El mismo SMTP puede
    usarse en DEV y en PROD.
+9. **Cerrar el registro** (en DEV y en PROD): Authentication → Sign In / Providers → desactiva
+   *Allow new users to sign up*. Las cuentas se crean solo desde el panel (procedimiento en
+   `docs/interno/ALTA_DE_USUARIOS.md`). La URL y la clave publicable están en el JS público: con el registro
+   abierto cualquiera podría crearse una cuenta. Desde la migración 16 una cuenta sin perfil no lee nada, pero
+   cerrarlo evita cuentas basura y abuso del envío de correos. Revisa también en Authentication → Policies la
+   longitud mínima de contraseña (≥ 10) y activa *Leaked password protection* si tu plan lo permite.
 
 ## 4. Flujo de trabajo
 

@@ -3,12 +3,15 @@ import {
   ESTADOS_DE_SEGUIMIENTO,
   ETIQUETA_ORIGEN,
   haceCuanto,
+  momentoCorto,
   nivelDeAtraso,
   normalizarEtiqueta,
+  ordenarPorAtraso,
   resumenDeVarios,
   resumenParaCopiar,
   sinDescripcion,
-  type GruposDeSeguimiento
+  type GruposDeSeguimiento,
+  type OrdenDeSeguimiento
 } from '../../domain/followUp';
 import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
 import { fechaCorta } from '../../domain/handoverReport';
@@ -40,6 +43,8 @@ let renderPendiente = false;
 /** Casos con el historial desplegado (se conserva al redibujar). */
 const historialAbierto = new Set<string>();
 const gruposColapsados = new Set<string>();
+/** Orden dentro de cada grupo: por asignación (por defecto) o los más olvidados primero. */
+let orden: OrdenDeSeguimiento = 'asignacion';
 let barra: BarraDeFiltros | null = null;
 
 const vista = () => byId('followUpView');
@@ -88,6 +93,13 @@ function crearFila(caso: Incidente, hoy: string, ahora: Date): HTMLElement {
   if (caso.recordatorioFecha) {
     recordatorio.textContent = `Recordar ${fechaCorta(caso.recordatorioFecha)}${caso.recordatorioTexto ? `: ${caso.recordatorioTexto}` : ''}`;
     recordatorio.classList.remove('hidden');
+  }
+  // D33: su turno terminó sin traspasarlo (el dispatch ya lo ve en "Por reasignar")
+  const sinTraspaso = ref(fragmento, 'sinTraspaso');
+  if (caso.sinTraspasoDesde) {
+    sinTraspaso.textContent = `Sin traspasar desde ${momentoCorto(caso.sinTraspasoDesde)}`;
+    sinTraspaso.title = 'Tu turno terminó y este caso no se traspasó: actualízalo y traspásalo, o pide al dispatch que lo reasigne.';
+    sinTraspaso.classList.remove('hidden');
   }
 
   ref<HTMLInputElement>(fragmento, 'empresa').value = caso.cliente ?? '';
@@ -152,7 +164,15 @@ export function renderizarSeguimiento(): void {
   barra?.actualizar(casos);
   const filtros = barra?.filtros();
   const filtrando = !!filtros && hayFiltros(filtros);
-  const grupos = agruparSeguimiento(filtros ? filtrarCasos(casos, filtros) : casos, tecnicoId, fechaOperativa);
+  const agrupados = agruparSeguimiento(filtros ? filtrarCasos(casos, filtros, ahora) : casos, tecnicoId, fechaOperativa);
+  const grupos: GruposDeSeguimiento =
+    orden === 'atraso'
+      ? {
+          traspaso: ordenarPorAtraso(agrupados.traspaso, ahora),
+          nuevos: ordenarPorAtraso(agrupados.nuevos, ahora),
+          anteriores: ordenarPorAtraso(agrupados.anteriores, ahora)
+        }
+      : agrupados;
   pintarGrupo('traspaso', grupos.traspaso, fechaOperativa, ahora, filtrando);
   pintarGrupo('nuevos', grupos.nuevos, fechaOperativa, ahora, filtrando);
   pintarGrupo('anteriores', grupos.anteriores, fechaOperativa, ahora, filtrando);
@@ -265,8 +285,14 @@ export function iniciarSeguimiento(miTecnicoId: string): void {
   const raiz = vista();
   barra = crearBarraDeFiltros(byId('followUpFilters'), {
     clave: 'seguimiento',
-    campos: ['tipo', 'area', 'estado'],
+    campos: ['tipo', 'area', 'estado', 'atraso'],
     alCambiar: () => renderizarSeguimiento()
+  });
+  const selectorDeOrden = byId<HTMLSelectElement>('followUpOrder');
+  selectorDeOrden.value = orden;
+  selectorDeOrden.addEventListener('change', () => {
+    orden = selectorDeOrden.value === 'atraso' ? 'atraso' : 'asignacion';
+    renderizarSeguimiento();
   });
 
   raiz.addEventListener('click', (evento) => {

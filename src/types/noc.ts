@@ -97,6 +97,11 @@ export interface Incidente {
   /** Recordatorio que dejó quien traspasó: avisa al inicio del turno de ese día operativo. */
   recordatorioFecha?: string | null;
   recordatorioTexto?: string | null;
+  /**
+   * Fin del turno en que su responsable lo tenía, si ese turno terminó sin traspaso (D33, migración 16).
+   * Null si está al día. Lo calcula la BD (casos_abiertos.sin_traspaso_desde).
+   */
+  sinTraspasoDesde?: string | null;
 }
 
 export type OrigenResponsable = 'dispatch' | 'reasignacion' | 'traspaso' | 'reapertura' | 'migracion';
@@ -111,7 +116,7 @@ export interface ResponsableCaso {
   asignadoPor: string;
 }
 
-export type TipoNotificacion = 'asignado' | 'reasignado' | 'traspaso' | 'recordatorio' | 'cancelado';
+export type TipoNotificacion = 'asignado' | 'reasignado' | 'traspaso' | 'recordatorio' | 'cancelado' | 'cierre_pendiente';
 
 export interface Notificacion {
   id: string;
@@ -213,7 +218,7 @@ export interface TraspasoEnviado {
   items: ItemTraspasoEnviado[];
 }
 
-export type TipoAlerta = 'sin_actualizacion' | 'recordatorio_sin_jornada';
+export type TipoAlerta = 'sin_actualizacion' | 'recordatorio_sin_jornada' | 'turno_sin_traspaso';
 
 /** Aviso para coordinación (tabla alertas_coordinacion). */
 export interface AlertaCoordinacion {

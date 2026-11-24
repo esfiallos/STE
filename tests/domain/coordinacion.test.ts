@@ -43,4 +43,11 @@ describe('alertas de coordinación', () => {
     expect(alertasActivas(lista).map((a) => a.id)).toEqual(['b', 'c', 'e']);
     expect(alertasHermanas(lista, lista[1]!)).toEqual(['a', 'b']);
   });
+
+  it('un turno terminado sin traspaso es crítico y va antes que todo (D33)', () => {
+    const sinTraspaso = alerta('t', 'inc9', null, { tipo: 'turno_sin_traspaso', creadoEn: '2026-11-09T08:00:00Z' });
+    expect(describirAlerta(sinTraspaso)).toBe('INC9: Ana Pérez terminó su turno sin traspasarlo');
+    expect(gravedadDeAlerta(sinTraspaso)).toBe('critica');
+    expect(alertasActivas([alerta('a', 'inc1', 6), sinTraspaso, alerta('e', 'inc4', null)]).map((a) => a.id)).toEqual(['t', 'a', 'e']);
+  });
 });

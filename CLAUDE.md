@@ -15,18 +15,18 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
-   §8 decisiones D1–D28, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 37 archivos, ~270 pruebas). En una máquina cargada
+   §8 decisiones D1–D35, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida, §12 v2.3, §13 v2.4 seguridad y casos perdidos). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 39 archivos, ~295 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Fases 1–14 hechas (`docs/DISENO_V2.md` §11–§12, reglas D16–D31, todas decididas). Migraciones 04–15
-   aplicadas en DEV y PROD y perfiles poblados. Siguiente: probar contra DEV con los tres roles y publicar
-   (§9, §11.13).
+4. Fases 1–15 hechas (`docs/DISENO_V2.md` §11–§13, reglas D16–D35, todas decididas). Migraciones 04–15
+   aplicadas en DEV y PROD y perfiles poblados; **la 16 aún no** (la aplica el usuario, primero en DEV). Siguiente:
+   aplicar la 16, cerrar el registro en Supabase (§13.1), probar contra DEV con los tres roles y publicar.
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
    usuario lo pide; nunca ejecutes migraciones ni escrituras en PROD sin su confirmación explícita.
 
-## Estado (al 22/11/2026)
+## Estado (al 23/11/2026)
 
 | Fase | Estado | Qué quedó |
 |---|---|---|
@@ -44,6 +44,7 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 12. Seguimiento v2 | ✅ | §11.3–11.6: descripción única, última actualización = fecha + botón, filas horizontales, etiquetas propias locales (localStorage) con combobox, nota del traspaso = descripción · `sql/12` |
 | 13. Filtros | ✅ | §11.11: tipo de caso (FRESH `#SR`/`#INC` · Tarea `SCTASK` · Incidente `INC`) + filtros técnico/área/estado/tipo |
 | 14. Turno C por tramos y pulido | ✅ | §12: C1 22–00 / C2 00–06 (D29, `sql/14`), paletas de la tabla del traspaso (D30), destello al soltar, tarjetas sin superposición, quedarse un caso para mañana (D31, `sql/15`) |
+| 15. Seguridad y casos perdidos | ✅ | §13: lectura solo con perfil (D32), turno terminado sin traspaso → "Por reasignar" + chip + alerta de coordinación (D33), aviso previo al técnico (D34), filtro/orden por tiempo sin actualizar, CSP + SRI (D35) · `sql/16` (**sin aplicar**) |
 
 **Bases de datos (revisado con el conector el 22/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
 DEV = `DEV` (`bofqefbxziqxzrdujihd`).
@@ -59,20 +60,31 @@ DEV = `DEV` (`bofqefbxziqxzrdujihd`).
 - 22/11/2026, a pedido del usuario: se volvió a vaciar `public` **y `auth.users`** en DEV y PROD y se crearon las
   cuentas reales (12 técnicos con su ficha en `tecnicos`, 3 dispatch, 1 coordinador; DEV además un coordinador de
   prueba). Sin casos ni jornadas. Las cuentas se crearon **sin contraseña** (la pone el usuario). Procedimiento para
-  altas, cambios de rol y bajas: `docs/interno/ALTA_DE_USUARIOS.md` (local, no se versiona).
-- DEV tiene el escenario de datos de prueba con los técnicos reales (copia local `docs/interno/03_datos_demo_dev_real.sql`,
-  misma lógica que `sql/03_datos_demo_dev.sql`; cargado el 22/11/2026; repetible, relativo al día en que
-  se corre). Qué contiene y qué probar con cada usuario: `docs/interno/DATOS_DE_PRUEBA.md` (local, no se versiona).
-- PROD: la app publicada (`main`, que aún usa `incidentes`) **no funciona** hasta publicar la v2.
+  altas, cambios de rol y bajas
+- DEV tiene el escenario de datos de prueba
 
-**Configuración pendiente (la hace el usuario):** en Supabase DEV y PROD agregar `/restablecer/` a
-*Authentication → URL Configuration → Redirect URLs* y configurar SMTP propio (el correo incluido solo envía al
-equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
-
-**No verificado en navegador contra Supabase real:** fases 2 y 4 (solo pruebas con backend simulado). El login y
-`/restablecer/` sí se revisaron visualmente en `bun run dev` (sin enviar nada).
 
 ## Lo que falta
+
+### Fase 15 — Seguridad y casos perdidos ✅ (qué quedó) · auditoría del 23/11/2026
+- `sql/16_v2_proteccion_de_casos.sql` (**sin aplicar en DEV ni PROD**): `tiene_perfil()`; `casos`, `caso_responsables`,
+  `jornadas`, `tecnicos` y `tecnicos_de_la_ronda()` solo para usuarios con perfil (antes cualquier sesión, D32).
+  `gracia_cierre_de_turno()` (30 min), `turno_sin_traspaso(tecnico, fecha, desde, ahora)`, `casos_abiertos` +
+  `sin_traspaso_desde` al final, alerta `turno_sin_traspaso`, notificación `cierre_pendiente`,
+  `vigilar_cierres_de_turno()` (cron **`cierres-de-turno`** cada 5 min: alertas D33 + aviso previo D34).
+- Dominio: `motivoPorReasignar` (`assignments.ts`; "Por reasignar" suma los de un turno sin traspaso),
+  `horasSinActualizar`/`ordenarPorAtraso` (`followUp.ts`), filtro `atraso` (`caseFilters.ts`: +2/+4/+6 h, +1 día,
+  "Quedó sin traspaso"), alerta crítica primero (`coordination.ts`).
+- App: franja "Por reasignar" con el motivo; chip "Sin traspasar desde…" en Mi seguimiento; selector **Ordenar**
+  (`#followUpOrder`); filtro "Sin actualizar" en Mi seguimiento y Buscar casos; el aviso `cierre_pendiente` abre la
+  pestaña Traspaso.
+- `Layout.astro`: CSP por `<meta>` solo en producción (`connect-src` = el Supabase de `PUBLIC_SUPABASE_URL`) y SRI de
+  Font Awesome. Verificado con `astro preview` (config `panel-preview`, puerto 4322) y variables de prueba: login OK,
+  sin violaciones. El panel con sesión no se pudo ver (sin `.env.production` local).
+- Pruebas: `tests/sql/proteccion-de-casos-v2.test.ts` y casos nuevos en `tests/domain/{filtros,coordinacion,
+  metricas-asignaciones-busqueda}.test.ts`, `tests/app/{tablero,seguimiento}.test.ts`.
+- Pendiente del usuario: aplicar la 16 (DEV → PROD) y desactivar *Allow new users to sign up*
+  (`docs/ENTORNOS_Y_DESPLIEGUE.md` §1 paso 9).
 
 ### Fase 5 — Casos + Traspasos ✅ (qué quedó)
 - `sql/07_v2_traspasos.sql`: áreas fijas (`areas_de_caso()` = `domain/areas.ts`), el técnico edita área y empresa
@@ -223,11 +235,6 @@ equipo del proyecto). Detalle: `docs/ENTORNOS_Y_DESPLIEGUE.md` §1 pasos 7–8.
 - Pruebas: `tests/domain/filtros.test.ts`, `tests/app/filtros.test.ts`.
 - No verificado en el navegador (sin sesión).
 
-### Otros pendientes conocidos
-- `03_datos_demo_dev.sql` no crea perfiles ni usuarios y usa **nombres ficticios** (en el repo no va ningún nombre ni
-  correo real; lo real vive en `docs/interno/`, ignorada por git). Busca los técnicos por nombre y crea los que falten.
-  Apaga `casos_antes_de_guardar_trg` durante la carga para fijar fechas pasadas y lo enciende antes del commit.
-- Las alertas de escritorio solo salen si el técnico las activa y la pestaña no está a la vista.
 
 ---
 
@@ -350,6 +357,8 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
   y ronda por tramo, `describir_turno` con el tramo (D29). Sin cron.
 - `15_v2_traspaso_propio.sql`: `enviar_traspaso` acepta entregarse un caso a uno mismo para mañana (nuevo tramo en
   `caso_responsables`) y la carga en 0 ignora lo que ya es para un turno futuro (D31). Sin cron.
+- `16_v2_proteccion_de_casos.sql`: lectura solo con perfil (D32), turno sin traspaso (D33), aviso previo (D34),
+  `casos_abiertos.sin_traspaso_desde`. **Con cron** `cierres-de-turno` (bloque final, la prueba lo quita).
 - `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`, requiere 04–14); escenario de prueba completo
   y repetible; no toca `perfiles` ni `auth`. Guía: `docs/interno/DATOS_DE_PRUEBA.md` (local, no se versiona).
 - Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
