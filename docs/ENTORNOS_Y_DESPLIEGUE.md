@@ -6,7 +6,7 @@ estáticos, `wrangler.jsonc`) desde GitHub Actions, cada uno desde su rama y con
 | | Desarrollo | Producción |
 |---|---|---|
 | Dónde corre | `bun run dev` (local) **y** worker `panel-noc-dev` | Worker `panel-noc` |
-| Dirección | `https://panel-noc-dev.<subdominio>.workers.dev` | `https://panel-noc.<subdominio>.workers.dev` |
+| Dirección | `https://panel-noc-dev.milicom-ste.workers.dev` | `https://panel-noc.milicom-ste.workers.dev` |
 | Base de datos | Proyecto Supabase **DEV** (`bofqefbxziqxzrdujihd`) | Proyecto Supabase **STE** (`kkslgsgapodpzuifjrwz`) |
 | Configuración | `.env.development` (local) · entorno de GitHub `development` | Entorno de GitHub `production` |
 | `PUBLIC_APP_ENV` | `development` | `production` |
@@ -17,7 +17,7 @@ estáticos, `wrangler.jsonc`) desde GitHub Actions, cada uno desde su rama y con
 compilar que la URL de Supabase sea la del proyecto que le toca: DEV nunca se publica contra la base real ni al
 revés. La compilación de producción no puede llevar la insignia de desarrollo, y la de DEV debe llevarla.
 
-`<subdominio>` es el de la cuenta de Cloudflare (Workers & Pages → *Your subdomain*).
+Subdominio de la cuenta de Cloudflare: `milicom-ste` (Workers & Pages → *Subdomain*).
 
 
 ## 1. Configurar Cloudflare y GitHub (una sola vez)
@@ -39,9 +39,9 @@ revés. La compilación de producción no puede llevar la insignia de desarrollo
 6. Push a `desarrollo` → se publica DEV. Merge/push a `main` → se publica producción. También se pueden lanzar a
    mano desde Actions (*Run workflow*).
 7. **Supabase, en cada proyecto** (Authentication → URL Configuration):
-   - PROD: *Site URL* = `https://panel-noc.<subdominio>.workers.dev`; *Redirect URLs* +=
-     `https://panel-noc.<subdominio>.workers.dev/restablecer/`.
-   - DEV: *Redirect URLs* += `https://panel-noc-dev.<subdominio>.workers.dev/restablecer/` (la *Site URL* puede
+   - PROD: *Site URL* = `https://panel-noc.milicom-ste.workers.dev`; *Redirect URLs* +=
+     `https://panel-noc.milicom-ste.workers.dev/restablecer/`.
+   - DEV: *Redirect URLs* += `https://panel-noc-dev.milicom-ste.workers.dev/restablecer/` (la *Site URL* puede
      seguir en `http://localhost:4321`, con `http://localhost:4321/restablecer/` también en la lista).
 
    Si falta, el correo de recuperación llega pero el enlace abre la *Site URL* en vez de `/restablecer/`.

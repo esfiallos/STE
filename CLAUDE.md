@@ -20,9 +20,11 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: Cloudf
 3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 42 archivos, ~319 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
 4. Fases 1–18 hechas (`docs/DISENO_V2.md` §11–§16, reglas D16–D38, todas decididas). Migraciones 04–16
-   y 17–18 aplicadas en DEV y PROD (verificado con el conector el 24/11/2026). Despliegue movido a Cloudflare el
-   24/11/2026 (`docs/ENTORNOS_Y_DESPLIEGUE.md`, decisión en `docs/CLOUDFLARE.md`); falta la configuración de la
-   cuenta, los secretos y las URL de Supabase (pasos del usuario, §1 de ese documento).
+   y 17–18 aplicadas en DEV y PROD (verificado con el conector el 24/11/2026). Publicado en Cloudflare el 24/11/2026
+   (`docs/ENTORNOS_Y_DESPLIEGUE.md`, decisión en `docs/CLOUDFLARE.md`): producción
+   https://panel-noc.milicom-ste.workers.dev (STE) y DEV https://panel-noc-dev.milicom-ste.workers.dev, verificados
+   en el navegador sin sesión (login, cabeceras, CSP, 404). URL de Supabase configuradas por el usuario. Pendiente:
+   retirar GitHub Pages y la rama `gh-pages`, proteger DEV con Cloudflare Access, probar con sesión en producción.
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
