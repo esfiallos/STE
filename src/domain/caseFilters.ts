@@ -4,7 +4,7 @@
  */
 import type { EstadoCaso, Incidente } from '../types/noc';
 import { tipoDeCaso, TIPOS_DE_CASO, type TipoDeCaso } from './caseType';
-import { horasSinActualizar } from './followUp';
+import { horasDesdeLaActualizacion } from './followUp';
 
 /** Valor de "Sin área" en el filtro (no choca con ningún área del catálogo). */
 export const SIN_AREA = '-';
@@ -42,7 +42,7 @@ export type CasoFiltrable = Pick<Incidente, 'codigo' | 'tecnicoId'> &
 function cumpleAtraso(caso: CasoFiltrable, atraso: FiltroDeAtraso, ahora: Date): boolean {
   if (caso.estado === 'cerrado') return false;
   if (atraso === 'sin_traspaso') return !!caso.sinTraspasoDesde;
-  const horas = horasSinActualizar(caso, ahora);
+  const horas = horasDesdeLaActualizacion(caso, ahora);
   return horas !== null && horas >= Number(atraso);
 }
 

@@ -231,6 +231,9 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **12. Seguimiento v2** ✅ | Descripción única + "Última actualización" como fecha y botón, filas horizontales, etiquetas locales con combobox, nota del traspaso = descripción, verificación traspaso → seguimiento (§11.3–11.6) · `12` | 10, 11 |
 | **13. Filtros** ✅ | Tipo de caso (FRESH · Tarea · Incidente) y filtros por técnico, área, estado y tipo en todas las vistas de casos (§11.11) | 12 |
 | **14. Turno C por tramos y pulido** ✅ | C1 22–00 / C2 00–06 (D29), color de la tabla del traspaso (D30), destello al soltar un caso, tarjetas sin chips superpuestos, quedarse un caso para mañana (D31) (§12) · `14`, `15` | 13 |
+| **18. Planificación con aviso** ✅ | El dispatch cambia la planificación sin esperar aprobación: da el motivo una vez por día y coordinación recibe el aviso con el detalle; el almuerzo, libre (D38, §16) · `18` | 17 |
+| **17. Reparto por supervisión** ✅ | Dispatch y coordinación reparten "Por reasignar" al seguimiento de otros técnicos (D37), el turno limita "Entregar a", buscadores que vuelven al estado normal (§15) · `17` | 16 |
+| **16. Traspaso y colores** ✅ | Etiquetas "en manos de quién" (D36), estado y área con color, recordatorio opcional, receptor por turno con búsqueda y reparto "todos entran", historial en Buscar casos (también para el técnico) (§14) · sin SQL | 15 |
 | **15. Seguridad y casos perdidos** ✅ | Lectura solo con perfil (D32), turno terminado sin traspaso → "Por reasignar" + alerta (D33), aviso previo al técnico (D34), filtro y orden por tiempo sin actualizar, CSP + SRI (D35) (§13) · `16` | 14 |
 
 > Orden revisado el 19/11/2026 al sumar los requerimientos de §10. Cada fase con su migración `sql/0N_*.sql`.
@@ -251,6 +254,9 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 - **D7. Comodín:** horarios fijos 06–16, 07–17, 08–18. Almuerzos a elección del dispatch.
 - **D8–D15** (19/11/2026): ver §10. Cambian D3 (hay un tercer rol, **coordinador**) y D5 (la planificación la
   hace coordinación; el dispatch solo la edita por día con solicitud aprobada).
+- **D38** (24/11/2026): ver §16. Reemplaza D14: el dispatch ya no pide permiso para planificar; avisa el motivo.
+- **D37** (23/11/2026): ver §15. Cambia D16/D18 en lo que toca a "Por reasignar": coordinación también la ve y reparte.
+- **D36** (23/11/2026): ver §14. Cambia D22 (etiquetas sugeridas) y da Buscar casos al técnico.
 - **D32–D35** (23/11/2026): ver §13. Matizan D2: si un técnico no cierra turno, el caso no se pierde: la base lo
   detecta 30 min después del fin del turno y lo devuelve al dispatch ("Por reasignar") y a coordinación (alerta).
 - **D29–D31** (22/11/2026): ver §12. Cambian D6 (los tramos de C cuentan como "turno C"; uno puede entregarse a sí
@@ -599,7 +605,8 @@ Revisión del usuario sobre DEV con datos de prueba (`docs/interno/DATOS_DE_PRUE
 - Efectos: el caso entra en **"Por reasignar"** del dispatch aunque el técnico trabaje hoy ("Ana: terminó su turno
   (dd/mm hh:mm) sin traspasarlo", en rojo); en **Mi seguimiento** lleva el chip "Sin traspasar desde dd/mm hh:mm";
   coordinación recibe la alerta **`turno_sin_traspaso`** (crítica, va primero; una por caso y turno; se da por
-  leída sola al traspasarse, reasignarse o cerrarse el caso).
+  leída sola al traspasarse, reasignarse o cerrarse el caso). En Panel y campana, un caso con esta alerta no repite
+  su "N h sin actualización" (`alertasActivas`); atenderla marca también esas.
 - Las alertas 2/4/6 h (D12) no cambian: siguen contando solo dentro del turno.
 
 ### 13.3 Aviso previo — ✅
@@ -610,8 +617,10 @@ Revisión del usuario sobre DEV con datos de prueba (`docs/interno/DATOS_DE_PRUE
 
 ### 13.4 Tiempo sin actualizar — ✅
 - Filtro **"Sin actualizar"** (+2 h, +4 h, +6 h, +1 día, "Quedó sin traspaso") en Mi seguimiento y Buscar casos
-  (`caseFilters.ts`, campo `atraso`). Cuenta desde lo más reciente entre la última actualización y la llegada al
-  responsable, sin reiniciarse por turno (`horasSinActualizar`); los cerrados no cuentan.
+  (`caseFilters.ts`, campo `atraso`). Cuenta desde la **última actualización** (la misma del "hace N" de la fila; si
+  nunca se actualizó, desde la llegada), sin reiniciarse por turno (`horasDesdeLaActualizacion`); los cerrados no
+  cuentan. El borde de atraso sí toma lo más reciente entre actualización y llegada (`horasSinActualizar`), para que
+  un caso recién recibido no salga en rojo.
 - Mi seguimiento: **Ordenar** "Por asignación" / "Más tiempo sin actualizar" (lo sin traspaso primero).
 
 ### 13.5 Endurecimiento del cliente — ✅
@@ -622,3 +631,90 @@ Revisión del usuario sobre DEV con datos de prueba (`docs/interno/DATOS_DE_PRUE
   (clickjacking) no se puede fijar desde `<meta>`.
 - Verificado con `astro preview` (variables de prueba): login funciona, sin violaciones de CSP, íconos cargan.
 
+---
+
+## 14. Requerimientos v2.5 · traspaso y colores (23/11/2026)
+
+### 14.1 Etiquetas que dicen en manos de quién está el caso — ✅
+- **D36.** Sugeridas: **Crítico / VIP · Esperando cliente · Esperando proveedor · Escalado N2 · Ventana programada ·
+  Validar con usuario · Requiere visita** (el orden es la prioridad del reporte). Las anteriores ya guardadas en
+  casos conservan un color parecido (Crítico → crítico, Escalar → escalado, VM → ventana, Pendiente cliente →
+  cliente; Monitoreo y Seguimiento → neutro). Las propias de cada técnico no cambian.
+- El reporte del traspaso colorea por **color de etiqueta** (`colorDeEtiqueta`), no por texto exacto.
+
+### 14.2 Estado y área con color — ✅
+- Como las etiquetas: `$colores-estado` (En curso azul · Pausado ámbar · Resuelto verde · Cerrado gris) y
+  `$colores-area` (uno por área, `claveDeArea`: "CORE IP" → `core-ip`). `scripts/ui/colorDeCaso.ts` pinta chips y
+  listas (`colorearLista` repinta al cambiar). Dónde: Mi seguimiento (listas de estado y área), Traspaso (lista de
+  estado y chip de área), tarjeta del tablero (chip de estado) y Buscar casos (estado, área y etiqueta). Una prueba
+  verifica que cada área, estado y color de etiqueta tenga su par en los estilos.
+
+### 14.3 Recordatorio opcional en el traspaso — ✅
+- Casilla **"Agregar recordatorio"** que muestra fecha y texto. Marcada sola si el caso ya trae recordatorio;
+  desmarcarla borra fecha y texto.
+
+### 14.4 Receptor por turno, con búsqueda; todos entran al reparto — ✅
+- Cada caso: lista **Turno** ("Todos los turnos (N)" + "Turno C1 + C2 · hoy (2)"…, `gruposDeReceptores`) y
+  **Entregar a**, acotada al turno elegido (si el caso ya tiene receptor, arranca en su turno). "Entregar a" tiene
+  **búsqueda rápida** (`ui/listaConBusqueda.ts`: combobox sobre el `<select>`, que queda oculto con el valor; acepta
+  el texto exacto o una coincidencia única: "marta" → Marta Soto).
+- Los receptores se muestran plegados: "Reparto entre todos (N)" · *Excluir a alguien*. Todos entran por defecto;
+  el técnico desmarca a quien quiera dejar fuera (uno mismo sigue fuera por defecto, D31).
+
+### 14.5 Historial en Buscar casos — ✅
+- Mi seguimiento ya no despliega el historial en la fila (con casos de 5–6 días ocupaba mucho): el botón abre el caso
+  en **Buscar casos**, que ahora también tiene el técnico. Ve responsables y los traspasos que entregó o recibió
+  (RLS de `traspasos`; supervisión ve todos).
+
+---
+
+## 15. Requerimientos v2.6 · reparto por supervisión (23/11/2026)
+
+### 15.1 Repartir lo que quedó sin dueño — ✅ `sql/17_v2_entrega_por_supervision.sql`
+- **D37.** Si un técnico se fue sin traspasar (o no trabaja hoy), avisar no basta: el **dispatch o coordinación**
+  reparte sus casos con **«Repartir…»** en la franja "Por reasignar" (coordinación ahora también la ve, sin
+  arrastre). El modal tiene tres decisiones: **casos** (todos marcados), **turno que los recibe** (los de hoy que no
+  han terminado y los de mañana, `receptoresParaEntregar` + `turnoTerminado`) y **entre quiénes** (todos los de ese
+  turno marcados). El reparto es parejo y alterna tipos (`repartirEntrega` = `repartirCasos` del traspaso) y se ve
+  antes de entregar ("Luis Mora (2): INC21, SCTASK22").
+- `entregar_casos(p_entregas)` (dispatch o coordinación; todo o nada): el caso pasa al **seguimiento** de quien
+  recibe como traspaso (origen `traspaso`, fecha de su jornada: hoy o mañana), no al tablero del día. Valida que el
+  receptor esté activo, planificado ese día y con el turno sin terminar. Notificación `traspaso` al receptor y
+  bitácora `entregado_por_supervision`. Puede dejarle el caso al mismo técnico para su turno de mañana (nuevo tramo).
+  La alerta `turno_sin_traspaso` se da por leída sola (cambia el responsable). Interna `entregar_casos_en(…, ahora)`
+  solo para pruebas.
+- El arrastre del dispatch a una columna sigue igual (reasignación al tablero de hoy).
+
+### 15.2 El turno limita "Entregar a" — ✅
+- En el Traspaso, al elegir un turno la lista queda **solo** con ese turno: si quien estaba elegido es de otro turno,
+  se quita (el caso vuelve a "elige a quién se entrega"); si el turno tiene una sola persona, queda elegida. Si el
+  reparto automático mueve el caso a otro turno, la lista sigue al receptor.
+
+### 15.3 Buscadores que vuelven al estado normal — ✅
+- Buscar casos: al vaciar el campo (borrar, Esc o la ✕ del navegador) se quitan los resultados y el mensaje.
+- Búsqueda de "Entregar a": vaciar el texto ya no quita a quien estaba elegido; al salir del campo vuelve a mostrarse.
+
+---
+
+## 16. Requerimientos v2.7 · planificación con aviso (24/11/2026)
+
+### 16.1 El dispatch cambia sin esperar aprobación — ✅ `sql/18_v2_planificacion_con_aviso.sql`
+- **D38.** La autorización era un freno: el dispatch cambia la planificación de **hoy en adelante** sin esperar a
+  coordinación (D15 sigue: nadie toca días pasados). La **primera vez que cambia un turno de un día** se le pide el
+  **motivo** (panel `ui/pedirTexto.ts`); con él, ese día queda libre hasta el fin del día operativo en curso (06:00).
+  Al día operativo siguiente, el primer cambio de ese mismo día vuelve a pedir motivo. El motivo es por día
+  planificado: si dos dispatch cambian el mismo día, comparten el aviso y cada cambio dice quién lo hizo.
+- **El almuerzo no pide motivo**: el dispatch lo ajusta libre desde la planificación o desde el tablero del día.
+  Guardar el mismo turno tampoco.
+- Coordinación recibe cada aviso en su campana y en "Cambios del dispatch" (pestaña Planificación) con el motivo y
+  el detalle (técnico: antes → después · quién). Solo lo marca **visto**; no aprueba ni rechaza. Un cambio nuevo
+  en un aviso ya visto lo vuelve a mostrar. Coordinación sigue planificando sin motivo.
+- Base: tabla `avisos_planificacion` (lectura dispatch/coordinación; coordinación solo escribe `visto`; Realtime),
+  `aviso_de_planificacion(fecha)`, `avisar_cambio_planificacion(fecha, motivo)` (idempotente por día, bitácora
+  `aviso_planificacion`), `puede_planificar` = dispatch o coordinación desde hoy, y `jornadas_validar_permiso`
+  exige el aviso al dispatch salvo en cambios de almuerzo y anota cada cambio en `cambios` (un upsert se anota una
+  sola vez, con el turno de antes). Se retiran `solicitar_edicion_planificacion` y
+  `resolver_solicitud_planificacion`; `solicitudes_planificacion` queda como historial.
+- App: `domain/planningNotices.ts`, `services/avisosPlanificacionRepo.ts`, `actions/planningNoticeActions.ts`,
+  `planning/planningNoticesSync.ts` (insignia de la pestaña solo para coordinación). Se quitaron la campana de
+  respuestas del dispatch (`requestsBell.ts`), el formulario de solicitud y la lista "Por responder".

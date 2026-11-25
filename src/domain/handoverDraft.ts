@@ -5,6 +5,7 @@
 import type { Incidente, ItemTraspaso, Jornada, ReceptorTraspaso, TecnicoCatalogo, TurnoTecnico } from '../types/noc';
 import { normalizarEtiqueta } from './followUp';
 import { debeTraspasarse, puedeRecibirTraspaso } from './handover';
+import { nombreDeJornada } from './shifts';
 import type { DestinoDeBloque, FilaDeReporte } from './handoverReport';
 
 const ORDEN_DE_TURNO: Record<TurnoTecnico, number> = { turnoA: 1, comodin: 2, turnoB: 3, turnoC: 4 };
@@ -35,6 +36,34 @@ export function receptoresDelTraspaso(
       horarioFin: j.horarioFin
     }))
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || ORDEN_DE_TURNO[a.turno] - ORDEN_DE_TURNO[b.turno] || a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+/** Receptores de un mismo turno y día (§14.4: primero se elige el turno, luego la persona). */
+export interface GrupoDeReceptores {
+  /** `fecha|turno` ("2026-11-09|Turno C1 + C2"). */
+  clave: string;
+  /** "Turno C1 + C2 · hoy". */
+  etiqueta: string;
+  receptores: ReceptorTraspaso[];
+}
+
+/** Agrupa los receptores por día y turno, en el mismo orden en que llegan (día, turno, nombre). */
+export function gruposDeReceptores(receptores: readonly ReceptorTraspaso[], fechaHoy: string): GrupoDeReceptores[] {
+  const grupos = new Map<string, GrupoDeReceptores>();
+  for (const r of receptores) {
+    const turno = nombreDeJornada(r);
+    const clave = `${r.fecha}|${turno}`;
+    const grupo = grupos.get(clave) ?? { clave, etiqueta: `${turno} · ${r.fecha === fechaHoy ? 'hoy' : 'mañana'}`, receptores: [] };
+    grupo.receptores.push(r);
+    grupos.set(clave, grupo);
+  }
+  return [...grupos.values()];
+}
+
+/** Clave del grupo de un receptor (o null si no está entre los receptores). */
+export function grupoDeReceptor(grupos: readonly GrupoDeReceptores[], tecnicoId: string | null): string | null {
+  if (!tecnicoId) return null;
+  return grupos.find((g) => g.receptores.some((r) => r.tecnicoId === tecnicoId))?.clave ?? null;
 }
 
 /**

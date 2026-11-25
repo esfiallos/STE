@@ -145,3 +145,18 @@
 .board--historico [data-edit-only] {
   display: none !important;
 }
+
+// Botón con aspecto de enlace (acciones secundarias dentro de un texto o leyenda)
+.btn-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $color-marca;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

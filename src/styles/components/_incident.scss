@@ -176,3 +176,9 @@
     border-color: #e0a800;
   }
 }
+
+// Solo lectura: la tarjeta no se arrastra
+.incident-item-card:not([draggable='true']) {
+  cursor: default;
+}
+

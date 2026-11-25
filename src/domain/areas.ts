@@ -24,5 +24,10 @@ export function esAreaValida(area: string | null | undefined): area is AreaDeCas
   return typeof area === 'string' && (AREAS_DE_CASO as readonly string[]).includes(area);
 }
 
+/** Clave de estilo del color del área ("CORE IP" → "core-ip"); null si no es un área del catálogo. */
+export function claveDeArea(area: string | null | undefined): string | null {
+  return esAreaValida(area) ? area.toLowerCase().replace(/\s+/g, '-') : null;
+}
+
 /** Largo máximo del nombre de la empresa (casos.cliente). */
 export const LARGO_MAXIMO_EMPRESA = 120;

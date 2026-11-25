@@ -1,0 +1,29 @@
+# Desarrollo en línea: al llegar código a "desarrollo" se verifica, se compila contra la base DEV y se publica en
+# Cloudflare (worker "panel-noc-dev", con insignia DESARROLLO y título [DEV]). Nunca toca la base PROD.
+name: Desplegar desarrollo
+
+on:
+  push:
+    branches: [desarrollo]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-desarrollo
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    uses: ./.github/workflows/verificar.yml
+
+  publicar:
+    needs: verificar
+    uses: ./.github/workflows/publicar.yml
+    with:
+      entorno: development
+      app_env: development
+      proyecto_supabase: bofqefbxziqxzrdujihd # DEV
+      wrangler_env: dev
+    secrets: inherit

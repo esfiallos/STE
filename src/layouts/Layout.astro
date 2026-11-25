@@ -1,6 +1,7 @@
 ---
 import '@fontsource-variable/inter';
 import '../styles/main.scss';
+import { politicaParaMeta } from '../config/seguridad';
 
 interface Props {
   title: string;
@@ -9,30 +10,10 @@ interface Props {
 const { title } = Astro.props;
 const esDesarrollo = import.meta.env.PUBLIC_APP_ENV === 'development';
 
-// Política de contenido (D35): solo scripts propios, conexiones a nuestro Supabase y estilos/fuentes propios o del
-// CDN de iconos. 'unsafe-inline' en estilos hace falta por los style="" del reporte del traspaso y las muestras de
-// color. En `astro dev` no se aplica: Vite inyecta scripts en línea para recargar en caliente.
-// GitHub Pages no permite cabeceras: frame-ancestors (anti-clickjacking) no funciona desde <meta>.
-const supabase = (() => {
-  try {
-    return new URL(import.meta.env.PUBLIC_SUPABASE_URL ?? '');
-  } catch {
-    return null;
-  }
-})();
-const politicaDeContenido = esDesarrollo
-  ? null
-  : [
-      "default-src 'self'",
-      "script-src 'self'",
-      "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
-      "font-src 'self' data: https://cdnjs.cloudflare.com",
-      "img-src 'self' data:",
-      `connect-src 'self'${supabase ? ` ${supabase.origin} wss://${supabase.host}` : ''}`,
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'"
-    ].join('; ');
+// Política de contenido (D35), la misma que las cabeceras HTTP de Cloudflare (config/seguridad.ts). En `astro dev`
+// no se aplica: Vite inyecta scripts en línea para recargar en caliente. Sí se aplica en la compilación de DEV
+// publicada. frame-ancestors (anti-clickjacking) solo funciona por cabecera: va en dist/_headers.
+const politicaDeContenido = import.meta.env.DEV ? null : politicaParaMeta(import.meta.env.PUBLIC_SUPABASE_URL);
 ---
 
 <!doctype html>

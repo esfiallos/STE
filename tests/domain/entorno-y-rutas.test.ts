@@ -9,10 +9,11 @@ describe('entorno', () => {
     expect(() => validarEntorno(undefined, false)).toThrow(/DESARROLLO/);
   });
 
-  it('una compilación de producción exige PUBLIC_APP_ENV=production', () => {
+  it('una compilación declara su entorno: producción o DEV publicado', () => {
     expect(() => validarEntorno('production', true)).not.toThrow();
-    expect(() => validarEntorno('development', true)).toThrow(/compilación es de producción/);
-    expect(() => validarEntorno(undefined, true)).toThrow();
+    expect(() => validarEntorno('development', true)).not.toThrow();
+    expect(() => validarEntorno(undefined, true)).toThrow(/no declara su entorno/);
+    expect(() => validarEntorno('staging', true)).toThrow(/no declara su entorno/);
   });
 });
 

@@ -1,0 +1,43 @@
+---
+// Repartir casos "por reasignar" (D37): dispatch o coordinación los pasan al seguimiento de otros técnicos.
+// Lo controla scripts/modals/distributeModal.ts
+import Modal from './Modal.astro';
+---
+
+<Modal id="modalDistribute" titulo="Repartir casos">
+  <form id="formDistribute" class="noc-form distribute" autocomplete="off">
+    <p class="modal-subtitle">
+      Pasan al <strong>seguimiento</strong> de quien los recibe, como un traspaso, y se reparten parejo. Les llega el
+      aviso.
+    </p>
+
+    <fieldset class="distribute__group">
+      <legend>
+        Casos
+        <button type="button" id="distributeToggleAll" class="btn-link">Quitar todos</button>
+      </legend>
+      <div id="distributeCases" class="distribute__list"></div>
+    </fieldset>
+
+    <div class="form-group">
+      <label for="distributeShift">Turno que los recibe</label>
+      <select id="distributeShift"></select>
+    </div>
+
+    <fieldset class="distribute__group">
+      <legend>Repartir entre</legend>
+      <div id="distributeTechs" class="distribute__chips"></div>
+    </fieldset>
+
+    <div class="distribute__preview">
+      <h4>Quedaría así</h4>
+      <ul id="distributePreview"></ul>
+    </div>
+
+    <p id="distributeError" class="form-error hidden" role="alert"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close-modal>Cancelar</button>
+      <button type="submit" class="btn btn-primary" id="distributeSubmit">Entregar</button>
+    </div>
+  </form>
+</Modal>

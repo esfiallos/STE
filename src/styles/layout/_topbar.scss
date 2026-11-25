@@ -114,9 +114,18 @@
   max-width: $ancho-maximo;
   margin: 0 auto;
   padding: 0 1.5rem;
+  // En pantallas angostas las pestañas se desplazan dentro de la barra, no estiran la página
+  overflow-x: auto;
+  scrollbar-width: thin;
+
+  @media (max-width: 700px) {
+    padding: 0 0.75rem;
+  }
 }
 
 .tab {
+  flex-shrink: 0;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 0.5rem;

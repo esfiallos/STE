@@ -1,6 +1,6 @@
 ---
-// Planificación semanal. Coordinación la edita de hoy en adelante; el dispatch la ve en solo lectura y pide
-// permiso por día (D14). La grilla y las solicitudes las dibuja scripts/planning/planningView.ts
+// Planificación semanal. Coordinación y dispatch la editan de hoy en adelante; el dispatch da el motivo la primera
+// vez que cambia un día y coordinación lo recibe (D38). La grilla y los avisos los dibuja scripts/planning/planningView.ts
 ---
 
 <section class="panel-card planning" aria-labelledby="planningTitle">
@@ -23,11 +23,12 @@
 
   <p class="planning-help" data-coordinador-only>
     Elige el turno de cada técnico por día (el comodín, con su horario). El almuerzo se edita con el botón de cada
-    celda. Los días pasados no se modifican. Las solicitudes del dispatch para editar un día aparecen abajo.
+    celda. Los días pasados no se modifican. Los cambios que hace el dispatch, con su motivo, aparecen abajo.
   </p>
   <p class="planning-help" data-edit-only>
-    La planificación la hace coordinación. Para cambiar un día (por ejemplo, si falta un técnico) envía una
-    solicitud con el motivo: si la aprueban, ese día queda editable hasta las 06:00. Los días pasados no se modifican.
+    Puedes cambiar el turno de un día sin esperar aprobación: la primera vez que cambias un día se te pide el motivo
+    y coordinación recibe el aviso con el detalle. El almuerzo no pide motivo (también se ajusta desde el tablero).
+    Los días pasados no se modifican.
   </p>
 
   <p id="planningStatus" class="board-status hidden" role="status"></p>
@@ -37,36 +38,7 @@
   </div>
 </section>
 
-<section class="panel-card planning-requests" aria-labelledby="planningRequestsTitle">
-  <h2 id="planningRequestsTitle" class="planning-requests__title">Solicitudes para editar la planificación</h2>
-
-  <!-- Dispatch: pedir permiso para un día -->
-  <form id="planningRequestForm" class="noc-form planning-request-form" data-edit-only novalidate>
-    <div class="form-row">
-      <div class="form-group planning-request-form__day">
-        <label for="planningRequestDate">Día</label>
-        <select id="planningRequestDate"></select>
-      </div>
-      <div class="form-group">
-        <label for="planningRequestReason">Motivo</label>
-        <input type="text" id="planningRequestReason" maxlength="500" autocomplete="off" placeholder="Ej: Luis se reportó enfermo, hay que cubrir el turno B" />
-      </div>
-    </div>
-    <p id="planningRequestError" class="form-error hidden" role="alert"></p>
-    <div>
-      <button id="btnPlanningRequest" type="submit" class="btn btn-primary">
-        <i class="fa-regular fa-paper-plane" aria-hidden="true"></i>
-        <span>Enviar solicitud</span>
-      </button>
-    </div>
-  </form>
-
-  <!-- Coordinación: lo que hay por responder -->
-  <div data-coordinador-only>
-    <h3 class="planning-requests__subtitle">Por responder</h3>
-    <ul id="planningPendingList" class="planning-requests__list"></ul>
-  </div>
-
-  <h3 class="planning-requests__subtitle">Recientes</h3>
-  <ul id="planningRequestList" class="planning-requests__list"></ul>
+<section class="panel-card planning-requests" aria-labelledby="planningNoticesTitle">
+  <h2 id="planningNoticesTitle" class="planning-requests__title">Cambios del dispatch</h2>
+  <ul id="planningNoticeList" class="planning-requests__list"></ul>
 </section>

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { AREAS_DE_CASO, esAreaValida } from '../../src/domain/areas';
-import { ETIQUETAS_SUGERIDAS } from '../../src/domain/followUp';
-import { combinarBorrador, entradasDelReporte, itemInicial, normalizarItem, problemasDelTraspaso, receptoresDelTraspaso } from '../../src/domain/handoverDraft';
+import { AREAS_DE_CASO, claveDeArea, esAreaValida } from '../../src/domain/areas';
+import { COLORES_DE_ETIQUETA, ETIQUETAS_SUGERIDAS } from '../../src/domain/followUp';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { combinarBorrador, entradasDelReporte, grupoDeReceptor, gruposDeReceptores, itemInicial, normalizarItem, problemasDelTraspaso, receptoresDelTraspaso } from '../../src/domain/handoverDraft';
 import { repartirCasos, tipoDeCaso, type CasoParaRepartir } from '../../src/domain/handoverBalance';
 import { armarBloques, esPaletaCorreo, fechaEnTexto, PALETAS_CORREO, reporteHtml, reporteTexto, reporteTsv, temaDeCorreo, type FilaDeReporte } from '../../src/domain/handoverReport';
 import type { Incidente, ItemTraspaso, Jornada, ReceptorTraspaso } from '../../src/types/noc';
@@ -10,12 +12,22 @@ const HOY = '2026-11-09';
 const MANANA = '2026-11-10';
 
 describe('áreas y etiquetas', () => {
-  it('el catálogo de áreas es el pedido y la etiqueta VM se ofrece', () => {
+  it('el catálogo de áreas es el pedido y se ofrece la ventana programada (antes VM)', () => {
     expect(AREAS_DE_CASO).toHaveLength(13);
     expect(esAreaValida('CORE IP')).toBe(true);
     expect(esAreaValida('core ip')).toBe(false);
     expect(esAreaValida(null)).toBe(false);
-    expect(ETIQUETAS_SUGERIDAS).toContain('VM');
+    expect(ETIQUETAS_SUGERIDAS).toContain('Ventana programada');
+  });
+
+  it('cada área tiene su color en los estilos y cada etiqueta sugerida el suyo (§14.2)', () => {
+    const variables = readFileSync(resolve(process.cwd(), 'src/styles/abstracts/_variables.scss'), 'utf8');
+    const mapa = (nombre: string) => variables.split(`$${nombre}: (`)[1]!.split(');')[0]!;
+    for (const area of AREAS_DE_CASO) expect(mapa('colores-area')).toContain(`  ${claveDeArea(area)}: (`);
+    expect(claveDeArea('CORE IP')).toBe('core-ip');
+    expect(claveDeArea('otra')).toBeNull();
+    for (const color of COLORES_DE_ETIQUETA) expect(mapa('colores-etiqueta')).toContain(`  ${color}: (`);
+    for (const estado of ['en_curso', 'pausado', 'resuelto', 'cerrado']) expect(mapa('colores-estado')).toContain(`  ${estado}: (`);
   });
 });
 
@@ -253,3 +265,25 @@ describe('paletas de la tabla del traspaso', () => {
     expect(html).not.toContain(temaDeCorreo('calido').barraFondo);
   });
 });
+
+describe('receptores por turno (§14.4)', () => {
+  const r = (tecnicoId: string, turno: ReceptorTraspaso['turno'], fecha: string, horario: [string, string] | null = null): ReceptorTraspaso => ({
+    tecnicoId, nombre: tecnicoId, turno, fecha, horarioInicio: horario?.[0] ?? null, horarioFin: horario?.[1] ?? null
+  });
+  it('agrupa por día y turno (tramos de C y horario del comodín incluidos) y ubica a cada receptor', () => {
+    const grupos = gruposDeReceptores(
+      [r('dunia', 'turnoC', '2026-11-09', ['22:00', '06:00']), r('emerson', 'turnoC', '2026-11-09', ['22:00', '06:00']),
+       r('adiel', 'turnoA', '2026-11-10'), r('francisco', 'comodin', '2026-11-10', ['06:00', '16:00'])],
+      '2026-11-09'
+    );
+    expect(grupos.map((g) => [g.etiqueta, g.receptores.length])).toEqual([
+      ['Turno C1 + C2 · hoy', 2],
+      ['Turno A · mañana', 1],
+      ['Comodín 06:00–16:00 · mañana', 1]
+    ]);
+    expect(grupoDeReceptor(grupos, 'adiel')).toBe('2026-11-10|Turno A');
+    expect(grupoDeReceptor(grupos, 'nadie')).toBeNull();
+    expect(grupoDeReceptor(grupos, null)).toBeNull();
+  });
+});
+

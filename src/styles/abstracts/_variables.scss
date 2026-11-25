@@ -45,12 +45,38 @@ $color-atraso-medio: #f97316;
 // Etiquetas (D22): fondo y texto por color (domain/followUp.ts → colorDeEtiqueta)
 $colores-etiqueta: (
   critico: (#fde2dd, #8e2412),
-  escalar: (#eadcf5, #5b2a86),
-  vm: (#d6ecf3, #14536a),
-  monitoreo: (#dcebf5, #1f5a7a),
-  pendiente: (#ffe9b0, #7a4b03),
-  seguimiento: (#e2f0e4, #2f5e35),
+  cliente: (#ffe9b0, #7a4b03),
+  proveedor: (#ffe0c7, #8a3b0a),
+  escalado: (#eadcf5, #5b2a86),
+  ventana: (#d6ecf3, #14536a),
+  validar: (#e2f0e4, #2f5e35),
+  visita: (#fce1ee, #8a1f52),
   otra: ($navy-50, #475569)
+);
+
+// Estado del caso (§14.2): fondo y texto (scripts/ui/colorDeCaso.ts)
+$colores-estado: (
+  en_curso: (#dbeafe, #1e40af),
+  pausado: (#fef3c7, #92400e),
+  resuelto: (#dcfce7, #166534),
+  cerrado: (#e2e8f0, #475569)
+);
+
+// Área del caso (§14.2): una por área de domain/areas.ts (claveDeArea); una prueba verifica que estén todas
+$colores-area: (
+  cpe: (#e0f2fe, #075985),
+  plex: (#ede9fe, #5b21b6),
+  tx: (#fae8ff, #86198f),
+  core-cs: (#ffedd5, #9a3412),
+  core-ip: (#fee2e2, #991b1b),
+  core-ps: (#fef9c3, #854d0e),
+  sio: (#dcfce7, #166534),
+  soporte-digital: (#ccfbf1, #115e59),
+  fresh: (#ecfccb, #3f6212),
+  redpro: (#fce7f3, #9d174d),
+  pvr: (#e0e7ff, #3730a3),
+  regional: (#f5f5f4, #44403c),
+  comercial: (#cffafe, #155e75)
 );
 
 // Tipo de caso (§11.11): fondo y texto del chip

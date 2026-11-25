@@ -1,0 +1,106 @@
+# Publicación reutilizable en Cloudflare (Workers con archivos estáticos, wrangler.jsonc).
+# La llaman deploy.yml (main → producción, base PROD) y deploy-dev.yml (desarrollo → DEV, base DEV).
+#
+# Secretos:
+#   · del repositorio: CLOUDFLARE_API_TOKEN (permiso "Workers Scripts: Edit") y CLOUDFLARE_ACCOUNT_ID
+#   · de cada entorno de GitHub (production / development): PUBLIC_SUPABASE_URL y PUBLIC_SUPABASE_PUBLISHABLE_KEY
+# Variable opcional de cada entorno: SITE_URL (la dirección publicada, para el enlace del entorno).
+name: Publicar
+
+on:
+  workflow_call:
+    inputs:
+      entorno:
+        description: Entorno de GitHub con los secretos (production | development)
+        type: string
+        required: true
+      app_env:
+        description: PUBLIC_APP_ENV de la compilación (production | development)
+        type: string
+        required: true
+      proyecto_supabase:
+        description: Referencia del proyecto de Supabase que debe usar (evita publicar contra la base equivocada)
+        type: string
+        required: true
+      wrangler_env:
+        description: Entorno de wrangler.jsonc ("" = producción, "dev" = desarrollo)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  publicar:
+    name: Compilar y publicar en Cloudflare
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    environment:
+      name: ${{ inputs.entorno }}
+      url: ${{ vars.SITE_URL }}
+
+    env:
+      PUBLIC_APP_ENV: ${{ inputs.app_env }}
+      PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
+      PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      SITE_URL: ${{ vars.SITE_URL }}
+      # En Cloudflare el sitio vive en la raíz del dominio
+      BASE_PATH: /
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Instalar dependencias
+        run: bun install --frozen-lockfile
+
+      - name: Comprobar la configuración
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROYECTO: ${{ inputs.proyecto_supabase }}
+          ENTORNO: ${{ inputs.entorno }}
+        run: |
+          test -n "$PUBLIC_SUPABASE_URL" || { echo "::error::Falta el secreto PUBLIC_SUPABASE_URL en el entorno '$ENTORNO'"; exit 1; }
+          test -n "$PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Falta el secreto PUBLIC_SUPABASE_PUBLISHABLE_KEY en el entorno '$ENTORNO'"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Falta el secreto del repositorio CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Falta el secreto del repositorio CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          case "$PUBLIC_SUPABASE_PUBLISHABLE_KEY" in
+            sb_secret_*|eyJ*service_role*) echo "::error::Esa clave NO es la publicable. Usa la clave publishable."; exit 1 ;;
+          esac
+          case "$PUBLIC_SUPABASE_URL" in
+            "https://$PROYECTO.supabase.co"|"https://$PROYECTO.supabase.co/") ;;
+            *) echo "::error::El entorno '$ENTORNO' debe usar el proyecto de Supabase $PROYECTO (revisa PUBLIC_SUPABASE_URL)"; exit 1 ;;
+          esac
+
+      - name: Compilar
+        run: bun run build
+
+      - name: Comprobar el resultado de la compilación
+        run: |
+          for f in index.html login/index.html restablecer/index.html 404.html _headers; do
+            test -f "dist/$f" || { echo "::error::Falta dist/$f"; exit 1; }
+          done
+          grep -q "frame-ancestors 'none'" dist/_headers || { echo "::error::dist/_headers no tiene la CSP"; exit 1; }
+          grep -qF "${PUBLIC_SUPABASE_URL%/}" dist/_headers || { echo "::error::La CSP de dist/_headers no permite este Supabase"; exit 1; }
+          marca=$(grep -rlE 'class="env-badge"|<title>\[DEV\]' --include='*.html' dist || true)
+          if [ "$PUBLIC_APP_ENV" = "production" ] && [ -n "$marca" ]; then
+            echo "::error::La compilación de producción lleva la marca de desarrollo: revisa PUBLIC_APP_ENV"; exit 1
+          fi
+          if [ "$PUBLIC_APP_ENV" = "development" ] && [ -z "$marca" ]; then
+            echo "::error::La compilación de DEV debe llevar la insignia DESARROLLO"; exit 1
+          fi
+
+      - name: Publicar en Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          command: deploy ${{ inputs.wrangler_env != '' && format('--env {0}', inputs.wrangler_env) || '' }}

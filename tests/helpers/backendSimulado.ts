@@ -21,7 +21,7 @@ export interface Datos {
   traspasos?: Fila[];
   traspaso_items?: Fila[];
   alertas_coordinacion?: Fila[];
-  solicitudes_planificacion?: Fila[];
+  avisos_planificacion?: Fila[];
 }
 
 /** Día de las pruebas: lunes 9 de noviembre de 2026 (ver fijarHora). */
@@ -79,7 +79,7 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
     traspaso_items: datos.traspaso_items ?? [],
     alertas_coordinacion: datos.alertas_coordinacion ?? [],
     ronda_estado: [],
-    solicitudes_planificacion: datos.solicitudes_planificacion ?? []
+    avisos_planificacion: datos.avisos_planificacion ?? []
   };
   const escrituras: string[] = [];
   let secuencia = 100;
@@ -158,6 +158,23 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
       escrituras.push(`RPC ${tabla} ${init?.body ?? ''}`);
       const parametros = JSON.parse(String(init?.body ?? '{}'));
       if (tabla === 'enviar_traspaso') return enviarTraspaso(parametros.p_traspaso);
+      if (tabla === 'entregar_casos') {
+        // Imita entregar_casos() (D37): el caso pasa al seguimiento del receptor como traspaso, para esa fecha
+        const entregas = parametros.p_entregas as { caso: string; tecnico: string; fecha: string }[];
+        for (const e of entregas) {
+          const caso = db.casos!.find((c) => c.id === e.caso);
+          if (!caso || caso.estado === 'cerrado') return json({ code: 'P0001', message: 'Uno de los casos ya no está abierto.' }, 400);
+        }
+        for (const e of entregas) {
+          const caso = db.casos!.find((c) => c.id === e.caso)!;
+          if (ORIGENES_DEL_TABLERO.includes((caso._origen ?? 'dispatch') as OrigenResponsable)) {
+            Object.assign(caso, { _tableroFecha: caso._fecha, _tableroTecnico: caso.tecnico_actual_id });
+          }
+          Object.assign(caso, { tecnico_actual_id: e.tecnico, _origen: 'traspaso', _fecha: e.fecha, sin_traspaso_desde: null });
+          db.notificaciones!.push({ id: nuevoId(), tecnico_id: e.tecnico, tipo: 'traspaso', caso_id: e.caso, detalle: caso.codigo, leida: false, creado_en: new Date().toISOString() });
+        }
+        return json(entregas.length);
+      }
       if (tabla === 'buscar_casos') {
         const termino = String(parametros.p_termino).trim().toLowerCase();
         const nombre = (id: unknown) => db.tecnicos!.find((t) => t.id === id)?.nombre ?? null;
@@ -186,25 +203,18 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
         db.casos!.push({ id, codigo, cliente: parametros.p_empresa ?? null, nota: null, estado: 'en_curso', tecnico_actual_id: elegido.id, creado_en: new Date().toISOString(), _fecha: hoy });
         return json([{ caso_id: id, tecnico_id: elegido.id, tecnico_nombre: elegido.nombre }]);
       }
-      if (tabla === 'solicitar_edicion_planificacion') {
-        if (db.solicitudes_planificacion!.some((s) => s.fecha_operativa === parametros.p_fecha && s.estado === 'pendiente')) {
-          return json({ code: '23505', message: 'Ya hay una solicitud pendiente para ese día.' }, 409);
-        }
+      if (tabla === 'avisar_cambio_planificacion') {
+        // Imita sql/18: un motivo por día (si ya hay uno vigente, sirve el mismo)
+        const vigente = db.avisos_planificacion!.find(
+          (a) => a.fecha_operativa === parametros.p_fecha && new Date(String(a.vence_en)).getTime() > Date.now()
+        );
+        if (vigente) return json(vigente.id);
         const id = nuevoId();
-        db.solicitudes_planificacion!.push({
-          id, fecha_operativa: parametros.p_fecha, motivo: String(parametros.p_motivo).trim(), solicitante_nombre: 'Prueba', estado: 'pendiente',
-          respuesta: null, resuelta_por_nombre: null, resuelta_en: null, vence_en: null, respuesta_vista: false, creada_en: new Date().toISOString()
+        db.avisos_planificacion!.push({
+          id, fecha_operativa: parametros.p_fecha, motivo: String(parametros.p_motivo).trim(), autor_nombre: 'Prueba',
+          creado_en: new Date().toISOString(), vence_en: new Date(Date.now() + 3_600_000).toISOString(), cambios: [], visto: false
         });
         return json(id);
-      }
-      if (tabla === 'resolver_solicitud_planificacion') {
-        const solicitud = db.solicitudes_planificacion!.find((s) => s.id === parametros.p_id);
-        if (!solicitud || solicitud.estado !== 'pendiente') return json({ code: 'P0001', message: 'Esa solicitud ya fue respondida.' }, 400);
-        Object.assign(solicitud, {
-          estado: parametros.p_aprobar ? 'aprobada' : 'rechazada', respuesta: parametros.p_respuesta, resuelta_por_nombre: 'Prueba',
-          resuelta_en: new Date().toISOString(), vence_en: parametros.p_aprobar ? new Date(Date.now() + 3_600_000).toISOString() : null, respuesta_vista: false
-        });
-        return json(null);
       }
       if (tabla === 'marcar_actualizado') {
         const caso = db.casos!.find((c) => c.id === parametros.p_caso);

@@ -47,6 +47,9 @@ export async function iniciarApp(
     confirmar: async (opciones: { titulo: string; mensaje?: string; resumen?: { etiqueta: string; valor: string }[] }) =>
       confirmar([opciones.titulo, opciones.mensaje ?? '', ...(opciones.resumen ?? []).map((l) => `${l.etiqueta}: ${l.valor}`)].join('\n'))
   }));
+  // El motivo de un cambio de planificación (ui/pedirTexto.ts): por defecto se responde con este texto; null = cancelar.
+  const pedirTexto = vi.fn(async (_opciones?: { titulo: string }): Promise<string | null> => 'Motivo de prueba');
+  vi.doMock('../../src/scripts/ui/pedirTexto', () => ({ pedirTexto }));
   document.execCommand = vi.fn(() => true);
 
   const { appStore } = await import('../../src/state/appStore');
@@ -59,6 +62,7 @@ export async function iniciarApp(
   const { solicitarAsignacion } = await import('../../src/scripts/modals/assignFlow');
   const { iniciarModalEdicionDeCaso } = await import('../../src/scripts/modals/editIncidentModal');
   const { iniciarFiltrosDelTablero } = await import('../../src/scripts/features/boardFilters');
+  const { iniciarModalReparto } = await import('../../src/scripts/modals/distributeModal');
 
   appStore.set({ perfil: { nombre: 'Prueba', rol, tecnicoId }, soloLectura: rol !== 'dispatch' });
   document.body.classList.toggle('solo-lectura', rol !== 'dispatch');
@@ -72,6 +76,7 @@ export async function iniciarApp(
   iniciarFiltrosDelTablero();
   iniciarEventosDelTablero();
   iniciarDragAndDrop(aplicarRenderPendiente);
+  if (rol !== 'tecnico') iniciarModalReparto(); // como main.ts: dispatch y coordinación (D37)
   appStore.subscribe(solicitarRender);
   await cargarDatos();
   await esperar();
@@ -79,6 +84,7 @@ export async function iniciarApp(
   return {
     ...backend,
     confirmar,
+    pedirTexto,
     appStore,
     cargarDatos,
     solicitarRender,

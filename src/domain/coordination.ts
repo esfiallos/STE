@@ -25,9 +25,14 @@ export function describirAlerta(alerta: Pick<AlertaCoordinacion, 'tipo' | 'nivel
   return `${caso}: ${alerta.nivel} h sin actualización de ${tecnico}`;
 }
 
+/** "Sin traspaso" ya dice lo más grave del caso: su "N h sin actualización" no se muestra aparte (D33). */
+const laCubre = (cubre: AlertaCoordinacion['tipo'], tipo: AlertaCoordinacion['tipo']) =>
+  cubre === 'turno_sin_traspaso' && tipo === 'sin_actualizacion';
+
 /**
  * Alertas por atender: las no leídas, una por caso y tipo (la de más horas), primero las más graves
- * y, entre iguales, las más recientes.
+ * y, entre iguales, las más recientes. Un caso con "terminó su turno sin traspaso" no repite su "N h sin
+ * actualización".
  */
 export function alertasActivas(alertas: AlertaCoordinacion[]): AlertaCoordinacion[] {
   const porCaso = new Map<string, AlertaCoordinacion>();
@@ -37,7 +42,11 @@ export function alertasActivas(alertas: AlertaCoordinacion[]): AlertaCoordinacio
     const actual = porCaso.get(clave);
     if (!actual || (a.nivel ?? 0) > (actual.nivel ?? 0)) porCaso.set(clave, a);
   }
-  return [...porCaso.values()].sort(
+  const tipos = new Map<string, Set<AlertaCoordinacion['tipo']>>();
+  for (const a of porCaso.values()) tipos.set(a.casoId, (tipos.get(a.casoId) ?? new Set()).add(a.tipo));
+  return [...porCaso.values()]
+    .filter((a) => ![...tipos.get(a.casoId)!].some((otro) => laCubre(otro, a.tipo)))
+    .sort(
     (a, b) => pesoDeAlerta(b) - pesoDeAlerta(a) || b.creadoEn.localeCompare(a.creadoEn)
   );
 }
@@ -47,9 +56,14 @@ function pesoDeAlerta(alerta: Pick<AlertaCoordinacion, 'tipo' | 'nivel'>): numbe
   return alerta.tipo === 'turno_sin_traspaso' ? 100 : (alerta.nivel ?? 0);
 }
 
-/** Ids de las alertas no leídas del mismo caso y tipo (al atender una se marcan todas). */
+/**
+ * Ids de las alertas no leídas del mismo caso y tipo (al atender una se marcan todas), más las que esa alerta
+ * ocultaba (las "sin actualización" de un caso sin traspaso).
+ */
 export function alertasHermanas(alertas: AlertaCoordinacion[], alerta: AlertaCoordinacion): string[] {
-  return alertas.filter((a) => !a.leida && a.casoId === alerta.casoId && a.tipo === alerta.tipo).map((a) => a.id);
+  return alertas
+    .filter((a) => !a.leida && a.casoId === alerta.casoId && (a.tipo === alerta.tipo || laCubre(alerta.tipo, a.tipo)))
+    .map((a) => a.id);
 }
 
 /** Gravedad visual de una alerta. */

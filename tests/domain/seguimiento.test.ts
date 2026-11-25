@@ -84,7 +84,7 @@ describe('etiquetas propias y colores (D22)', () => {
   it('se recuerdan sin repetir (ni una sugerida), la más reciente primero y con tope', () => {
     expect(agregarEtiquetaPropia([], '  Proveedor   externo ')).toEqual(['Proveedor externo']);
     expect(agregarEtiquetaPropia(['Proveedor'], 'proveedor')).toEqual(['proveedor']);
-    expect(agregarEtiquetaPropia(['Proveedor'], 'critico')).toEqual(['Proveedor']);
+    expect(agregarEtiquetaPropia(['Proveedor'], 'critico / vip')).toEqual(['Proveedor']);
     expect(agregarEtiquetaPropia(['A'], '   ')).toEqual(['A']);
     const muchas = Array.from({ length: 30 }, (_, i) => `E${i}`);
     expect(agregarEtiquetaPropia(muchas, 'Nueva')).toHaveLength(30);
@@ -92,11 +92,21 @@ describe('etiquetas propias y colores (D22)', () => {
   });
 
   it('opciones: sugeridas, propias y la actual; color por etiqueta', () => {
-    expect(opcionesDeEtiqueta(['Proveedor'], 'Otra cosa')).toEqual(['Crítico', 'Escalar', 'VM', 'Monitoreo', 'Pendiente cliente', 'Seguimiento', 'Proveedor', 'Otra cosa']);
-    expect(opcionesDeEtiqueta([], 'vm')).toHaveLength(6);
-    expect(colorDeEtiqueta('Crítico')).toBe('critico');
+    expect(opcionesDeEtiqueta(['Proveedor'], 'Otra cosa')).toEqual([
+      'Crítico / VIP', 'Esperando cliente', 'Esperando proveedor', 'Escalado N2', 'Ventana programada', 'Validar con usuario',
+      'Requiere visita', 'Proveedor', 'Otra cosa'
+    ]);
+    expect(opcionesDeEtiqueta([], 'escalado n2')).toHaveLength(7);
+    expect(colorDeEtiqueta('Crítico / VIP')).toBe('critico');
+    expect(colorDeEtiqueta('esperando proveedor')).toBe('proveedor');
     expect(colorDeEtiqueta('Proveedor')).toBe('otra');
     expect(colorDeEtiqueta(null)).toBeNull();
+  });
+
+  it('las etiquetas anteriores conservan un color parecido en los casos que ya las tienen (D36)', () => {
+    expect(['Crítico', 'Escalar', 'VM', 'Pendiente cliente', 'Monitoreo'].map(colorDeEtiqueta)).toEqual([
+      'critico', 'escalado', 'ventana', 'cliente', 'otra'
+    ]);
   });
 });
 

@@ -9,6 +9,11 @@ body:not(.rol-dispatch):not(.rol-coordinador) [data-supervision-only] {
   display: none !important;
 }
 
+// Buscar casos: supervisión y técnicos enlazados (§14.5)
+body:not(.rol-dispatch):not(.rol-coordinador):not(.rol-tecnico) [data-busqueda] {
+  display: none !important;
+}
+
 .role-badge[data-rol='coordinador'] {
   background-color: $color-almuerzo-borde;
   color: $color-marca-oscuro;
@@ -102,8 +107,8 @@ body:not(.rol-dispatch):not(.rol-coordinador) [data-supervision-only] {
     border-left-color: $color-peligro !important;
     background-color: $color-peligro-suave;
   }
-  // Solicitud del dispatch para editar la planificación
-  &--solicitud {
+  // Cambio del dispatch en la planificación (D38)
+  &--planificacion {
     border-left-color: $color-acento !important;
   }
 }

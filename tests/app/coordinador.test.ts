@@ -110,6 +110,6 @@ describe('coordinador', () => {
     expect(document.body.classList.contains('solo-lectura')).toBe(true);
     expect(document.body.classList.contains('rol-coordinador')).toBe(true);
     expect(app.q('[data-tab="panel"]').hasAttribute('data-coordinador-only')).toBe(true);
-    expect(app.q('[data-tab="busqueda"]').hasAttribute('data-supervision-only')).toBe(true);
+    expect(app.q('[data-tab="busqueda"]').hasAttribute('data-busqueda')).toBe(true);
   });
 });

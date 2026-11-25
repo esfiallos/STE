@@ -1,7 +1,9 @@
 import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
+import { pintarEstado } from '../ui/colorDeCaso';
 import type { Incidente } from '../../types/noc';
 import { clonarPlantilla, ref } from '../dom';
 import { pintarTipo } from '../ui/tipoDeCaso';
+import { appStore } from '../../state/appStore';
 
 interface OpcionesVistaIncidente {
   posicion: number;
@@ -21,7 +23,8 @@ export function crearVistaIncidente(incidente: Incidente, opciones: OpcionesVist
   const cerrado = incidente.estado === 'cerrado';
 
   tarjeta.dataset.incidenteId = incidente.id;
-  tarjeta.draggable = arrastrable;
+  // En solo lectura (técnico, coordinación) no se ofrece arrastrar: la BD tampoco lo permitiría
+  tarjeta.draggable = arrastrable && !appStore.get().soloLectura;
   tarjeta.classList.toggle('is-match', coincideConBusqueda);
   tarjeta.classList.toggle('is-closed', cerrado);
   ref(fragmento, 'indice').textContent = String(posicion);
@@ -37,6 +40,7 @@ export function crearVistaIncidente(incidente: Incidente, opciones: OpcionesVist
   if (incidente.estado && incidente.estado !== 'en_curso') {
     estado.textContent = ETIQUETA_ESTADO_CASO[incidente.estado];
     estado.dataset.estado = incidente.estado;
+    pintarEstado(estado, incidente.estado);
   } else {
     estado.remove();
   }

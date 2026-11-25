@@ -21,6 +21,7 @@ import { iniciarAccionesDeLaBarra } from './features/headerActions';
 import { iniciarBuscador } from './features/search';
 import { iniciarSesionDeUsuario, mostrarAvisoSinPerfil } from './features/session';
 import { iniciarPestanas } from './features/tabs';
+import { iniciarModalReparto } from './modals/distributeModal';
 import { iniciarFiltroPorTecnico } from './features/techFilter';
 import { cargarHistorial, iniciarHistorial } from './history/historyView';
 import { iniciarModalAsignar } from './modals/assignIncidentModal';
@@ -32,10 +33,9 @@ import { iniciarSeguimiento, renderizarSeguimiento, resaltarCaso } from './follo
 import { abrirTraspaso, iniciarTraspaso } from './handover/handoverView';
 import { cargarMisTraspasos, iniciarMisTraspasos } from './handover/myHandoversView';
 import { iniciarNotificaciones } from './notifications/notificationsPanel';
-import { cargarSolicitudes } from './actions/planningRequestActions';
+import { cargarAvisos } from './actions/planningNoticeActions';
 import { cargarPlanificacion, iniciarPlanificacion, mostrarSemanaDe } from './planning/planningView';
-import { iniciarAvisoDeSolicitudes } from './planning/planningRequestsSync';
-import { iniciarCampanaDeSolicitudes } from './planning/requestsBell';
+import { iniciarAvisosDePlanificacion } from './planning/planningNoticesSync';
 import { RUTAS } from './routes';
 import { mostrarAviso } from './ui/toast';
 import { iniciarFiltrosDelTablero } from './features/boardFilters';
@@ -94,16 +94,20 @@ async function iniciar(): Promise<void> {
   iniciarHistorial();
   iniciarBitacora();
   if (esDispatch || esCoordinador) {
+    iniciarModalReparto();
     iniciarPlanificacion();
-    iniciarAvisoDeSolicitudes();
+    iniciarAvisosDePlanificacion();
   }
   const abrirPlanificacionEn = (fecha: string) => {
     window.location.hash = 'planificacion';
     mostrarSemanaDe(fecha);
   };
-  if (esDispatch) iniciarCampanaDeSolicitudes(abrirPlanificacionEn);
+  const abrirEnBuscador = (codigo: string) => {
+    window.location.hash = 'busqueda';
+    void buscarCaso(codigo);
+  };
   if (miTecnicoId) {
-    iniciarSeguimiento(miTecnicoId);
+    iniciarSeguimiento(miTecnicoId, { abrirEnBuscador });
     iniciarTraspaso(miTecnicoId);
     iniciarMisTraspasos(miTecnicoId);
     iniciarNotificaciones(miTecnicoId, (casoId) => {
@@ -114,15 +118,14 @@ async function iniciar(): Promise<void> {
     mostrarAviso('Tu usuario técnico no está enlazado a un técnico: pide al administrador que complete tu perfil.', 'error');
   }
 
-  if (esDispatch || esCoordinador) iniciarBuscadorDeCasos();
+  // Buscar casos: supervisión y técnicos (§14.5). El técnico ve los traspasos que entregó o recibió (RLS).
+  const puedeBuscar = esDispatch || esCoordinador || miTecnicoId !== null;
+  if (puedeBuscar) iniciarBuscadorDeCasos();
   if (esCoordinador) {
     iniciarPanelDeCoordinacion();
     iniciarCampanaDeAlertas(
-      (alerta) => {
-        window.location.hash = 'busqueda';
-        void buscarCaso(codigoDeAlerta(alerta));
-      },
-      (solicitud) => abrirPlanificacionEn(solicitud.fecha)
+      (alerta) => abrirEnBuscador(codigoDeAlerta(alerta)),
+      (aviso) => abrirPlanificacionEn(aviso.fecha)
     );
   }
 
@@ -137,7 +140,7 @@ async function iniciar(): Promise<void> {
     {
       ...(esCoordinador ? { panel: () => void cargarPanel() } : {}),
       tablero: () => undefined,
-      ...(esDispatch || esCoordinador ? { busqueda: () => byId('caseSearchInput').focus() } : {}),
+      ...(puedeBuscar ? { busqueda: () => byId('caseSearchInput').focus() } : {}),
       ...(miTecnicoId
         ? { seguimiento: renderizarSeguimiento, traspaso: abrirTraspaso, misTraspasos: () => void cargarMisTraspasos() }
         : {}),
@@ -145,7 +148,7 @@ async function iniciar(): Promise<void> {
         ? {
             planificacion: () => {
               void cargarPlanificacion();
-              void cargarSolicitudes();
+              void cargarAvisos();
             }
           }
         : {}),

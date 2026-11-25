@@ -15,7 +15,6 @@ import {
 } from '../../domain/followUp';
 import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
 import { fechaCorta } from '../../domain/handoverReport';
-import { listarResponsables } from '../../services/casosRepo';
 import { appStore } from '../../state/appStore';
 import type { EstadoCaso, Incidente } from '../../types/noc';
 import { copiarTexto, guardarSeguimiento, marcarCasoActualizado } from '../actions/followUpActions';
@@ -28,6 +27,7 @@ import { mostrarAviso } from '../ui/toast';
 import { filtrarCasos, hayFiltros } from '../../domain/caseFilters';
 import { crearBarraDeFiltros, type BarraDeFiltros } from '../features/caseFilters';
 import { pintarTipo } from '../ui/tipoDeCaso';
+import { colorearLista } from '../ui/colorDeCaso';
 
 /**
  * "Mi seguimiento" (fase 12): una fila por caso para que entren 20+ casos en pantalla (§11.4).
@@ -40,8 +40,8 @@ const REFRESCO_RELATIVO_MS = 60_000;
 
 let tecnicoId = '';
 let renderPendiente = false;
-/** Casos con el historial desplegado (se conserva al redibujar). */
-const historialAbierto = new Set<string>();
+/** Abre el caso en Buscar casos (historial y traspasos, §14.5); lo pasa main.ts. */
+let abrirEnBuscador: (codigo: string) => void = () => undefined;
 const gruposColapsados = new Set<string>();
 /** Orden dentro de cada grupo: por asignación (por defecto) o los más olvidados primero. */
 let orden: OrdenDeSeguimiento = 'asignacion';
@@ -103,11 +103,14 @@ function crearFila(caso: Incidente, hoy: string, ahora: Date): HTMLElement {
   }
 
   ref<HTMLInputElement>(fragmento, 'empresa').value = caso.cliente ?? '';
-  ref<HTMLSelectElement>(fragmento, 'area').value = caso.area ?? '';
+  const area = ref<HTMLSelectElement>(fragmento, 'area');
+  area.value = caso.area ?? '';
+  colorearLista(area, 'area');
 
   const estado = ref<HTMLSelectElement>(fragmento, 'estado');
   estado.append(...ESTADOS_DE_SEGUIMIENTO.map((e) => new Option(ETIQUETA_ESTADO_CASO[e], e)));
   estado.value = caso.estado ?? 'en_curso';
+  colorearLista(estado, 'estado');
 
   const etiqueta = ref<HTMLInputElement>(fragmento, 'etiqueta');
   etiqueta.value = caso.etiqueta ?? '';
@@ -122,7 +125,6 @@ function crearFila(caso: Incidente, hoy: string, ahora: Date): HTMLElement {
 
   pintarHace(ref(fragmento, 'hace'), caso, ahora);
 
-  if (historialAbierto.has(caso.id)) void cargarHistorial(fila, caso.id);
   return fila;
 }
 
@@ -203,30 +205,6 @@ function refrescarTiempos(): void {
     });
 }
 
-async function cargarHistorial(fila: HTMLElement, casoId: string): Promise<void> {
-  const lista = ref(fila, 'historial');
-  const boton = fila.querySelector<HTMLElement>('[data-action="ver-historial"]')!;
-  lista.classList.remove('hidden');
-  boton.setAttribute('aria-expanded', 'true');
-  boton.classList.add('is-active');
-  lista.replaceChildren(crearElemento('li', 'text-muted', 'Cargando historial…'));
-
-  const resultado = await listarResponsables(casoId);
-  if (!resultado.ok) {
-    lista.replaceChildren(crearElemento('li', 'form-error', resultado.error));
-    return;
-  }
-  lista.replaceChildren(
-    ...resultado.data.map((r) =>
-      crearElemento(
-        'li',
-        r.hasta ? '' : 'is-actual',
-        `${r.tecnicoNombre} · ${ETIQUETA_ORIGEN[r.origen]} · ${formatearFechaHora(r.desde)}${r.hasta ? ` → ${formatearFechaHora(r.hasta)}` : ' (actual)'}`
-      )
-    )
-  );
-}
-
 function casoDe(elemento: Element): Incidente | undefined {
   const id = elemento.closest<HTMLElement>('[data-caso-id]')?.dataset.casoId;
   return misCasos().find((c) => c.id === id);
@@ -280,8 +258,9 @@ export function resaltarCaso(casoId: string): void {
   fila.classList.add('is-highlight');
 }
 
-export function iniciarSeguimiento(miTecnicoId: string): void {
+export function iniciarSeguimiento(miTecnicoId: string, opciones: { abrirEnBuscador?: (codigo: string) => void } = {}): void {
   tecnicoId = miTecnicoId;
+  if (opciones.abrirEnBuscador) abrirEnBuscador = opciones.abrirEnBuscador;
   const raiz = vista();
   barra = crearBarraDeFiltros(byId('followUpFilters'), {
     clave: 'seguimiento',
@@ -317,16 +296,8 @@ export function iniciarSeguimiento(miTecnicoId: string): void {
     if (accion === 'copiar-codigo') void copiarTexto(caso.codigo, caso.codigo);
     if (accion === 'copiar-resumen') void copiarTexto(resumenParaCopiar(caso), `Resumen de ${caso.codigo}`);
     if (accion === 'marcar-actualizado') void marcarActualizado(fila, boton);
-    if (accion === 'ver-historial') {
-      if (historialAbierto.delete(caso.id)) {
-        ref(fila, 'historial').classList.add('hidden');
-        boton.setAttribute('aria-expanded', 'false');
-        boton.classList.remove('is-active');
-      } else {
-        historialAbierto.add(caso.id);
-        void cargarHistorial(fila, caso.id);
-      }
-    }
+    // El historial completo vive en Buscar casos: en el seguimiento ocupaba mucho con casos de varios días (§14.5)
+    if (accion === 'ver-historial') abrirEnBuscador(caso.codigo);
   });
 
   raiz.addEventListener('change', (evento) => {
