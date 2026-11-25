@@ -21,6 +21,7 @@ import { iniciarAccionesDeLaBarra } from './features/headerActions';
 import { iniciarBuscador } from './features/search';
 import { iniciarSesionDeUsuario, mostrarAvisoSinPerfil } from './features/session';
 import { iniciarPestanas } from './features/tabs';
+import { iniciarModalReparto } from './modals/distributeModal';
 import { iniciarFiltroPorTecnico } from './features/techFilter';
 import { cargarHistorial, iniciarHistorial } from './history/historyView';
 import { iniciarModalAsignar } from './modals/assignIncidentModal';
@@ -94,6 +95,7 @@ async function iniciar(): Promise<void> {
   iniciarHistorial();
   iniciarBitacora();
   if (esDispatch || esCoordinador) {
+    iniciarModalReparto();
     iniciarPlanificacion();
     iniciarAvisoDeSolicitudes();
   }
@@ -102,8 +104,12 @@ async function iniciar(): Promise<void> {
     mostrarSemanaDe(fecha);
   };
   if (esDispatch) iniciarCampanaDeSolicitudes(abrirPlanificacionEn);
+  const abrirEnBuscador = (codigo: string) => {
+    window.location.hash = 'busqueda';
+    void buscarCaso(codigo);
+  };
   if (miTecnicoId) {
-    iniciarSeguimiento(miTecnicoId);
+    iniciarSeguimiento(miTecnicoId, { abrirEnBuscador });
     iniciarTraspaso(miTecnicoId);
     iniciarMisTraspasos(miTecnicoId);
     iniciarNotificaciones(miTecnicoId, (casoId) => {
@@ -114,14 +120,13 @@ async function iniciar(): Promise<void> {
     mostrarAviso('Tu usuario técnico no está enlazado a un técnico: pide al administrador que complete tu perfil.', 'error');
   }
 
-  if (esDispatch || esCoordinador) iniciarBuscadorDeCasos();
+  // Buscar casos: supervisión y técnicos (§14.5). El técnico ve los traspasos que entregó o recibió (RLS).
+  const puedeBuscar = esDispatch || esCoordinador || miTecnicoId !== null;
+  if (puedeBuscar) iniciarBuscadorDeCasos();
   if (esCoordinador) {
     iniciarPanelDeCoordinacion();
     iniciarCampanaDeAlertas(
-      (alerta) => {
-        window.location.hash = 'busqueda';
-        void buscarCaso(codigoDeAlerta(alerta));
-      },
+      (alerta) => abrirEnBuscador(codigoDeAlerta(alerta)),
       (solicitud) => abrirPlanificacionEn(solicitud.fecha)
     );
   }
@@ -137,7 +142,7 @@ async function iniciar(): Promise<void> {
     {
       ...(esCoordinador ? { panel: () => void cargarPanel() } : {}),
       tablero: () => undefined,
-      ...(esDispatch || esCoordinador ? { busqueda: () => byId('caseSearchInput').focus() } : {}),
+      ...(puedeBuscar ? { busqueda: () => byId('caseSearchInput').focus() } : {}),
       ...(miTecnicoId
         ? { seguimiento: renderizarSeguimiento, traspaso: abrirTraspaso, misTraspasos: () => void cargarMisTraspasos() }
         : {}),

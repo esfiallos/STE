@@ -1,5 +1,6 @@
 import { describirNoDisponibilidad, estadoDelTecnico } from '../../domain/availability';
-import { asignarCaso, cancelarCaso, crearCaso, editarCaso } from '../../services/casosRepo';
+import type { Entrega } from '../../domain/supervisionHandover';
+import { asignarCaso, cancelarCaso, crearCaso, editarCaso, entregarCasos } from '../../services/casosRepo';
 import { asignarARonda as asignarARondaEnBase, type AsignacionPorRonda } from '../../services/rondaRepo';
 import { appStore } from '../../state/appStore';
 import { cargarDatos } from '../../state/sync';
@@ -85,3 +86,15 @@ export async function copiarCodigo(codigo: string): Promise<void> {
     mostrarAviso('No se pudo copiar. Selecciona el texto y usa Ctrl+C.', 'error');
   }
 }
+
+/** Reparto por supervisión (D37): los casos pasan al seguimiento de quien los recibe. */
+export async function entregarCasosPorSupervision(entregas: readonly Entrega[]): Promise<Resultado<number>> {
+  const resultado = await entregarCasos(entregas);
+  if (resultado.ok) {
+    reproducirSonido('asignar');
+    await cargarDatos();
+    mostrarAviso(`${resultado.data} caso(s) entregado(s): ya están en el seguimiento de quien los recibe.`, 'exito');
+  }
+  return resultado;
+}
+

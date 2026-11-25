@@ -15,12 +15,12 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
-   §8 decisiones D1–D35, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida, §12 v2.3, §13 v2.4 seguridad y casos perdidos). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 39 archivos, ~295 pruebas). En una máquina cargada
+   §8 decisiones D1–D37, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida, §12 v2.3, §13 v2.4 seguridad y casos perdidos, §14 v2.5 traspaso y colores, §15 v2.6 reparto por supervisión). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 42 archivos, ~319 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Fases 1–15 hechas (`docs/DISENO_V2.md` §11–§13, reglas D16–D35, todas decididas). Migraciones 04–15
-   aplicadas en DEV y PROD y perfiles poblados; **la 16 aún no** (la aplica el usuario, primero en DEV). Siguiente:
-   aplicar la 16, cerrar el registro en Supabase (§13.1), probar contra DEV con los tres roles y publicar.
+4. Fases 1–17 hechas (`docs/DISENO_V2.md` §11–§15, reglas D16–D37, todas decididas). Migraciones 04–16
+   aplicadas en DEV y PROD (la 16 el 23/11/2026, según el usuario); **la 17 aún no** (la aplica el usuario, DEV →
+   PROD). Siguiente: aplicar la 17, probar «Repartir…» contra DEV y publicar.
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
@@ -44,7 +44,9 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 12. Seguimiento v2 | ✅ | §11.3–11.6: descripción única, última actualización = fecha + botón, filas horizontales, etiquetas propias locales (localStorage) con combobox, nota del traspaso = descripción · `sql/12` |
 | 13. Filtros | ✅ | §11.11: tipo de caso (FRESH `#SR`/`#INC` · Tarea `SCTASK` · Incidente `INC`) + filtros técnico/área/estado/tipo |
 | 14. Turno C por tramos y pulido | ✅ | §12: C1 22–00 / C2 00–06 (D29, `sql/14`), paletas de la tabla del traspaso (D30), destello al soltar, tarjetas sin superposición, quedarse un caso para mañana (D31, `sql/15`) |
-| 15. Seguridad y casos perdidos | ✅ | §13: lectura solo con perfil (D32), turno terminado sin traspaso → "Por reasignar" + chip + alerta de coordinación (D33), aviso previo al técnico (D34), filtro/orden por tiempo sin actualizar, CSP + SRI (D35) · `sql/16` (**sin aplicar**) |
+| 15. Seguridad y casos perdidos | ✅ | §13: lectura solo con perfil (D32), turno terminado sin traspaso → "Por reasignar" + chip + alerta de coordinación (D33), aviso previo al técnico (D34), filtro/orden por tiempo sin actualizar, CSP + SRI (D35) · `sql/16` |
+| 17. Reparto por supervisión | ✅ | §15: «Repartir…» en "Por reasignar" para dispatch y coordinación (D37, `sql/17`, **sin aplicar**), el turno limita "Entregar a", buscadores que vuelven al estado normal |
+| 16. Traspaso y colores | ✅ | §14: etiquetas "en manos de quién" (D36), estado y área con color, recordatorio opcional, receptor por turno + búsqueda, reparto "todos entran", historial en Buscar casos (también técnico) · sin SQL |
 
 **Bases de datos (revisado con el conector el 22/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
 DEV = `DEV` (`bofqefbxziqxzrdujihd`).
@@ -66,8 +68,45 @@ DEV = `DEV` (`bofqefbxziqxzrdujihd`).
 
 ## Lo que falta
 
+### Fase 17 — Reparto por supervisión ✅ (qué quedó)
+- `sql/17_v2_entrega_por_supervision.sql` (**sin aplicar en DEV ni PROD**): `entregar_casos(p_entregas jsonb)` →
+  interna `entregar_casos_en(p_entregas, p_ahora)` (revocada a la app). Ver `docs/DISENO_V2.md` §15.1.
+- Dominio `supervisionHandover.ts` (`turnoTerminado`, `receptoresParaEntregar`, `repartirEntrega`, `Entrega`).
+  Servicio `casosRepo.entregarCasos`, acción `entregarCasosPorSupervision`.
+- UI: `components/modals/DistributeCasesModal.astro` + `scripts/modals/distributeModal.ts` (`iniciarModalReparto`,
+  dispatch y coordinación; el botón `[data-action="repartir-por-reasignar"]` vive en la franja). La franja "Por
+  reasignar" la ven dispatch y coordinación (sin arrastre en solo lectura).
+- Traspaso: elegir turno quita al receptor de otro turno y elige solo si hay una persona. `ui/listaConBusqueda.ts`
+  sin opción vacía (vaciar el texto no quita lo elegido). Buscar casos: `limpiarBusqueda()` al vaciar el campo o con Esc.
+- Pruebas: `tests/sql/entrega-por-supervision-v2.test.ts`, `tests/domain/entrega-supervision.test.ts`,
+  `tests/app/reparto-supervision.test.ts`; `tests/helpers/app.ts` inicia el modal para dispatch/coordinación.
+
+### Fase 16 — Traspaso y colores ✅ (qué quedó) · sin migración
+- Etiquetas (D36): `ETIQUETAS_SUGERIDAS` nuevas, `colorDeEtiqueta` normaliza y da color parecido a las anteriores
+  (`COLORES_DE_ETIQUETA`); el reporte colorea por clave de color (`TemaCorreo.etiquetas`).
+- Colores de estado y área: `$colores-estado`, `$colores-area` (`_variables.scss`), `components/_case-colors.scss`,
+  `scripts/ui/colorDeCaso.ts` (`pintarEstado`, `pintarArea`, `colorearLista`), `claveDeArea` (`domain/areas.ts`).
+- Traspaso: casilla `conRecordatorio`; listas `turnoReceptor` + `receptor` (`gruposDeReceptores`,
+  `grupoDeReceptor` en `handoverDraft.ts`); búsqueda `ui/listaConBusqueda.ts`; receptores en `<details>` con resumen
+  `#handoverReceiversSummary`. El turno elegido y el recordatorio abierto son estado de pantalla (mapas del módulo).
+- Historial: fuera de Mi seguimiento (botón → `abrirEnBuscador`, que pasa `main.ts`); Buscar casos para técnicos
+  (`[data-busqueda]` en la pestaña).
+- Pruebas: `tests/app/traspaso.test.ts` (turno/búsqueda, reparto, recordatorio; las que editan esperan su guardado
+  automático para no pisar la siguiente), `tests/app/seguimiento.test.ts`, `tests/domain/{traspaso,seguimiento}.test.ts`.
+- **Verificado en el navegador contra DEV el 23/11/2026** (`bun run dev`; el usuario inicia sesión): dispatch (drag & drop
+  y sus animaciones, "Por reasignar" con motivo, colores, Buscar con filtro de atraso) y técnico (Mi seguimiento,
+  historial → Buscar, Traspaso con turno/búsqueda/reparto/recordatorio, campana) y coordinación (Panel, alertas,
+  campana, tablero en solo lectura, planificación). Corregido en esa prueba: un caso "sin traspaso" ya no repite su
+  "N h sin actualización" en Panel/campana (`alertasActivas`; atenderlo marca ambas), tarjetas no arrastrables en
+  solo lectura, subtítulo de alertas actualizado, barra de
+  pestañas que desbordaba en pantallas angostas, color de "Resuelto" en el tablero, y el filtro/orden "sin
+  actualizar" ahora cuentan desde la última actualización (`horasDesdeLaActualizacion`, igual que el "hace N").
+- Si en un equipo no se ven las animaciones: Windows con *Efectos de animación* apagado → `prefers-reduced-motion`
+  → la app las apaga a propósito (`_base.scss`, `motion.ts`). El arrastre HTML5 no se puede probar con el mouse
+  simulado del navegador del panel: se prueba despachando `dragstart/dragover/drop/dragend`.
+
 ### Fase 15 — Seguridad y casos perdidos ✅ (qué quedó) · auditoría del 23/11/2026
-- `sql/16_v2_proteccion_de_casos.sql` (**sin aplicar en DEV ni PROD**): `tiene_perfil()`; `casos`, `caso_responsables`,
+- `sql/16_v2_proteccion_de_casos.sql` (aplicada en DEV y PROD el 23/11/2026): `tiene_perfil()`; `casos`, `caso_responsables`,
   `jornadas`, `tecnicos` y `tecnicos_de_la_ronda()` solo para usuarios con perfil (antes cualquier sesión, D32).
   `gracia_cierre_de_turno()` (30 min), `turno_sin_traspaso(tecnico, fecha, desde, ahora)`, `casos_abiertos` +
   `sin_traspaso_desde` al final, alerta `turno_sin_traspaso`, notificación `cierre_pendiente`,
@@ -83,7 +122,7 @@ DEV = `DEV` (`bofqefbxziqxzrdujihd`).
   sin violaciones. El panel con sesión no se pudo ver (sin `.env.production` local).
 - Pruebas: `tests/sql/proteccion-de-casos-v2.test.ts` y casos nuevos en `tests/domain/{filtros,coordinacion,
   metricas-asignaciones-busqueda}.test.ts`, `tests/app/{tablero,seguimiento}.test.ts`.
-- Pendiente del usuario: aplicar la 16 (DEV → PROD) y desactivar *Allow new users to sign up*
+- Pendiente del usuario: desactivar *Allow new users to sign up* en DEV y PROD si aún no
   (`docs/ENTORNOS_Y_DESPLIEGUE.md` §1 paso 9).
 
 ### Fase 5 — Casos + Traspasos ✅ (qué quedó)
@@ -359,6 +398,7 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
   `caso_responsables`) y la carga en 0 ignora lo que ya es para un turno futuro (D31). Sin cron.
 - `16_v2_proteccion_de_casos.sql`: lectura solo con perfil (D32), turno sin traspaso (D33), aviso previo (D34),
   `casos_abiertos.sin_traspaso_desde`. **Con cron** `cierres-de-turno` (bloque final, la prueba lo quita).
+- `17_v2_entrega_por_supervision.sql`: `entregar_casos()` para dispatch y coordinación (D37). Sin cron.
 - `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`, requiere 04–14); escenario de prueba completo
   y repetible; no toca `perfiles` ni `auth`. Guía: `docs/interno/DATOS_DE_PRUEBA.md` (local, no se versiona).
 - Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`

@@ -59,6 +59,7 @@ export async function iniciarApp(
   const { solicitarAsignacion } = await import('../../src/scripts/modals/assignFlow');
   const { iniciarModalEdicionDeCaso } = await import('../../src/scripts/modals/editIncidentModal');
   const { iniciarFiltrosDelTablero } = await import('../../src/scripts/features/boardFilters');
+  const { iniciarModalReparto } = await import('../../src/scripts/modals/distributeModal');
 
   appStore.set({ perfil: { nombre: 'Prueba', rol, tecnicoId }, soloLectura: rol !== 'dispatch' });
   document.body.classList.toggle('solo-lectura', rol !== 'dispatch');
@@ -72,6 +73,7 @@ export async function iniciarApp(
   iniciarFiltrosDelTablero();
   iniciarEventosDelTablero();
   iniciarDragAndDrop(aplicarRenderPendiente);
+  if (rol !== 'tecnico') iniciarModalReparto(); // como main.ts: dispatch y coordinación (D37)
   appStore.subscribe(solicitarRender);
   await cargarDatos();
   await esperar();

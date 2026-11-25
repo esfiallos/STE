@@ -1,3 +1,4 @@
+import type { Entrega } from '../domain/supervisionHandover';
 import type { EstadoCaso, Incidente, OrigenResponsable, ResponsableCaso } from '../types/noc';
 import { exito, type Resultado } from '../types/result';
 import { errorDeBaseDeDatos } from './dbErrors';
@@ -209,3 +210,16 @@ export async function cancelarCaso(id: string, motivo: string): Promise<Resultad
   if (error) return errorDeBaseDeDatos(error, 'No se pudo cancelar el caso');
   return exito(String(data ?? ''));
 }
+
+/**
+ * Entrega de casos por supervisión (D37): dispatch o coordinación pasan casos al seguimiento de otros técnicos
+ * (como un traspaso, para hoy o mañana). Todo o nada. Devuelve cuántos se entregaron.
+ */
+export async function entregarCasos(entregas: readonly Entrega[]): Promise<Resultado<number>> {
+  const { data, error } = await supabase.rpc('entregar_casos', {
+    p_entregas: entregas.map((e) => ({ caso: e.casoId, tecnico: e.tecnicoId, fecha: e.fecha }))
+  });
+  if (error) return errorDeBaseDeDatos(error, 'No se pudieron entregar los casos');
+  return exito(Number(data ?? 0));
+}
+

@@ -18,10 +18,16 @@ import { PALETAS_CORREO } from '../../domain/handoverReport';
   <p id="handoverStatus" class="board-status hidden" role="status"></p>
 
   <div id="handoverBody" class="hidden">
-    <div class="handover-receivers">
-      <h3 class="followup-section__title"><i class="fa-solid fa-users" aria-hidden="true"></i> Pueden recibir <small>(marca quién entra al reparto)</small></h3>
+    <!-- Todos entran al reparto (§14.4); el técnico solo desmarca a quien quiera dejar fuera -->
+    <details class="handover-receivers" id="handoverReceiversBox">
+      <summary class="followup-section__title">
+        <i class="fa-solid fa-users" aria-hidden="true"></i>
+        <span id="handoverReceiversSummary">Reparto entre todos</span>
+        <small>· Excluir a alguien</small>
+      </summary>
+      <p class="planning-help">Todos los que pueden recibir de tu turno entran al reparto automático. Desmarca a quien quieras dejar fuera; para quedarte un caso, márcate (o elígete en el caso).</p>
       <div id="handoverReceivers" class="handover-receivers__list"></div>
-    </div>
+    </details>
 
     <div class="handover-actions">
       <button id="btnRepartirPendientes" type="button" class="btn btn-sm" title="Reparte solo los casos sin receptor">
@@ -86,6 +92,7 @@ import { PALETAS_CORREO } from '../../domain/handoverReport';
         <span class="handover-item__title">
           <span class="followup-code" data-ref="codigo"></span>
           <span class="case-type" data-ref="tipo"></span>
+          <span class="followup-chip hidden" data-ref="area"></span>
         </span>
         <span class="handover-item__meta" data-ref="meta"></span>
         <label class="handover-lock" title="Con candado, el reparto automático no lo mueve">
@@ -102,21 +109,33 @@ import { PALETAS_CORREO } from '../../domain/handoverReport';
           </select>
         </label>
         <label class="followup-field">
+          <span>Turno</span>
+          <select data-campo="turnoReceptor"></select>
+        </label>
+        <label class="followup-field">
           <span>Entregar a</span>
-          <select data-campo="receptor"></select>
+          <select data-campo="receptor" aria-label="Entregar a"></select>
         </label>
         <label class="followup-field">
           <span>Etiqueta</span>
           <input type="text" maxlength={LARGO_MAXIMO_ETIQUETA} data-campo="etiqueta" placeholder="Sin etiqueta" />
         </label>
-        <label class="followup-field">
-          <span>Recordar el día</span>
-          <input type="date" data-campo="recordatorioFecha" />
-        </label>
-        <label class="followup-field">
-          <span>Qué recordar</span>
-          <input type="text" maxlength="200" data-campo="recordatorioTexto" placeholder="Ej: VM programada 10:00" />
-        </label>
+        <div class="handover-reminder handover-item__full">
+          <label class="handover-reminder__toggle">
+            <input type="checkbox" data-campo="conRecordatorio" />
+            <i class="fa-regular fa-bell" aria-hidden="true"></i> Agregar recordatorio
+          </label>
+          <div class="handover-reminder__fields hidden" data-ref="recordatorio">
+            <label class="followup-field">
+              <span>Recordar el día</span>
+              <input type="date" data-campo="recordatorioFecha" />
+            </label>
+            <label class="followup-field">
+              <span>Qué recordar</span>
+              <input type="text" maxlength="200" data-campo="recordatorioTexto" placeholder="Ej: ventana programada 10:00" />
+            </label>
+          </div>
+        </div>
         <label class="followup-field handover-item__full">
           <span>Descripción <small>(la que recibe quien sigue; es la misma de tu seguimiento)</small></span>
           <textarea rows="2" maxlength={LARGO_MAXIMO_DESCRIPCION} data-campo="descripcion" placeholder="Obligatoria para entregar el caso: qué pasa, qué falta…"></textarea>

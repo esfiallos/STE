@@ -38,12 +38,20 @@ function crearFranjaPorReasignar(casos: Incidente[], estado: AppState, termino: 
   const nombres = new Map(estado.catalogo.map((t) => [t.id, t.nombre]));
   const franja = crearElemento('section', 'reassign-strip');
   franja.setAttribute('aria-label', 'Casos por reasignar');
+  const repartir = crearElemento('button', 'btn btn-sm btn-primary reassign-strip__distribute');
+  repartir.type = 'button';
+  repartir.dataset.action = 'repartir-por-reasignar';
+  repartir.textContent = 'Repartir…';
+  const cabecera = crearElemento('div', 'reassign-strip__head');
+  cabecera.append(crearElemento('h2', 'reassign-strip__title', `Por reasignar (${casos.length})`), repartir);
   franja.append(
-    crearElemento('h2', 'reassign-strip__title', `Por reasignar (${casos.length})`),
+    cabecera,
     crearElemento(
       'p',
       'reassign-strip__help',
-      'Casos abiertos cuyo responsable no trabaja hoy o terminó su turno sin traspasarlos. Arrástralos a un técnico disponible.'
+      estado.soloLectura
+        ? 'Casos abiertos cuyo responsable no trabaja hoy o terminó su turno sin traspasarlos. Usa «Repartir…» para pasarlos al seguimiento de otros técnicos.'
+        : 'Casos abiertos cuyo responsable no trabaja hoy o terminó su turno sin traspasarlos. «Repartir…» los pasa al seguimiento de otros técnicos (hoy o mañana); también puedes arrastrar uno a un técnico disponible.'
     )
   );
 
@@ -59,7 +67,7 @@ function crearFranjaPorReasignar(casos: Incidente[], estado: AppState, termino: 
         coincideConBusqueda: incidenteCoincide(caso, termino),
         notaFija: false,
         notaAbierta: estado.notasAbiertas.includes(caso.id),
-        arrastrable: true,
+        arrastrable: !estado.soloLectura,
         conAcciones: false
       }),
       crearElemento(
@@ -111,8 +119,10 @@ export function renderizarTablero(): void {
   const turnos = TURNOS.map((turno) =>
     crearVistaTurno(turno, tecnicosDelTurno(tecnicos, turno.id), contexto, estado.turnosColapsados.includes(turno.id))
   );
+  // Dispatch y coordinación (D37); el técnico no la ve
+  const supervision = estado.perfil?.rol === 'dispatch' || estado.perfil?.rol === 'coordinador';
   const franja =
-    estado.filtroTecnico || estado.soloLectura
+    estado.filtroTecnico || !supervision
       ? null
       : crearFranjaPorReasignar(
           casosPorReasignar(casosHastaElDia(estado.casosAbiertos, estado.fechaOperativa), estado.tecnicos),

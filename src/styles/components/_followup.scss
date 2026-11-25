@@ -364,7 +364,8 @@ $columnas-seguimiento: minmax(8.5rem, 1fr) minmax(7.5rem, 0.9fr) 8.25rem 7.5rem 
   }
 }
 
-input.tag-color {
+input.tag-color,
+span.tag-color {
   background-color: var(--tag-fondo);
   color: var(--tag-texto);
   font-weight: 600;

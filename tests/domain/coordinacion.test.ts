@@ -50,4 +50,12 @@ describe('alertas de coordinación', () => {
     expect(gravedadDeAlerta(sinTraspaso)).toBe('critica');
     expect(alertasActivas([alerta('a', 'inc1', 6), sinTraspaso, alerta('e', 'inc4', null)]).map((a) => a.id)).toEqual(['t', 'a', 'e']);
   });
+
+  it('un caso sin traspaso no repite su "N h sin actualización"; atenderlo marca ambas (visto en DEV)', () => {
+    const sinTraspaso = alerta('t', 'inc1', null, { tipo: 'turno_sin_traspaso' });
+    const lista = [alerta('a', 'inc1', 6), alerta('b', 'inc1', 2), sinTraspaso, alerta('r', 'inc1', null), alerta('c', 'inc2', 4)];
+    expect(alertasActivas(lista).map((a) => a.id)).toEqual(['t', 'c', 'r']);
+    expect(alertasHermanas(lista, sinTraspaso).sort()).toEqual(['a', 'b', 't']);
+    expect(alertasHermanas(lista, lista[0]!)).toEqual(['a', 'b']);
+  });
 });

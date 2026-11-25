@@ -201,7 +201,7 @@ describe('tablero del día (D16): solo lo que asignó el dispatch hoy', () => {
     expect(columna(app, 'turnoB', 'luis')).toEqual([]);
   });
 
-  it('"Por reasignar" solo lo ve el dispatch', async () => {
+  it('"Por reasignar" lo ven dispatch y coordinación (D37), no el técnico', async () => {
     const datos = () => {
       const d = datosBase();
       d.casos.push({ id: 'i9', codigo: 'INC9', nota: null, estado: 'en_curso', tecnico_actual_id: 'pedro', creado_en: '', _fecha: '2026-11-08' });
@@ -209,7 +209,9 @@ describe('tablero del día (D16): solo lo que asignó el dispatch hoy', () => {
     };
     expect((await iniciarApp(datos())).qa('.reassign-strip')).toHaveLength(1);
     vi.unstubAllGlobals();
-    expect((await iniciarApp(datos(), { rol: 'coordinador' })).qa('.reassign-strip')).toHaveLength(0);
+    expect((await iniciarApp(datos(), { rol: 'coordinador' })).qa('.reassign-strip')).toHaveLength(1);
+    vi.unstubAllGlobals();
+    expect((await iniciarApp(datos(), { rol: 'tecnico', tecnicoId: 'ana' })).qa('.reassign-strip')).toHaveLength(0);
   });
 });
 

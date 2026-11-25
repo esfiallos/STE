@@ -158,6 +158,23 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
       escrituras.push(`RPC ${tabla} ${init?.body ?? ''}`);
       const parametros = JSON.parse(String(init?.body ?? '{}'));
       if (tabla === 'enviar_traspaso') return enviarTraspaso(parametros.p_traspaso);
+      if (tabla === 'entregar_casos') {
+        // Imita entregar_casos() (D37): el caso pasa al seguimiento del receptor como traspaso, para esa fecha
+        const entregas = parametros.p_entregas as { caso: string; tecnico: string; fecha: string }[];
+        for (const e of entregas) {
+          const caso = db.casos!.find((c) => c.id === e.caso);
+          if (!caso || caso.estado === 'cerrado') return json({ code: 'P0001', message: 'Uno de los casos ya no está abierto.' }, 400);
+        }
+        for (const e of entregas) {
+          const caso = db.casos!.find((c) => c.id === e.caso)!;
+          if (ORIGENES_DEL_TABLERO.includes((caso._origen ?? 'dispatch') as OrigenResponsable)) {
+            Object.assign(caso, { _tableroFecha: caso._fecha, _tableroTecnico: caso.tecnico_actual_id });
+          }
+          Object.assign(caso, { tecnico_actual_id: e.tecnico, _origen: 'traspaso', _fecha: e.fecha, sin_traspaso_desde: null });
+          db.notificaciones!.push({ id: nuevoId(), tecnico_id: e.tecnico, tipo: 'traspaso', caso_id: e.caso, detalle: caso.codigo, leida: false, creado_en: new Date().toISOString() });
+        }
+        return json(entregas.length);
+      }
       if (tabla === 'buscar_casos') {
         const termino = String(parametros.p_termino).trim().toLowerCase();
         const nombre = (id: unknown) => db.tecnicos!.find((t) => t.id === id)?.nombre ?? null;

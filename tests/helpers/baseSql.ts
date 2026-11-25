@@ -23,6 +23,7 @@ export const MIGRACIONES = {
   turnoC: () => leerSql('14_v2_turno_c_variantes.sql'),
   traspasoPropio: () => leerSql('15_v2_traspaso_propio.sql'),
   proteccion: () => sinCron(leerSql('16_v2_proteccion_de_casos.sql'), '-- 4. Vigilar'),
+  entregaSupervision: () => leerSql('17_v2_entrega_por_supervision.sql'),
   demo: () => leerSql('03_datos_demo_dev.sql')
 };
 

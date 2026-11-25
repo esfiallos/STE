@@ -24,8 +24,8 @@ function datosDeAna() {
   return datos;
 }
 
-async function abrirTraspaso() {
-  const app = await iniciarApp(datosDeAna(), { rol: 'tecnico', tecnicoId: 'ana' });
+async function abrirTraspaso(datos = datosDeAna()) {
+  const app = await iniciarApp(datos, { rol: 'tecnico', tecnicoId: 'ana' });
   const traspaso = await import('../../src/scripts/handover/handoverView');
   const misTraspasos = await import('../../src/scripts/handover/myHandoversView');
   traspaso.iniciarTraspaso('ana');
@@ -67,6 +67,98 @@ describe('traspaso de fin de turno', () => {
     expect(app.q<HTMLButtonElement>('#btnCerrarTurno').disabled).toBe(true);
     // Abrir la pestaña no crea nada en la base
     expect(app.db.traspasos).toHaveLength(0);
+  });
+
+  it('se elige primero el turno y la lista de "Entregar a" se acota; la búsqueda rápida elige a la persona (§14.4)', async () => {
+    const app = await abrirTraspaso();
+    const opciones = (casoId: string) => [...app.campo<HTMLSelectElement>(casoId, 'receptor').options].map((o) => o.textContent);
+
+    expect([...app.campo<HTMLSelectElement>('c1', 'turnoReceptor').options].map((o) => o.textContent)).toEqual([
+      'Todos los turnos (2)',
+      'Comodín 07:00–17:00 · hoy (1)',
+      'Turno B · hoy (1)'
+    ]);
+    // Un turno con una sola persona: queda elegida
+    app.elegir('c1', 'turnoReceptor', `${HOY}|Turno B`);
+    expect(opciones('c1')).toEqual(['— Elegir —', 'Luis Mora']);
+    expect(app.campo<HTMLSelectElement>('c1', 'receptor').value).toBe('luis');
+
+    // Búsqueda: se escribe en el campo y se elige; el <select> (oculto) recibe el valor
+    const buscar = app.item('c2').querySelector<HTMLInputElement>('.select-busqueda')!;
+    expect(buscar.placeholder).toBe('Buscar técnico…');
+    buscar.value = 'marta';
+    buscar.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(app.campo<HTMLSelectElement>('c2', 'receptor').value).toBe('marta');
+    // Con receptor, el turno queda en el suyo
+    expect(app.campo<HTMLSelectElement>('c2', 'turnoReceptor').value).toBe(`${HOY}|Comodín 07:00–17:00`);
+
+    // Un texto que no es nadie no cambia nada; vaciar el campo tampoco quita lo elegido
+    const otra = app.item('c1').querySelector<HTMLInputElement>('.select-busqueda')!;
+    otra.value = 'nadie';
+    otra.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(app.campo<HTMLSelectElement>('c1', 'receptor').value).toBe('luis');
+    expect(otra.value).toBe('Luis Mora');
+    otra.value = '';
+    otra.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(app.campo<HTMLSelectElement>('c1', 'receptor').value).toBe('luis');
+    expect(otra.value).toBe('Luis Mora');
+    app.elegir('c1', 'turnoReceptor', '');
+    app.elegir('c2', 'turnoReceptor', '');
+    await esperar(800); // que el guardado automático no caiga en la prueba siguiente
+  });
+
+  it('al cambiar de turno, quien estaba elegido de otro turno se quita: la lista solo tiene a ese turno (visto en DEV)', async () => {
+    const datos = datosDeAna();
+    datos.tecnicos.push({ id: 'sofia', nombre: 'Sofía Ruiz', activo: true });
+    datos.jornadas.push({ id: 'j-sofia', fecha_operativa: HOY, tecnico_id: 'sofia', turno: 'turnoB', horario_inicio: null, horario_fin: null, almuerzo_inicio: null, almuerzo_fin: null });
+    const app = await abrirTraspaso(datos);
+
+    app.elegir('c1', 'receptor', 'marta');
+    expect(app.campo<HTMLSelectElement>('c1', 'turnoReceptor').value).toBe(`${HOY}|Comodín 07:00–17:00`);
+    app.elegir('c1', 'turnoReceptor', `${HOY}|Turno B`);
+    expect([...app.campo<HTMLSelectElement>('c1', 'receptor').options].map((o) => o.textContent)).toEqual(['— Elegir —', 'Luis Mora', 'Sofía Ruiz']);
+    expect(app.campo<HTMLSelectElement>('c1', 'receptor').value).toBe('');
+    expect(app.problemas()).toContain('INC1: elige a quién se entrega.');
+    app.elegir('c1', 'receptor', 'sofia');
+    app.elegir('c1', 'turnoReceptor', '');
+    await esperar(800);
+  });
+
+  it('todos entran al reparto; excluir a alguien se resume arriba (§14.4)', async () => {
+    const app = await abrirTraspaso();
+    expect(app.q('#handoverReceiversSummary').textContent).toBe('Reparto entre todos (2)');
+    const casilla = app.q<HTMLInputElement>('#handoverReceivers [data-receptor="luis"]');
+    casilla.checked = false;
+    casilla.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(app.q('#handoverReceiversSummary').textContent).toBe('Reparto entre 1 de 2 · 1 fuera');
+    app.click(app.q('#btnRepartirPendientes'));
+    expect(['c1', 'c2', 'c3'].map((id) => app.campo<HTMLSelectElement>(id, 'receptor').value)).toEqual(['marta', 'marta', 'marta']);
+    expect(app.q('#handoverReceiversSummary').textContent).toBe('Reparto entre 1 de 2 · 1 fuera');
+    // El estado de la pestaña vive en el módulo: se deja como estaba (la lista se redibujó: casilla nueva)
+    const otraVez = app.q<HTMLInputElement>('#handoverReceivers [data-receptor="luis"]');
+    otraVez.checked = true;
+    otraVez.dispatchEvent(new Event('change', { bubbles: true }));
+    app.click(app.q('#btnDeshacerReparto'));
+    expect(app.q('#handoverReceiversSummary').textContent).toBe('Reparto entre todos (2)');
+    await esperar(800);
+  });
+
+  it('el recordatorio es opcional: se desbloquea con la casilla y quitarlo borra fecha y texto (§14.3)', async () => {
+    const app = await abrirTraspaso();
+    const campos = () => app.item('c1').querySelector<HTMLElement>('[data-ref="recordatorio"]')!;
+    expect(campos().classList.contains('hidden')).toBe(true);
+
+    app.click(app.campo('c1', 'conRecordatorio'));
+    expect(campos().classList.contains('hidden')).toBe(false);
+    app.elegir('c1', 'recordatorioFecha', '2026-11-10');
+    app.escribir('c1', 'recordatorioTexto', 'Ventana 10:00');
+    expect(app.campo<HTMLInputElement>('c1', 'conRecordatorio').checked).toBe(true);
+
+    app.click(app.campo('c1', 'conRecordatorio'));
+    expect(campos().classList.contains('hidden')).toBe(true);
+    expect(app.campo<HTMLInputElement>('c1', 'recordatorioFecha').value).toBe('');
+    expect(app.campo<HTMLInputElement>('c1', 'recordatorioTexto').value).toBe('');
+    await esperar(800);
   });
 
   it('reparte, se puede deshacer y el reporte escapa el texto', async () => {

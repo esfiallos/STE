@@ -2,33 +2,49 @@ import type { EstadoCaso, Incidente, Notificacion, OrigenResponsable, TipoNotifi
 import { ETIQUETA_ESTADO_CASO } from './handover';
 
 /**
- * Etiquetas sugeridas (D22): un comentario corto que acompaña a la descripción, como en traspasos-noc
- * (chip de color en Outlook, `[ETIQUETA]` en texto). El técnico puede crear las suyas (se guardan en su navegador).
- * VM: al caso se le programó una ventana de mantenimiento. El orden es también la prioridad del reporte.
+ * Etiquetas sugeridas (D22, D36): dicen **en manos de quién está el caso o qué sigue**, no su estado (para eso
+ * está el estado). Chip de color en Outlook, `[ETIQUETA]` en texto. El técnico puede crear las suyas (se guardan
+ * en su navegador). Ventana programada = la antigua "VM". El orden es también la prioridad del reporte.
  */
-export const ETIQUETAS_SUGERIDAS = ['Crítico', 'Escalar', 'VM', 'Monitoreo', 'Pendiente cliente', 'Seguimiento'] as const;
+export const ETIQUETAS_SUGERIDAS = [
+  'Crítico / VIP',
+  'Esperando cliente',
+  'Esperando proveedor',
+  'Escalado N2',
+  'Ventana programada',
+  'Validar con usuario',
+  'Requiere visita'
+] as const;
 export const LARGO_MAXIMO_ETIQUETA = 40;
 export const LARGO_MAXIMO_DESCRIPCION = 2000;
 /** Cuántas etiquetas propias se recuerdan por navegador. */
 export const MAXIMO_ETIQUETAS_PROPIAS = 30;
 
 /** Color (clave de estilo) de cada etiqueta sugerida; las propias usan 'otra'. */
-export type ColorDeEtiqueta = 'critico' | 'escalar' | 'vm' | 'monitoreo' | 'pendiente' | 'seguimiento' | 'otra';
-const COLORES: Record<string, ColorDeEtiqueta> = {
-  'Crítico': 'critico',
-  'Escalar': 'escalar',
-  'VM': 'vm',
-  'Monitoreo': 'monitoreo',
-  'Pendiente cliente': 'pendiente',
-  'Seguimiento': 'seguimiento'
-};
-
-export function colorDeEtiqueta(etiqueta: string | null | undefined): ColorDeEtiqueta | null {
-  if (!etiqueta) return null;
-  return COLORES[etiqueta] ?? 'otra';
-}
+export type ColorDeEtiqueta = 'critico' | 'cliente' | 'proveedor' | 'escalado' | 'ventana' | 'validar' | 'visita' | 'otra';
+export const COLORES_DE_ETIQUETA: readonly ColorDeEtiqueta[] = ['critico', 'cliente', 'proveedor', 'escalado', 'ventana', 'validar', 'visita', 'otra'];
 
 const plano = (texto: string) => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+/** Por texto normalizado. Las etiquetas anteriores (D22) conservan un color parecido en los casos que ya las tienen. */
+const COLORES = new Map<string, ColorDeEtiqueta>([
+  ['Crítico / VIP', 'critico'],
+  ['Esperando cliente', 'cliente'],
+  ['Esperando proveedor', 'proveedor'],
+  ['Escalado N2', 'escalado'],
+  ['Ventana programada', 'ventana'],
+  ['Validar con usuario', 'validar'],
+  ['Requiere visita', 'visita'],
+  ['Crítico', 'critico'],
+  ['Escalar', 'escalado'],
+  ['VM', 'ventana'],
+  ['Pendiente cliente', 'cliente']
+].map(([texto, color]) => [plano(texto!), color as ColorDeEtiqueta]));
+
+export function colorDeEtiqueta(etiqueta: string | null | undefined): ColorDeEtiqueta | null {
+  if (!etiqueta?.trim()) return null;
+  return COLORES.get(plano(etiqueta)) ?? 'otra';
+}
 
 /**
  * Agrega una etiqueta propia a la lista del navegador: normalizada, sin repetir (ni una sugerida), la más
@@ -109,6 +125,19 @@ export function horasSinActualizar(
   return (ahora.getTime() - Math.max(...referencias)) / 3_600_000;
 }
 
+/**
+ * Horas desde la última actualización del caso, la misma que dice "hace N" en la fila; si nunca se actualizó,
+ * desde que le llegó. La usan el filtro "Sin actualizar" y el orden, para que coincidan con lo que se lee.
+ * (El borde de atraso usa `horasSinActualizar`: un caso recién recibido no aparece en rojo de entrada.)
+ */
+export function horasDesdeLaActualizacion(
+  caso: Partial<Pick<Incidente, 'ultimaActualizacionEn' | 'creadoEn'>>,
+  ahora: Date
+): number | null {
+  const referencia = Date.parse(caso.ultimaActualizacionEn ?? caso.creadoEn ?? '');
+  return Number.isNaN(referencia) ? null : (ahora.getTime() - referencia) / 3_600_000;
+}
+
 /** Cómo se ordenan los casos dentro de cada grupo de Mi seguimiento. */
 export type OrdenDeSeguimiento = 'asignacion' | 'atraso';
 
@@ -117,7 +146,7 @@ export function ordenarPorAtraso<T extends Pick<Incidente, 'ultimaActualizacionE
   casos: readonly T[],
   ahora: Date
 ): T[] {
-  const peso = (c: T) => (c.sinTraspasoDesde ? 1e9 : 0) + (horasSinActualizar(c, ahora) ?? 0);
+  const peso = (c: T) => (c.sinTraspasoDesde ? 1e9 : 0) + (horasDesdeLaActualizacion(c, ahora) ?? 0);
   return [...casos].sort((a, b) => peso(b) - peso(a));
 }
 

@@ -8,6 +8,8 @@ import {
   entradasDelReporte,
   normalizarItem,
   problemasDelTraspaso,
+  grupoDeReceptor,
+  gruposDeReceptores,
   receptoresDelTraspaso,
   type ProblemaDelTraspaso
 } from '../../domain/handoverDraft';
@@ -30,6 +32,8 @@ import { confirmar } from '../ui/confirmar';
 import { mejorarCampoDeFecha } from '../ui/fecha';
 import { mejorarCampoDeEtiqueta } from '../ui/etiquetas';
 import { pintarTipo } from '../ui/tipoDeCaso';
+import { colorearLista, pintarArea } from '../ui/colorDeCaso';
+import { mejorarListaConBusqueda } from '../ui/listaConBusqueda';
 import { guardarSeguimiento } from '../actions/followUpActions';
 import { filtrarCasos } from '../../domain/caseFilters';
 import { crearBarraDeFiltros, type BarraDeFiltros } from '../features/caseFilters';
@@ -84,6 +88,11 @@ function estaEditando(): boolean {
   const activo = document.activeElement;
   return activo instanceof HTMLElement && vista().contains(activo) && activo.matches('input[type="text"], textarea');
 }
+
+/** Turno elegido en cada caso para acotar "Entregar a" ('' = todos). Solo pantalla. */
+const turnoElegido = new Map<string, string>();
+/** Casos con el recordatorio desplegado aunque aún no tenga fecha ni texto. */
+const recordatorioAbierto = new Set<string>();
 
 function describirReceptor(r: ReceptorTraspaso): string {
   const turno = nombreDeJornada(r);
@@ -195,6 +204,10 @@ function pintarReceptores(lista: ReceptorTraspaso[]): void {
     contenedor.replaceChildren(crearElemento('p', 'form-error', 'Nadie planificado puede recibir de tu turno. Avisa al dispatch.'));
     return;
   }
+  const entran = lista.filter((r) => !excluidos.has(r.tecnicoId) && r.tecnicoId !== tecnicoId).length;
+  const otros = lista.filter((r) => r.tecnicoId !== tecnicoId).length;
+  byId('handoverReceiversSummary').textContent =
+    entran === otros ? `Reparto entre todos (${entran})` : `Reparto entre ${entran} de ${otros} · ${otros - entran} fuera`;
   contenedor.replaceChildren(
     ...lista.map((r) => {
       const etiqueta = crearElemento('label', 'handover-receiver');
@@ -219,7 +232,6 @@ function crearItem(item: ItemTraspaso, caso: Incidente, lista: ReceptorTraspaso[
   pintarTipo(ref(fragmento, 'tipo'), caso.codigo);
   ref(fragmento, 'meta').textContent = [
     caso.cliente,
-    caso.area,
     caso.ultimaActualizacionEn ? `Últ. act. ${momentoCorto(caso.ultimaActualizacionEn)}` : 'Sin actualizar'
   ]
     .filter(Boolean)
@@ -229,15 +241,40 @@ function crearItem(item: ItemTraspaso, caso: Incidente, lista: ReceptorTraspaso[
   campo<HTMLInputElement>('candado').checked = candados.has(caso.id);
   campo<HTMLSelectElement>('estado').value = item.estado;
 
+  // Primero el turno (acota la lista), luego la persona (con búsqueda rápida) — §14.4
+  const grupos = gruposDeReceptores(lista, contexto?.fecha ?? '');
+  // El turno elegido manda sobre la lista; si el receptor es de otro turno (lo movió el reparto), manda el receptor.
+  const delReceptor = grupoDeReceptor(grupos, item.paraTecnicoId);
+  const anotado = turnoElegido.get(caso.id);
+  const elegido = anotado !== undefined && (!delReceptor || anotado === delReceptor) ? anotado : (delReceptor ?? anotado ?? '');
+  const grupo = grupos.find((g) => g.clave === elegido) ?? null;
+  const turno = campo<HTMLSelectElement>('turnoReceptor');
+  turno.append(new Option(`Todos los turnos (${lista.length})`, ''), ...grupos.map((g) => new Option(`${g.etiqueta} (${g.receptores.length})`, g.clave)));
+  turno.value = grupo?.clave ?? '';
+  turno.disabled = item.estado === 'cerrado';
+
   const receptor = campo<HTMLSelectElement>('receptor');
   receptor.append(new Option(item.estado === 'cerrado' ? 'No se entrega (cerrado)' : '— Elegir —', ''));
-  receptor.append(...lista.map((r) => new Option(describirReceptor(r), r.tecnicoId)));
-  if (item.paraTecnicoId && !lista.some((r) => r.tecnicoId === item.paraTecnicoId)) {
+  const visibles = grupo ? grupo.receptores : lista;
+  const nombreCorto = (r: ReceptorTraspaso) => `${r.nombre}${r.tecnicoId === tecnicoId ? ' (tú)' : ''}`;
+  receptor.append(...visibles.map((r) => new Option(grupo ? nombreCorto(r) : describirReceptor(r), r.tecnicoId)));
+  if (item.paraTecnicoId && !visibles.some((r) => r.tecnicoId === item.paraTecnicoId)) {
+    const otro = lista.find((r) => r.tecnicoId === item.paraTecnicoId);
     const nombre = appStore.get().catalogo.find((t) => t.id === item.paraTecnicoId)?.nombre ?? 'Otro técnico';
-    receptor.append(new Option(`${nombre} (ya no puede recibir)`, item.paraTecnicoId));
+    receptor.append(new Option(otro ? describirReceptor(otro) : `${nombre} (ya no puede recibir)`, item.paraTecnicoId));
   }
   receptor.value = item.estado === 'cerrado' ? '' : (item.paraTecnicoId ?? '');
   receptor.disabled = item.estado === 'cerrado';
+  mejorarListaConBusqueda(receptor, { placeholder: grupo ? 'Buscar en este turno…' : 'Buscar técnico…' });
+
+  const estado = campo<HTMLSelectElement>('estado');
+  colorearLista(estado, 'estado');
+  if (caso.area) {
+    const area = ref(fragmento, 'area');
+    area.textContent = caso.area;
+    area.classList.remove('hidden');
+    pintarArea(area, caso.area);
+  }
 
   const etiqueta = campo<HTMLInputElement>('etiqueta');
   etiqueta.value = item.etiqueta ?? '';
@@ -249,6 +286,12 @@ function crearItem(item: ItemTraspaso, caso: Incidente, lista: ReceptorTraspaso[
   const texto = campo<HTMLInputElement>('recordatorioTexto');
   texto.value = item.recordatorioTexto ?? '';
   fecha.disabled = texto.disabled = item.estado === 'cerrado';
+  // Recordatorio opcional (§14.3): visible si ya tiene algo o si se marcó "Agregar recordatorio"
+  const conRecordatorio = !!(item.recordatorioFecha || item.recordatorioTexto?.trim()) || recordatorioAbierto.has(caso.id);
+  const casilla = campo<HTMLInputElement>('conRecordatorio');
+  casilla.checked = conRecordatorio;
+  casilla.disabled = item.estado === 'cerrado';
+  ref(fragmento, 'recordatorio').classList.toggle('hidden', !conRecordatorio);
   mejorarCampoDeFecha(fecha, { direccion: 'futuro', vacio: 'Sin recordatorio' });
   return tarjeta;
 }
@@ -453,6 +496,26 @@ export function iniciarTraspaso(miTecnicoId: string): void {
       case 'receptor':
         cambiarItem(casoId, { paraTecnicoId: valor || null });
         break;
+      case 'turnoReceptor': {
+        // "Entregar a" queda limitado a ese turno: si quien estaba elegido es de otro, se limpia; si el turno tiene
+        // una sola persona, se elige sola.
+        turnoElegido.set(casoId, valor);
+        const grupo = gruposDeReceptores(receptores(), contexto?.fecha ?? '').find((g) => g.clave === valor);
+        const actual = items.find((i) => i.casoId === casoId)?.paraTecnicoId ?? null;
+        if (grupo && !grupo.receptores.some((r) => r.tecnicoId === actual)) {
+          cambiarItem(casoId, { paraTecnicoId: grupo.receptores.length === 1 ? grupo.receptores[0]!.tecnicoId : null });
+        }
+        break;
+      }
+      case 'conRecordatorio':
+        if ((campo as HTMLInputElement).checked) {
+          recordatorioAbierto.add(casoId);
+        } else {
+          // Quitar el recordatorio borra fecha y texto
+          recordatorioAbierto.delete(casoId);
+          cambiarItem(casoId, { recordatorioFecha: null, recordatorioTexto: null });
+        }
+        break;
       case 'recordatorioFecha':
         cambiarItem(casoId, { recordatorioFecha: valor || null });
         break;
@@ -472,6 +535,7 @@ export function iniciarTraspaso(miTecnicoId: string): void {
     if (!(casilla instanceof HTMLInputElement) || !casilla.dataset.receptor) return;
     if (casilla.checked) excluidos.delete(casilla.dataset.receptor);
     else excluidos.add(casilla.dataset.receptor);
+    pintarReceptores(receptores()); // el resumen ("Reparto entre…") al momento
   });
 
   byId('btnRepartirPendientes').addEventListener('click', () => repartir('huerfanos'));

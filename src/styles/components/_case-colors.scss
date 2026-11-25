@@ -1,0 +1,30 @@
+@use '../abstracts/variables' as *;
+
+// Estado y área con color (§14.2), igual que las etiquetas: en chips y en las listas donde se eligen.
+// La clase triple gana a los estilos propios de cada chip (.incident-item-card .inc-state[data-estado]…).
+@each $nombre, $par in $colores-estado {
+  .estado-color.estado-color.estado-color--#{$nombre} {
+    background-color: nth($par, 1);
+    color: nth($par, 2);
+    border-color: transparent;
+    font-weight: 600;
+  }
+}
+
+@each $nombre, $par in $colores-area {
+  .area-color.area-color.area-color--#{$nombre} {
+    background-color: nth($par, 1);
+    color: nth($par, 2);
+    border-color: transparent;
+    font-weight: 600;
+  }
+}
+
+// En un <dd> o texto suelto, el color va como pastilla
+dd.area-color,
+span.area-color {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: $radio-pildora;
+  font-size: 0.75rem;
+}

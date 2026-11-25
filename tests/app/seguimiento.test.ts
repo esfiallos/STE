@@ -39,7 +39,8 @@ async function abrirSeguimiento(datos = datosDeAna()) {
   }));
   const seguimiento = await import('../../src/scripts/followUp/followUpView');
   const notificaciones = await import('../../src/scripts/notifications/notificationsPanel');
-  seguimiento.iniciarSeguimiento('ana');
+  const abiertosEnBuscador: string[] = [];
+  seguimiento.iniciarSeguimiento('ana', { abrirEnBuscador: (codigo) => abiertosEnBuscador.push(codigo) });
   notificaciones.iniciarNotificaciones('ana', (id) => seguimiento.resaltarCaso(id));
   await esperar(80);
 
@@ -47,7 +48,7 @@ async function abrirSeguimiento(datos = datosDeAna()) {
     [...document.querySelectorAll<HTMLElement>('#followUpView .followup-row[data-caso-id]')].find((t) => t.querySelector('.followup-code')!.textContent === codigo)!;
   const codigosDe = (grupo: string) =>
     [...document.querySelectorAll<HTMLElement>(`[data-grupo="${grupo}"] .followup-code`)].map((c) => c.textContent);
-  return { ...app, seguimiento, notificaciones, tarjeta, codigosDe };
+  return { ...app, seguimiento, notificaciones, tarjeta, codigosDe, abiertosEnBuscador };
 }
 
 describe('mi seguimiento', () => {
@@ -142,6 +143,16 @@ describe('mi seguimiento', () => {
     expect(titulo.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('estado y área se pintan con su color y cambian al elegir otro (§14.2)', async () => {
+    const datos = datosDeAna();
+    datos.casos[0]!.area = 'CORE IP';
+    const app = await abrirSeguimiento(datos);
+    const estado = app.tarjeta('INC2').querySelector<HTMLSelectElement>('[data-ref="estado"]')!;
+    expect(estado.classList.contains('estado-color--pausado')).toBe(true);
+    expect(app.tarjeta('INC1').querySelector('[data-ref="area"]')!.classList.contains('area-color--core-ip')).toBe(true);
+    expect(app.tarjeta('INC2').querySelector('[data-ref="area"]')!.classList.contains('area-color')).toBe(false);
+  });
+
   it('marca lo que quedó sin traspaso y filtra por tiempo sin actualizar (D33)', async () => {
     const datos = datosDeAna();
     datos.casos[0]!.sin_traspaso_desde = '2026-11-09T14:00:00Z';
@@ -174,15 +185,11 @@ describe('mi seguimiento', () => {
     orden.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
-  it('muestra el historial de responsables y copia el resumen como texto', async () => {
+  it('el historial se abre en Buscar casos (no ocupa la fila) y copia el resumen como texto (§14.5)', async () => {
     const app = await abrirSeguimiento();
     app.click(app.tarjeta('INC2').querySelector('[data-action="ver-historial"]')!);
-    await esperar(80);
-    const historial = [...app.tarjeta('INC2').querySelectorAll('.followup-history li')].map((li) => li.textContent);
-    expect(historial).toHaveLength(2);
-    expect(historial[0]).toContain('Luis Mora · Asignado por dispatch');
-    expect(historial[1]).toContain('Ana Pérez · Recibido en traspaso');
-    expect(historial[1]).toContain('(actual)');
+    expect(app.abiertosEnBuscador).toEqual(['INC2']);
+    expect(app.tarjeta('INC2').querySelector('.followup-history')).toBeNull();
 
     app.click(app.tarjeta('INC2').querySelector('[data-action="copiar-resumen"]')!);
     await esperar();

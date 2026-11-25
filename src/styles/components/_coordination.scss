@@ -9,6 +9,11 @@ body:not(.rol-dispatch):not(.rol-coordinador) [data-supervision-only] {
   display: none !important;
 }
 
+// Buscar casos: supervisión y técnicos enlazados (§14.5)
+body:not(.rol-dispatch):not(.rol-coordinador):not(.rol-tecnico) [data-busqueda] {
+  display: none !important;
+}
+
 .role-badge[data-rol='coordinador'] {
   background-color: $color-almuerzo-borde;
   color: $color-marca-oscuro;

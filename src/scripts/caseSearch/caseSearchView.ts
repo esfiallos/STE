@@ -2,8 +2,9 @@
  * Pestaña "Buscar casos" (coordinación y dispatch): todos los casos alguna vez creados, con su ficha
  * (responsables y traspasos). Solo lectura.
  */
-import { ETIQUETA_ORIGEN } from '../../domain/followUp';
+import { colorDeEtiqueta, ETIQUETA_ORIGEN } from '../../domain/followUp';
 import { ETIQUETA_ESTADO_CASO } from '../../domain/handover';
+import { pintarArea, pintarEstado as pintarColorDeEstado } from '../ui/colorDeCaso';
 import { fechaCorta } from '../../domain/handoverReport';
 import { listarResponsables } from '../../services/casosRepo';
 import { buscarCasos } from '../../services/coordinacionRepo';
@@ -37,10 +38,12 @@ function crearResultado(caso: CasoEncontrado): HTMLElement {
 
   ref(fragmento, 'codigo').textContent = caso.codigo;
   ref(fragmento, 'estado').textContent = ETIQUETA_ESTADO_CASO[caso.estado];
+  pintarColorDeEstado(ref(fragmento, 'estado'), caso.estado);
   if (caso.etiqueta) {
     const etiqueta = ref(fragmento, 'etiqueta');
     etiqueta.textContent = caso.etiqueta;
-    etiqueta.classList.remove('hidden');
+    etiqueta.classList.remove('hidden', 'followup-chip--fecha');
+    etiqueta.classList.add('tag-color', `tag-color--${colorDeEtiqueta(caso.etiqueta) ?? 'otra'}`);
   }
   if (caso.recordatorioFecha) {
     const recordatorio = ref(fragmento, 'recordatorio');
@@ -51,6 +54,7 @@ function crearResultado(caso: CasoEncontrado): HTMLElement {
   ref(fragmento, 'responsable').textContent = caso.estado === 'cerrado' ? `${oGuion(caso.tecnicoActual)} (cerrado)` : oGuion(caso.tecnicoActual);
   ref(fragmento, 'empresa').textContent = oGuion(caso.cliente);
   ref(fragmento, 'area').textContent = oGuion(caso.area);
+  pintarArea(ref(fragmento, 'area'), caso.area);
   ref(fragmento, 'nota').textContent = oGuion(caso.descripcion ?? caso.nota);
   ref(fragmento, 'actualizacion').textContent = caso.ultimaActualizacionEn
     ? `${formatearFechaHora(caso.ultimaActualizacionEn)}${caso.ultimaActualizacionPor ? ` · ${caso.ultimaActualizacionPor}` : ''}`
@@ -159,6 +163,14 @@ function pintarResultados(): void {
 
 let barraBusqueda: BarraDeFiltros | null = null;
 
+/** Sin término: sin resultados ni mensajes, y una búsqueda en curso ya no se pinta. */
+function limpiarBusqueda(): void {
+  consulta++;
+  resultados = [];
+  pintarEstado(null);
+  pintarResultados();
+}
+
 function abrirFicha(tarjeta: HTMLElement, casoId: string): void {
   const ficha = ref(tarjeta, 'ficha');
   const boton = tarjeta.querySelector<HTMLElement>('[data-action="ver-ficha"]')!;
@@ -178,6 +190,17 @@ export function iniciarBuscadorDeCasos(): void {
   byId('caseSearchForm').addEventListener('submit', (evento) => {
     evento.preventDefault();
     void buscarCaso(byId<HTMLInputElement>('caseSearchInput').value);
+  });
+  // Al vaciar el campo (borrar, Esc o la "x" del navegador) se vuelve al estado inicial
+  const campo = byId<HTMLInputElement>('caseSearchInput');
+  campo.addEventListener('input', () => {
+    if (campo.value.trim() === '') limpiarBusqueda();
+  });
+  campo.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Escape' && campo.value) {
+      campo.value = '';
+      limpiarBusqueda();
+    }
   });
   byId('caseSearchResults').addEventListener('click', (evento) => {
     const boton = evento.target instanceof Element ? evento.target.closest<HTMLElement>('[data-action="ver-ficha"]') : null;

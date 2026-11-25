@@ -71,10 +71,17 @@ describe('filtro por tiempo sin actualizar (D33)', () => {
   const codigos = (atraso: typeof FILTROS_VACIOS.atraso) =>
     filtrarCasos(casos, { ...FILTROS_VACIOS, atraso }, ahora).map((c) => c.codigo);
 
-  it('cuenta desde lo más reciente entre la última actualización y la llegada, sin los cerrados', () => {
+  it('cuenta desde la última actualización (la del "hace N"); si nunca se actualizó, desde la llegada; sin los cerrados', () => {
     expect(codigos('2')).toEqual(['INC2', 'INC3', 'INC4']);
     expect(codigos('4')).toEqual(['INC3', 'INC4']);
     expect(codigos('24')).toEqual(['INC4']);
+  });
+
+  it('un caso actualizado hace 2 días que llegó ayer cuenta 2 días, como dice su fila (visto en DEV)', () => {
+    const viejo = { codigo: 'SCTASK9', tecnicoId: 'ana', creadoEn: hace(20), ultimaActualizacionEn: hace(50), sinTraspasoDesde: hace(10) };
+    const reciente = { codigo: 'INC8', tecnicoId: 'ana', creadoEn: hace(40), ultimaActualizacionEn: hace(30), sinTraspasoDesde: hace(10) };
+    expect(filtrarCasos([viejo, reciente], { ...FILTROS_VACIOS, atraso: '24' }, ahora).map((c) => c.codigo)).toEqual(['SCTASK9', 'INC8']);
+    expect(ordenarPorAtraso([reciente, viejo] as Incidente[], ahora).map((c) => c.codigo)).toEqual(['SCTASK9', 'INC8']);
   });
 
   it('"Quedó sin traspaso" usa lo que calcula la base', () => {

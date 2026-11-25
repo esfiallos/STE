@@ -4,7 +4,7 @@
  * texto plano y TSV para Excel. Todo el texto del usuario se escapa: el HTML resultante es seguro.
  */
 import type { EstadoCaso, TurnoTecnico } from '../types/noc';
-import { ETIQUETAS_SUGERIDAS, momentoCorto } from './followUp';
+import { colorDeEtiqueta, ETIQUETAS_SUGERIDAS, momentoCorto, type ColorDeEtiqueta } from './followUp';
 import { ETIQUETA_ESTADO_CASO } from './handover';
 import { ORDEN_DE_TIPO, tipoDeCaso } from './handoverBalance';
 
@@ -141,7 +141,8 @@ export interface TemaCorreo extends ColoresDelMarco {
   filaFondo: string;
   /** Chip de asignación de cada bloque (siempre el mismo color por turno, para reconocerlo). */
   turnos: Record<TurnoTecnico | 'cerrados', ColorDeChip>;
-  etiquetas: Record<string, { fondo: string; texto: string }>;
+  /** Por color de etiqueta (colorDeEtiqueta). */
+  etiquetas: Record<ColorDeEtiqueta, { fondo: string; texto: string }>;
 }
 
 export type IdPaletaCorreo = 'calido' | 'azul' | 'verde' | 'grafito' | 'morado' | 'vino';
@@ -238,12 +239,13 @@ export function temaDeCorreo(paleta: string | null | undefined = PALETA_POR_DEFE
       cerrados: { fondo: '#ECECEC', texto: '#4A4A4A', borde: '#B8B8B8' }
     },
     etiquetas: {
-      'Crítico': { fondo: '#FBD9D3', texto: '#8E2412' },
-      'Escalar': { fondo: '#EADCF5', texto: '#5B2A86' },
-      'VM': { fondo: '#D6ECF3', texto: '#14536A' },
-      'Monitoreo': { fondo: '#DCEBF5', texto: '#1F5A7A' },
-      'Pendiente cliente': { fondo: '#FFE9B0', texto: '#7A4B03' },
-      'Seguimiento': { fondo: '#E2F0E4', texto: '#2F5E35' },
+      critico: { fondo: '#FBD9D3', texto: '#8E2412' },
+      cliente: { fondo: '#FFE9B0', texto: '#7A4B03' },
+      proveedor: { fondo: '#FFE0C7', texto: '#8A3B0A' },
+      escalado: { fondo: '#EADCF5', texto: '#5B2A86' },
+      ventana: { fondo: '#D6ECF3', texto: '#14536A' },
+      validar: { fondo: '#E2F0E4', texto: '#2F5E35' },
+      visita: { fondo: '#FCE1EE', texto: '#8A1F52' },
       otra: { fondo: '#EFE7DC', texto: '#5C4630' }
     }
   };
@@ -267,7 +269,7 @@ function partesDelDetalle(fila: FilaDeReporte) {
 
 function chipDeEtiqueta(etiqueta: string | null, tema: Tema): string {
   if (!etiqueta) return '';
-  const color = tema.etiquetas[etiqueta] ?? tema.etiquetas.otra!;
+  const color = tema.etiquetas[colorDeEtiqueta(etiqueta) ?? 'otra'];
   return `<span style="background-color:${color.fondo};color:${color.texto};font-size:8.5pt;font-weight:bold;padding:1px 6px;">${escaparHtml(etiqueta)}</span>&nbsp; `;
 }
 
