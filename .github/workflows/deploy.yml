@@ -1,6 +1,5 @@
-# Producción: al llegar código a "main" se verifica, se compila y el resultado se publica
-# en la rama "gh-pages" (solo el sitio compilado, sin código fuente).
-# El entorno de desarrollo (base de datos y app) es solo local y nunca pasa por aquí.
+# Producción: al llegar código a "main" se verifica, se compila contra la base PROD y se publica en Cloudflare
+# (worker "panel-noc"). Detalle en docs/ENTORNOS_Y_DESPLIEGUE.md.
 name: Desplegar a producción
 
 on:
@@ -20,71 +19,11 @@ jobs:
   verificar:
     uses: ./.github/workflows/verificar.yml
 
-  desplegar:
-    name: Compilar y publicar en gh-pages
+  publicar:
     needs: verificar
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    # Los secretos de producción viven en Settings > Environments > production
-    environment:
-      name: production
-      url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
-
-    permissions:
-      contents: write # necesario para empujar la rama gh-pages
-
-    env:
-      PUBLIC_APP_ENV: production
-      PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
-      PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-      SITE_URL: https://${{ github.repository_owner }}.github.io
-      # Repositorio de proyecto → /<repositorio>. Si usas dominio propio o un repo "usuario.github.io",
-      # crea la variable BASE_PATH con el valor "/".
-      BASE_PATH: ${{ vars.BASE_PATH || format('/{0}', github.event.repository.name) }}
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-
-      - uses: oven-sh/setup-bun@v2
-
-      - name: Instalar dependencias
-        run: bun install --frozen-lockfile
-
-      - name: Comprobar la configuración de producción
-        run: |
-          test -n "$PUBLIC_SUPABASE_URL" || { echo "::error::Falta el secreto PUBLIC_SUPABASE_URL en el entorno 'production'"; exit 1; }
-          test -n "$PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Falta el secreto PUBLIC_SUPABASE_PUBLISHABLE_KEY en el entorno 'production'"; exit 1; }
-          case "$PUBLIC_SUPABASE_PUBLISHABLE_KEY" in
-            sb_secret_*|eyJ*service_role*) echo "::error::Esa clave NO es la publicable. Usa la clave publishable."; exit 1 ;;
-          esac
-
-      - name: Compilar
-        run: bun run build
-
-      - name: Comprobar el resultado de la compilación
-        run: |
-          test -f dist/index.html && test -f dist/login/index.html && test -f dist/restablecer/index.html
-          if [ "$BASE_PATH" != "/" ]; then grep -q "$BASE_PATH/_astro" dist/index.html || { echo "::error::Las rutas del sitio no respetan BASE_PATH ($BASE_PATH)"; exit 1; }; fi
-          # Un sitio publicado nunca debe llevar la marca visual de desarrollo (insignia o título [DEV])
-          if grep -rqE 'class="env-badge"|<title>\[DEV\]' --include='*.html' dist; then
-            echo "::error::La compilación contiene la marca de desarrollo: revisa PUBLIC_APP_ENV"; exit 1
-          fi
-
-      - name: Publicar en la rama gh-pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          touch dist/.nojekyll
-          cd dist
-          git init --initial-branch=gh-pages
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Compilado de ${GITHUB_SHA::7}"
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push --force origin gh-pages
+    uses: ./.github/workflows/publicar.yml
+    with:
+      entorno: production
+      app_env: production
+      proyecto_supabase: kkslgsgapodpzuifjrwz # STE (PROD)
+    secrets: inherit

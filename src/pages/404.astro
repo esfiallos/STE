@@ -1,0 +1,15 @@
+---
+// Página para rutas que no existen (Cloudflare la sirve con estado 404: wrangler.jsonc → not_found_handling).
+import Layout from '../layouts/Layout.astro';
+import { RUTAS } from '../scripts/routes';
+---
+
+<Layout title="Página no encontrada">
+  <main class="login-page">
+    <section class="panel-card not-found">
+      <h1>Esta página no existe</h1>
+      <p>Revisa la dirección o vuelve al panel.</p>
+      <a class="btn btn-primary" href={RUTAS.inicio}>Ir al panel</a>
+    </section>
+  </main>
+</Layout>

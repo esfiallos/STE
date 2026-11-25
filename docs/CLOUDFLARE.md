@@ -1,6 +1,7 @@
 # Evaluación: llevar el sitio de GitHub Pages a Cloudflare
 
-Fecha: 24/11/2026. Estado: **evaluación, nada aplicado.** El repositorio no cambia hasta que se decida.
+Fecha: 24/11/2026. Estado: **aplicado en el repositorio el 24/11/2026** (producción y DEV, ver
+`docs/ENTORNOS_Y_DESPLIEGUE.md`). Queda abajo como registro de la decisión.
 
 ## 1. Resumen
 

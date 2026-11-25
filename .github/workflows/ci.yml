@@ -1,11 +1,12 @@
-# Integración continua: todo lo que NO es producción solo se verifica, nunca se publica.
+# Integración continua: ramas de trabajo y PR a main solo se verifican, nunca se publican.
 name: CI
 
 on:
   pull_request:
     branches: [main]
   push:
-    branches-ignore: [main, gh-pages]
+    # main y desarrollo se verifican en su propio despliegue (deploy.yml, deploy-dev.yml)
+    branches-ignore: [main, desarrollo, gh-pages]
 
 concurrency:
   group: ci-${{ github.ref }}
