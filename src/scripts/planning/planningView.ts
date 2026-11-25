@@ -1,31 +1,34 @@
 import { abreviaturaDeJornada, OPCIONES_DE_JORNADA, opcionDeJornada, valorDeJornada } from '../../domain/planning';
 import {
-  describirSolicitud,
+  avisoVigente,
+  describirAviso,
+  describirCambio,
   diaEditable,
-  estadoDelDia,
-  solicitudesPorResponder,
+  MAX_MOTIVO_AVISO,
+  pideMotivo,
   type ContextoDePlanificacion
-} from '../../domain/planningRequests';
+} from '../../domain/planningNotices';
 import { diasDeLaSemana, fechaOperativa, inicioDeSemana, sumarDias } from '../../domain/time';
 import { listarJornadas, type JornadaPlanificada } from '../../services/jornadasRepo';
 import { appStore } from '../../state/appStore';
-import type { Jornada, SolicitudPlanificacion, TecnicoCatalogo } from '../../types/noc';
-import { pedirEdicionDeDia, responderSolicitud } from '../actions/planningRequestActions';
+import type { AvisoPlanificacion, Jornada, TecnicoCatalogo } from '../../types/noc';
+import { avisarCambioDeDia, cargarAvisos, marcarVistos } from '../actions/planningNoticeActions';
 import { planificarJornadas, quitarJornada } from '../actions/technicianActions';
 import { byId, crearElemento } from '../dom';
 import { abrirModalAlmuerzo } from '../modals/lunchModal';
 import { formatearFechaHora } from '../ui/format';
 import { avisarSiFalla, mostrarAviso } from '../ui/toast';
 import { confirmar } from '../ui/confirmar';
+import { pedirTexto } from '../ui/pedirTexto';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 let lunes = '';
 let jornadas: Jornada[] = [];
 let numeroDeCarga = 0;
-/** Solicitudes con las que se dibujó la vista (para redibujar solo si cambian). */
 let jornadasCargadas = false;
-let solicitudesDibujadas: readonly SolicitudPlanificacion[] | null = null;
+/** Avisos con los que se dibujó la vista (para redibujar solo si cambian). */
+let avisosDibujados: readonly AvisoPlanificacion[] | null = null;
 
 const fechaCorta = (fecha: string) => `${fecha.slice(8, 10)}/${fecha.slice(5, 7)}`;
 const hoy = () => fechaOperativa(new Date());
@@ -34,8 +37,8 @@ const esCoordinador = () => appStore.get().perfil?.rol === 'coordinador';
 
 function contexto(): ContextoDePlanificacion {
   const ahora = new Date();
-  const { perfil, solicitudes } = appStore.get();
-  return { rol: perfil?.rol, hoy: fechaOperativa(ahora), ahora, solicitudes };
+  const { perfil, avisos } = appStore.get();
+  return { rol: perfil?.rol, hoy: fechaOperativa(ahora), ahora, avisos };
 }
 
 function mostrarEstado(mensaje: string | null, esError = false): void {
@@ -62,7 +65,6 @@ function crearCelda(tecnico: TecnicoCatalogo, fecha: string, jornada: Jornada | 
   selector.append(new Option('Libre', ''), ...OPCIONES_DE_JORNADA.map((o) => new Option(o.etiqueta, o.valor)));
   selector.value = valorDeJornada(jornada);
   selector.disabled = !editable;
-  if (!editable && fecha >= hoy()) selector.title = 'Para editar este día pide permiso a coordinación.';
   celda.append(selector);
 
   if (jornada) {
@@ -129,129 +131,70 @@ function renderizar(): void {
   pie.append(filaPie);
 
   byId('planningGrid').replaceChildren(encabezado, cuerpo, pie);
-  renderizarSolicitudes();
+  renderizarAvisos();
 }
 
-/** Chip del encabezado: si el dispatch tiene ese día habilitado o una solicitud pendiente. */
+/** Chip del encabezado: el dispatch ya dio el motivo de ese día (y puede seguir cambiándolo sin darlo otra vez). */
 function chipDelDia(fecha: string, ctx: ContextoDePlanificacion): HTMLElement | null {
-  const estado = estadoDelDia(fecha, ctx);
-  if (estado !== 'habilitado' && estado !== 'pendiente') return null;
-  const texto =
-    estado === 'pendiente' ? 'Solicitud pendiente' : ctx.rol === 'coordinador' ? 'Dispatch habilitado' : 'Editable hasta 06:00';
-  const chip = crearElemento('span', 'planning-day-chip', texto);
-  chip.dataset.estado = estado;
+  if (fecha < ctx.hoy || !avisoVigente(fecha, ctx.avisos, ctx.ahora)) return null;
+  const chip = crearElemento('span', 'planning-day-chip', ctx.rol === 'coordinador' ? 'Cambiado por dispatch' : 'Motivo indicado');
+  chip.dataset.estado = 'avisado';
   return chip;
 }
 
-const ESTADO_DE_SOLICITUD: Record<SolicitudPlanificacion['estado'], string> = {
-  pendiente: 'Pendiente',
-  aprobada: 'Aprobada',
-  rechazada: 'Rechazada'
-};
-
-function crearSolicitud(s: SolicitudPlanificacion): HTMLLIElement {
+function crearAviso(a: AvisoPlanificacion, esCoord: boolean): HTMLLIElement {
   const item = crearElemento('li', 'planning-request');
-  item.dataset.solicitudId = s.id;
-  const vencida = s.estado === 'pendiente' && s.fecha < hoy();
-  const estado = crearElemento('span', 'planning-request__state', vencida ? 'Sin responder' : ESTADO_DE_SOLICITUD[s.estado]);
-  estado.dataset.estado = vencida ? 'vencida' : s.estado;
+  item.dataset.avisoId = a.id;
+  const nuevo = esCoord && !a.visto;
+  const estado = crearElemento('span', 'planning-request__state', nuevo ? 'Nuevo' : fechaCorta(a.fecha));
+  estado.dataset.estado = nuevo ? 'nuevo' : 'visto';
 
-  const texto = crearElemento('span', 'planning-request__text', `Editar el ${fechaCorta(s.fecha)} · ${s.motivo}`);
-  const meta = [`Pedida por ${s.solicitanteNombre ?? 'dispatch'} · ${formatearFechaHora(s.creadaEn)}`];
-  if (s.estado !== 'pendiente') {
-    meta.push(`${ESTADO_DE_SOLICITUD[s.estado]} por ${s.resueltaPorNombre ?? 'coordinación'}${s.respuesta ? `: ${s.respuesta}` : ''}`);
+  const texto = crearElemento('span', 'planning-request__text', describirAviso(a));
+  texto.append(crearElemento('span', 'planning-request__meta', `Avisado ${formatearFechaHora(a.creadoEn)}`));
+  if (a.cambios.length > 0) {
+    const lista = crearElemento('ul', 'planning-request__changes');
+    lista.append(...a.cambios.map((c) => crearElemento('li', '', `${describirCambio(c, a.autorNombre)} · ${formatearFechaHora(c.en)}`)));
+    texto.append(lista);
   }
-  texto.append(crearElemento('span', 'planning-request__meta', meta.join(' · ')));
   item.append(estado, texto);
-  return item;
-}
 
-function crearPendiente(s: SolicitudPlanificacion): HTMLLIElement {
-  const item = crearElemento('li', 'planning-request');
-  item.dataset.solicitudId = s.id;
-  const texto = crearElemento('span', 'planning-request__text', describirSolicitud(s));
-  texto.append(crearElemento('span', 'planning-request__meta', `Enviada ${formatearFechaHora(s.creadaEn)}`));
-
-  const respuesta = document.createElement('input');
-  respuesta.type = 'text';
-  respuesta.className = 'planning-request__answer';
-  respuesta.maxLength = 500;
-  respuesta.placeholder = 'Respuesta (opcional)';
-  respuesta.setAttribute('aria-label', `Respuesta para el ${fechaCorta(s.fecha)}`);
-
-  const aprobar = crearElemento('button', 'btn btn-sm btn-primary', 'Aprobar');
-  aprobar.type = 'button';
-  aprobar.dataset.action = 'aprobar-solicitud';
-  const rechazar = crearElemento('button', 'btn btn-sm', 'Rechazar');
-  rechazar.type = 'button';
-  rechazar.dataset.action = 'rechazar-solicitud';
-  item.append(texto, respuesta, aprobar, rechazar);
+  if (nuevo) {
+    const visto = crearElemento('button', 'btn btn-sm', 'Visto');
+    visto.type = 'button';
+    visto.dataset.action = 'marcar-aviso-visto';
+    item.append(visto);
+  }
   return item;
 }
 
 const vacio = (texto: string) => crearElemento('li', 'planning-requests__empty', texto);
 
-/** Formulario del dispatch (días de la semana visible) y listas de solicitudes. */
-function renderizarSolicitudes(): void {
-  const ctx = contexto();
-  solicitudesDibujadas = ctx.solicitudes;
-  const semana = diasDeLaSemana(lunes);
-
-  if (esCoordinador()) {
-    const pendientes = solicitudesPorResponder(ctx.solicitudes, ctx.hoy);
-    byId('planningPendingList').replaceChildren(
-      ...(pendientes.length ? pendientes.map(crearPendiente) : [vacio('No hay solicitudes por responder.')])
-    );
-  } else {
-    const selector = byId<HTMLSelectElement>('planningRequestDate');
-    const anterior = selector.value;
-    const dias = semana.filter((fecha) => fecha >= ctx.hoy);
-    const sufijo = { habilitado: ' · habilitado', pendiente: ' · pendiente', bloqueado: '', pasado: '' } as const;
-    selector.replaceChildren(
-      ...(dias.length
-        ? dias.map((fecha) => new Option(`${DIAS[semana.indexOf(fecha)]} ${fechaCorta(fecha)}${sufijo[estadoDelDia(fecha, ctx)]}`, fecha))
-        : [new Option('Esta semana ya pasó', '')])
-    );
-    if (dias.includes(anterior)) selector.value = anterior;
-    selector.disabled = dias.length === 0;
-    byId<HTMLButtonElement>('btnPlanningRequest').disabled = dias.length === 0;
-  }
-
-  const recientes = [...ctx.solicitudes].sort((a, b) => b.creadaEn.localeCompare(a.creadaEn)).slice(0, 10);
-  byId('planningRequestList').replaceChildren(...(recientes.length ? recientes.map(crearSolicitud) : [vacio('Aún no hay solicitudes.')]));
+/** Lista de los cambios que hizo el dispatch con su motivo (los ven dispatch y coordinación). */
+function renderizarAvisos(): void {
+  const { avisos } = contexto();
+  avisosDibujados = avisos;
+  const recientes = [...avisos].sort((a, b) => b.creadoEn.localeCompare(a.creadoEn)).slice(0, 10);
+  byId('planningNoticeList').replaceChildren(
+    ...(recientes.length ? recientes.map((a) => crearAviso(a, esCoordinador())) : [vacio('El dispatch no ha cambiado la planificación en estos días.')])
+  );
 }
 
-function mostrarErrorDeSolicitud(mensaje: string | null): void {
-  const error = byId('planningRequestError');
-  error.textContent = mensaje ?? '';
-  error.classList.toggle('hidden', !mensaje);
-}
-
-async function enviarSolicitud(evento: Event): Promise<void> {
-  evento.preventDefault();
-  const fecha = byId<HTMLSelectElement>('planningRequestDate').value;
-  const motivo = byId<HTMLInputElement>('planningRequestReason');
-  const boton = byId<HTMLButtonElement>('btnPlanningRequest');
-  boton.disabled = true;
-  const resultado = await pedirEdicionDeDia(fecha, motivo.value);
-  boton.disabled = false;
-  if (!resultado.ok) {
-    mostrarErrorDeSolicitud(resultado.error);
-    return;
-  }
-  mostrarErrorDeSolicitud(null);
-  motivo.value = '';
-}
-
-async function contestarSolicitud(boton: HTMLButtonElement): Promise<void> {
-  const item = boton.closest<HTMLElement>('[data-solicitud-id]');
-  const id = item?.dataset.solicitudId;
-  if (!item || !id) return;
-  const aprobar = boton.dataset.action === 'aprobar-solicitud';
-  const respuesta = item.querySelector<HTMLInputElement>('.planning-request__answer')?.value ?? '';
-  item.querySelectorAll('button').forEach((b) => (b.disabled = true));
-  const resultado = await responderSolicitud(id, aprobar, respuesta);
-  if (!avisarSiFalla(resultado)) item.querySelectorAll('button').forEach((b) => (b.disabled = false));
+/**
+ * La primera vez que el dispatch cambia un turno de un día pide el motivo (D38); no espera respuesta.
+ * Devuelve false si cancela o la base lo rechaza.
+ */
+async function asegurarMotivo(fecha: string): Promise<boolean> {
+  if (!pideMotivo(fecha, contexto())) return true;
+  const motivo = await pedirTexto({
+    titulo: `Cambio en la planificación del ${fechaCorta(fecha)}`,
+    mensaje: 'Coordinación recibirá el motivo y el detalle de los cambios. Se pide una vez por día.',
+    etiqueta: 'Motivo',
+    placeholder: 'Ej: Luis se reportó enfermo, hay que cubrir el turno B',
+    maxLength: MAX_MOTIVO_AVISO,
+    aceptar: 'Guardar cambio'
+  });
+  if (motivo === null) return false;
+  return avisarSiFalla(await avisarCambioDeDia(fecha, motivo));
 }
 
 /** Abre la planificación en la semana de ese día (desde la campana). */
@@ -285,6 +228,10 @@ async function cambiarJornada(selector: HTMLSelectElement): Promise<void> {
 
   const actual = jornadas.find((j) => j.tecnicoId === tecnicoId && j.fecha === fecha);
   const opcion = opcionDeJornada(selector.value);
+  if (!(await asegurarMotivo(fecha))) {
+    selector.value = valorDeJornada(actual);
+    return;
+  }
 
   let resultado;
   if (!opcion) {
@@ -305,6 +252,8 @@ async function cambiarJornada(selector: HTMLSelectElement): Promise<void> {
 
   avisarSiFalla(resultado);
   await cargarPlanificacion();
+  // El cambio quedó anotado en el aviso del día (también llega por tiempo real).
+  if (appStore.get().perfil?.rol === 'dispatch') await cargarAvisos();
 }
 
 /** Copia la semana anterior sobre la visible (reemplaza los días que ya estén planificados). */
@@ -379,15 +328,15 @@ export function iniciarPlanificacion(): void {
     if (boton?.dataset.jornadaId) editarAlmuerzo(boton.dataset.jornadaId);
   });
 
-  byId('planningRequestForm').addEventListener('submit', (evento) => void enviarSolicitud(evento));
-  byId('planningPendingList').addEventListener('click', (evento) => {
-    const boton = evento.target instanceof Element ? evento.target.closest<HTMLButtonElement>('button[data-action]') : null;
-    if (boton) void contestarSolicitud(boton);
+  byId('planningNoticeList').addEventListener('click', (evento) => {
+    const boton = evento.target instanceof Element ? evento.target.closest<HTMLElement>('[data-action="marcar-aviso-visto"]') : null;
+    const id = boton?.closest<HTMLElement>('[data-aviso-id]')?.dataset.avisoId;
+    if (id) void marcarVistos([id]);
   });
 
-  // Una solicitud nueva o respondida (propia o de otro usuario) cambia qué días se pueden editar.
+  // Un aviso nuevo, un cambio más o un aviso visto (propio o de otro usuario) cambian chips y lista.
   appStore.subscribe(() => {
-    const { vista, solicitudes } = appStore.get();
-    if (vista === 'planificacion' && jornadasCargadas && solicitudes !== solicitudesDibujadas) renderizar();
+    const { vista, avisos } = appStore.get();
+    if (vista === 'planificacion' && jornadasCargadas && avisos !== avisosDibujados) renderizar();
   });
 }

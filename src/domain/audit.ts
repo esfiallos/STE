@@ -19,7 +19,8 @@ export const ETIQUETA_ACCION: Record<string, string> = {
   asignado_por_ronda: 'Asignado por ronda',
   solicitud_planificacion: 'Permiso de planificación pedido',
   solicitud_planificacion_aprobada: 'Permiso de planificación aprobado',
-  solicitud_planificacion_rechazada: 'Permiso de planificación rechazado'
+  solicitud_planificacion_rechazada: 'Permiso de planificación rechazado',
+  aviso_planificacion: 'Cambio de planificación avisado'
 };
 
 export function describirAccion(accion: string): string {

@@ -1,22 +1,23 @@
 /**
  * Campana del coordinador: alertas por casos sin actualización (2/4/6 h), recordatorios sin turno y
- * solicitudes del dispatch para editar la planificación. Las alertas llegan en tiempo real (alertas_coordinacion);
- * al abrir una se marca atendida y se abre el caso. Una solicitud lleva a la planificación de ese día.
+ * cambios del dispatch en la planificación (D38, solo informativos). Las alertas llegan en tiempo real
+ * (alertas_coordinacion); al abrir una se marca atendida y se abre el caso. Un aviso de planificación se marca
+ * visto y lleva a la planificación de ese día.
  */
 import { alertasActivas, describirAlerta, gravedadDeAlerta } from '../../domain/coordination';
-import { describirSolicitud, solicitudesPorResponder } from '../../domain/planningRequests';
-import { fechaOperativa } from '../../domain/time';
+import { avisosSinVer, describirAviso } from '../../domain/planningNotices';
 import { suscribirAlertas } from '../../services/coordinacionRepo';
 import { appStore } from '../../state/appStore';
-import type { AlertaCoordinacion, SolicitudPlanificacion } from '../../types/noc';
+import type { AlertaCoordinacion, AvisoPlanificacion } from '../../types/noc';
 import { atenderAlerta, atenderTodas, cargarAlertas } from '../actions/coordinationActions';
+import { marcarVistos } from '../actions/planningNoticeActions';
 import { byId, crearElemento } from '../dom';
 import { formatearFechaHora } from '../ui/format';
 import { reproducirSonido } from '../ui/sound';
 import { mostrarAviso } from '../ui/toast';
 
 let alAbrir: (alerta: AlertaCoordinacion) => void = () => undefined;
-let alAbrirSolicitud: (solicitud: SolicitudPlanificacion) => void = () => undefined;
+let alAbrirAviso: (aviso: AvisoPlanificacion) => void = () => undefined;
 
 const panelAbierto = () => !byId('alertsPanel').classList.contains('hidden');
 
@@ -34,21 +35,19 @@ export function crearBotonDeAlerta(alerta: AlertaCoordinacion): HTMLButtonElemen
   return boton;
 }
 
-function crearBotonDeSolicitud(solicitud: SolicitudPlanificacion): HTMLButtonElement {
-  const boton = crearElemento('button', 'notif__link alerta alerta--solicitud');
+function crearBotonDeAviso(aviso: AvisoPlanificacion): HTMLButtonElement {
+  const boton = crearElemento('button', 'notif__link alerta alerta--planificacion');
   boton.type = 'button';
-  boton.dataset.solicitudId = solicitud.id;
-  boton.append(
-    crearElemento('span', 'notif__text', describirSolicitud(solicitud)),
-    crearElemento('span', 'notif__time', formatearFechaHora(solicitud.creadaEn))
-  );
+  boton.dataset.avisoId = aviso.id;
+  const ultimo = aviso.cambios.at(-1)?.en || aviso.creadoEn;
+  boton.append(crearElemento('span', 'notif__text', describirAviso(aviso)), crearElemento('span', 'notif__time', formatearFechaHora(ultimo)));
   return boton;
 }
 
 function pintar(): void {
-  const { alertas, solicitudes } = appStore.get();
+  const { alertas, avisos } = appStore.get();
   const activas = alertasActivas(alertas);
-  const pendientes = solicitudesPorResponder(solicitudes, fechaOperativa(new Date()));
+  const pendientes = avisosSinVer(avisos);
   const total = activas.length + pendientes.length;
   const contador = byId('alertsCount');
   contador.textContent = total > 99 ? '99+' : String(total);
@@ -63,7 +62,7 @@ function pintar(): void {
   byId('alertsList').replaceChildren(
     ...(total === 0
       ? [crearElemento('li', 'notif__empty', 'Sin alertas por atender.')]
-      : [...pendientes.map((s) => enLista(crearBotonDeSolicitud(s))), ...activas.map((a) => enLista(crearBotonDeAlerta(a)))])
+      : [...pendientes.map((a) => enLista(crearBotonDeAviso(a))), ...activas.map((a) => enLista(crearBotonDeAlerta(a)))])
   );
 }
 
@@ -89,11 +88,12 @@ function recibirAlerta(alerta: AlertaCoordinacion): void {
 
 /** Abre la alerta pulsada (en la campana o en el panel): la marca atendida y lleva al caso. */
 export function abrirAlertaPulsada(evento: Event): void {
-  const deSolicitud = evento.target instanceof Element ? evento.target.closest<HTMLElement>('[data-solicitud-id]') : null;
-  const solicitud = appStore.get().solicitudes.find((s) => s.id === deSolicitud?.dataset.solicitudId);
-  if (solicitud) {
+  const deAviso = evento.target instanceof Element ? evento.target.closest<HTMLElement>('[data-aviso-id]') : null;
+  const aviso = appStore.get().avisos.find((a) => a.id === deAviso?.dataset.avisoId);
+  if (aviso) {
+    void marcarVistos([aviso.id]);
     alternarPanel(false);
-    alAbrirSolicitud(solicitud);
+    alAbrirAviso(aviso);
     return;
   }
   const boton = evento.target instanceof Element ? evento.target.closest<HTMLElement>('[data-alerta-id]') : null;
@@ -106,10 +106,10 @@ export function abrirAlertaPulsada(evento: Event): void {
 
 export function iniciarCampanaDeAlertas(
   abrirCaso: (alerta: AlertaCoordinacion) => void,
-  abrirSolicitud: (solicitud: SolicitudPlanificacion) => void = () => undefined
+  abrirAviso: (aviso: AvisoPlanificacion) => void = () => undefined
 ): () => void {
   alAbrir = abrirCaso;
-  alAbrirSolicitud = abrirSolicitud;
+  alAbrirAviso = abrirAviso;
   byId('btnAlerts').addEventListener('click', (evento) => {
     evento.stopPropagation();
     alternarPanel();
@@ -118,7 +118,10 @@ export function iniciarCampanaDeAlertas(
   document.addEventListener('click', () => panelAbierto() && alternarPanel(false));
   document.addEventListener('keydown', (evento) => evento.key === 'Escape' && panelAbierto() && alternarPanel(false));
   byId('alertsList').addEventListener('click', abrirAlertaPulsada);
-  byId('btnAlertsReadAll').addEventListener('click', () => void atenderTodas());
+  byId('btnAlertsReadAll').addEventListener('click', () => {
+    void atenderTodas();
+    void marcarVistos(avisosSinVer(appStore.get().avisos).map((a) => a.id));
+  });
 
   appStore.subscribe(pintar);
   pintar();

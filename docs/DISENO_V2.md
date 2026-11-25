@@ -231,6 +231,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **12. Seguimiento v2** ✅ | Descripción única + "Última actualización" como fecha y botón, filas horizontales, etiquetas locales con combobox, nota del traspaso = descripción, verificación traspaso → seguimiento (§11.3–11.6) · `12` | 10, 11 |
 | **13. Filtros** ✅ | Tipo de caso (FRESH · Tarea · Incidente) y filtros por técnico, área, estado y tipo en todas las vistas de casos (§11.11) | 12 |
 | **14. Turno C por tramos y pulido** ✅ | C1 22–00 / C2 00–06 (D29), color de la tabla del traspaso (D30), destello al soltar un caso, tarjetas sin chips superpuestos, quedarse un caso para mañana (D31) (§12) · `14`, `15` | 13 |
+| **18. Planificación con aviso** ✅ | El dispatch cambia la planificación sin esperar aprobación: da el motivo una vez por día y coordinación recibe el aviso con el detalle; el almuerzo, libre (D38, §16) · `18` | 17 |
 | **17. Reparto por supervisión** ✅ | Dispatch y coordinación reparten "Por reasignar" al seguimiento de otros técnicos (D37), el turno limita "Entregar a", buscadores que vuelven al estado normal (§15) · `17` | 16 |
 | **16. Traspaso y colores** ✅ | Etiquetas "en manos de quién" (D36), estado y área con color, recordatorio opcional, receptor por turno con búsqueda y reparto "todos entran", historial en Buscar casos (también para el técnico) (§14) · sin SQL | 15 |
 | **15. Seguridad y casos perdidos** ✅ | Lectura solo con perfil (D32), turno terminado sin traspaso → "Por reasignar" + alerta (D33), aviso previo al técnico (D34), filtro y orden por tiempo sin actualizar, CSP + SRI (D35) (§13) · `16` | 14 |
@@ -253,6 +254,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 - **D7. Comodín:** horarios fijos 06–16, 07–17, 08–18. Almuerzos a elección del dispatch.
 - **D8–D15** (19/11/2026): ver §10. Cambian D3 (hay un tercer rol, **coordinador**) y D5 (la planificación la
   hace coordinación; el dispatch solo la edita por día con solicitud aprobada).
+- **D38** (24/11/2026): ver §16. Reemplaza D14: el dispatch ya no pide permiso para planificar; avisa el motivo.
 - **D37** (23/11/2026): ver §15. Cambia D16/D18 en lo que toca a "Por reasignar": coordinación también la ve y reparte.
 - **D36** (23/11/2026): ver §14. Cambia D22 (etiquetas sugeridas) y da Buscar casos al técnico.
 - **D32–D35** (23/11/2026): ver §13. Matizan D2: si un técnico no cierra turno, el caso no se pierde: la base lo
@@ -692,3 +694,27 @@ Revisión del usuario sobre DEV con datos de prueba (`docs/interno/DATOS_DE_PRUE
 - Buscar casos: al vaciar el campo (borrar, Esc o la ✕ del navegador) se quitan los resultados y el mensaje.
 - Búsqueda de "Entregar a": vaciar el texto ya no quita a quien estaba elegido; al salir del campo vuelve a mostrarse.
 
+---
+
+## 16. Requerimientos v2.7 · planificación con aviso (24/11/2026)
+
+### 16.1 El dispatch cambia sin esperar aprobación — ✅ `sql/18_v2_planificacion_con_aviso.sql`
+- **D38.** La autorización era un freno: el dispatch cambia la planificación de **hoy en adelante** sin esperar a
+  coordinación (D15 sigue: nadie toca días pasados). La **primera vez que cambia un turno de un día** se le pide el
+  **motivo** (panel `ui/pedirTexto.ts`); con él, ese día queda libre hasta el fin del día operativo en curso (06:00).
+  Al día operativo siguiente, el primer cambio de ese mismo día vuelve a pedir motivo. El motivo es por día
+  planificado: si dos dispatch cambian el mismo día, comparten el aviso y cada cambio dice quién lo hizo.
+- **El almuerzo no pide motivo**: el dispatch lo ajusta libre desde la planificación o desde el tablero del día.
+  Guardar el mismo turno tampoco.
+- Coordinación recibe cada aviso en su campana y en "Cambios del dispatch" (pestaña Planificación) con el motivo y
+  el detalle (técnico: antes → después · quién). Solo lo marca **visto**; no aprueba ni rechaza. Un cambio nuevo
+  en un aviso ya visto lo vuelve a mostrar. Coordinación sigue planificando sin motivo.
+- Base: tabla `avisos_planificacion` (lectura dispatch/coordinación; coordinación solo escribe `visto`; Realtime),
+  `aviso_de_planificacion(fecha)`, `avisar_cambio_planificacion(fecha, motivo)` (idempotente por día, bitácora
+  `aviso_planificacion`), `puede_planificar` = dispatch o coordinación desde hoy, y `jornadas_validar_permiso`
+  exige el aviso al dispatch salvo en cambios de almuerzo y anota cada cambio en `cambios` (un upsert se anota una
+  sola vez, con el turno de antes). Se retiran `solicitar_edicion_planificacion` y
+  `resolver_solicitud_planificacion`; `solicitudes_planificacion` queda como historial.
+- App: `domain/planningNotices.ts`, `services/avisosPlanificacionRepo.ts`, `actions/planningNoticeActions.ts`,
+  `planning/planningNoticesSync.ts` (insignia de la pestaña solo para coordinación). Se quitaron la campana de
+  respuestas del dispatch (`requestsBell.ts`), el formulario de solicitud y la lista "Por responder".

@@ -68,6 +68,20 @@
   color: $color-texto-suave;
 }
 
+// Campo de texto de ui/pedirTexto.ts (motivo del cambio de planificación)
+.confirm__label {
+  display: block;
+  margin-top: 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: $navy-900;
+}
+
+.confirm__field {
+  width: 100%;
+  margin-top: 0.3rem;
+}
+
 .confirm__summary {
   display: grid;
   grid-template-columns: 1fr auto;

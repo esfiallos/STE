@@ -12,16 +12,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** Por defecto como coordinación, que es quien planifica (D14). */
+/** Por defecto como coordinación (planifica sin motivo); el dispatch da el motivo por día (D38). */
 async function abrirPlanificacion(datos: Datos = datosBase(), rol: 'coordinador' | 'dispatch' = 'coordinador') {
   const app = await iniciarApp(datos, { rol });
   const { iniciarPlanificacion, cargarPlanificacion } = await import('../../src/scripts/planning/planningView');
-  const { cargarSolicitudes } = await import('../../src/scripts/actions/planningRequestActions');
+  const { cargarAvisos } = await import('../../src/scripts/actions/planningNoticeActions');
   const { iniciarModalAlmuerzo } = await import('../../src/scripts/modals/lunchModal');
   app.appStore.set({ vista: 'planificacion' });
   iniciarPlanificacion();
   iniciarModalAlmuerzo();
-  await cargarSolicitudes();
+  await cargarAvisos();
   await cargarPlanificacion();
 
   const celda = (tecnico: string, fecha: string) =>
@@ -112,111 +112,85 @@ describe('planificación semanal (coordinación)', () => {
   });
 });
 
-const solicitudFila = (parcial: Record<string, unknown>) => ({
-  id: 's1', fecha_operativa: '2026-11-10', motivo: 'Falta Luis', solicitante_nombre: 'Dispatch Uno', estado: 'pendiente', respuesta: null,
-  resuelta_por_nombre: null, resuelta_en: null, vence_en: null, respuesta_vista: false, creada_en: '2026-11-09T15:00:00Z', ...parcial
+const avisoFila = (parcial: Record<string, unknown>) => ({
+  id: 'a1', fecha_operativa: '2026-11-10', motivo: 'Falta Luis', autor_nombre: 'Dispatch Uno', creado_en: '2026-11-09T15:00:00Z',
+  vence_en: '2026-11-10T12:00:00Z', visto: false,
+  cambios: [{ en: '2026-11-09T15:01:00Z', por: 'Dispatch Uno', tecnico: 'Luis Mora', antes: 'Libre', despues: 'Turno C1 22:00 - 00:00' }],
+  ...parcial
 });
 
-describe('planificación con solicitudes (D14)', () => {
-  it('para el dispatch es de solo lectura y pide permiso por día con un motivo', async () => {
+describe('planificación con aviso (D38)', () => {
+  it('el dispatch edita sin esperar aprobación: el primer cambio de un día pide el motivo, una sola vez', async () => {
     const app = await abrirPlanificacion(datosBase(), 'dispatch');
-    expect(app.celda('ana', '2026-11-09').querySelector('select')!.disabled).toBe(true);
-    expect(app.celda('ana', '2026-11-12').querySelector('select')!.disabled).toBe(true);
-    expect(app.celda('ana', '2026-11-09').querySelector<HTMLButtonElement>('.planning-lunch')!.disabled).toBe(true);
+    expect(app.celda('ana', '2026-11-09').querySelector('select')!.disabled).toBe(false);
+    expect(app.celda('ana', '2026-11-12').querySelector('select')!.disabled).toBe(false);
+    expect(app.celda('ana', '2026-11-08')?.querySelector('select')?.disabled ?? true).toBe(true);
     expect(app.q('#btnCopyPrevWeek').hasAttribute('data-coordinador-only')).toBe(true);
-    expect(app.qa('#planningRequestDate option').map((o) => o.textContent)).toEqual([
-      'Lun 09/11', 'Mar 10/11', 'Mié 11/11', 'Jue 12/11', 'Vie 13/11', 'Sáb 14/11', 'Dom 15/11'
-    ]);
 
-    const enviar = async () => {
-      app.q<HTMLFormElement>('#planningRequestForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-      await esperar(80);
-    };
-    app.q<HTMLSelectElement>('#planningRequestDate').value = '2026-11-10';
-    await enviar();
-    expect(app.q('#planningRequestError').textContent).toBe('Indica el motivo de la solicitud.');
-    expect(app.escrituras.some((e) => e.startsWith('RPC solicitar_edicion_planificacion'))).toBe(false);
-
-    app.q<HTMLInputElement>('#planningRequestReason').value = '  Luis se reportó enfermo ';
-    await enviar();
-    expect(app.db.solicitudes_planificacion).toHaveLength(1);
-    expect(app.db.solicitudes_planificacion![0]).toMatchObject({ fecha_operativa: '2026-11-10', motivo: 'Luis se reportó enfermo', estado: 'pendiente' });
-    expect(app.q('#planningRequestError').classList.contains('hidden')).toBe(true);
-    expect(app.q<HTMLInputElement>('#planningRequestReason').value).toBe('');
-    expect(app.q('#planningGrid thead').textContent).toContain('Solicitud pendiente');
-    expect(app.q('#planningRequestList').textContent).toContain('Editar el 10/11 · Luis se reportó enfermo');
-    expect(app.celda('ana', '2026-11-10').querySelector('select')!.disabled).toBe(true);
-  });
-
-  it('con una aprobación vigente el dispatch edita solo ese día', async () => {
-    const datos = {
-      ...datosBase(),
-      solicitudes_planificacion: [solicitudFila({ estado: 'aprobada', resuelta_por_nombre: 'Coord', resuelta_en: '2026-11-09T15:30:00Z', vence_en: '2026-11-10T12:00:00Z' })]
-    };
-    const app = await abrirPlanificacion(datos, 'dispatch');
-    expect(app.celda('luis', '2026-11-10').querySelector('select')!.disabled).toBe(false);
-    expect(app.celda('luis', '2026-11-11').querySelector('select')!.disabled).toBe(true);
-    expect(app.celda('ana', '2026-11-09').querySelector('select')!.disabled).toBe(true);
-    expect(app.q('#planningGrid thead').textContent).toContain('Editable hasta 06:00');
-
+    app.pedirTexto.mockResolvedValueOnce('  Luis se reportó enfermo ');
     await app.elegir('luis', '2026-11-10', 'turnoC-22:00-00:00');
+    expect(app.pedirTexto).toHaveBeenCalledTimes(1);
+    expect(app.pedirTexto.mock.calls[0]![0]!.titulo).toBe('Cambio en la planificación del 10/11');
+    expect(app.db.avisos_planificacion).toHaveLength(1);
+    expect(app.db.avisos_planificacion![0]).toMatchObject({ fecha_operativa: '2026-11-10', motivo: 'Luis se reportó enfermo' });
     expect(app.db.jornadas!.find((j) => j.tecnico_id === 'luis' && j.fecha_operativa === '2026-11-10'))
       .toMatchObject({ turno: 'turnoC', horario_inicio: '22:00', horario_fin: '00:00' });
+    expect(app.q('#planningGrid thead').textContent).toContain('Motivo indicado');
+
+    // Mismo día: ya no lo pide · otro día: sí
+    await app.elegir('ana', '2026-11-10', 'turnoB');
+    expect(app.pedirTexto).toHaveBeenCalledTimes(1);
+    await app.elegir('ana', '2026-11-11', 'turnoB');
+    expect(app.pedirTexto).toHaveBeenCalledTimes(2);
+    expect(app.db.avisos_planificacion).toHaveLength(2);
   });
 
-  it('coordinación aprueba o rechaza con una respuesta; el dispatch queda habilitado', async () => {
-    const datos = {
-      ...datosBase(),
-      solicitudes_planificacion: [solicitudFila({}), solicitudFila({ id: 's2', fecha_operativa: '2026-11-12', motivo: 'Cambio', creada_en: '2026-11-09T15:10:00Z' })]
-    };
-    const app = await abrirPlanificacion(datos);
-    expect(app.qa('#planningPendingList [data-solicitud-id]')).toHaveLength(2);
-    expect(app.q('#planningPendingList').textContent).toContain('Dispatch Uno pide editar la planificación del 10/11: Falta Luis');
-
-    const item = app.q<HTMLElement>('#planningPendingList [data-solicitud-id="s1"]');
-    item.querySelector<HTMLInputElement>('input')!.value = 'Adelante';
-    app.click(item.querySelector('[data-action="aprobar-solicitud"]')!);
-    await esperar(80);
-    expect(app.db.solicitudes_planificacion![0]).toMatchObject({ estado: 'aprobada', respuesta: 'Adelante' });
-
-    app.click(app.q('#planningPendingList [data-solicitud-id="s2"] [data-action="rechazar-solicitud"]'));
-    await esperar(80);
-    expect(app.db.solicitudes_planificacion![1]).toMatchObject({ estado: 'rechazada' });
-    expect(app.q('#planningPendingList').textContent).toBe('No hay solicitudes por responder.');
-    expect(app.q('#planningGrid thead').textContent).toContain('Dispatch habilitado');
-    expect(app.q('#planningRequestList').textContent).toContain('Aprobada por Prueba: Adelante');
+  it('si el dispatch cancela el motivo, no se cambia nada', async () => {
+    const app = await abrirPlanificacion(datosBase(), 'dispatch');
+    const antes = app.db.jornadas!.length;
+    app.pedirTexto.mockResolvedValueOnce(null);
+    await app.elegir('luis', '2026-11-12', 'turnoA');
+    expect(app.db.jornadas).toHaveLength(antes);
+    expect(app.db.avisos_planificacion).toHaveLength(0);
+    expect(app.celda('luis', '2026-11-12').querySelector('select')!.value).toBe('');
   });
 
-  it('la campana del dispatch muestra la respuesta, la marca vista y abre ese día', async () => {
-    const datos = {
-      ...datosBase(),
-      solicitudes_planificacion: [
-        solicitudFila({ fecha_operativa: '2026-11-17', estado: 'rechazada', respuesta: 'Hoy no', resuelta_por_nombre: 'Coord', resuelta_en: '2026-11-09T15:30:00Z' })
-      ]
-    };
-    const app = await abrirPlanificacion(datos, 'dispatch');
-    const { iniciarCampanaDeSolicitudes } = await import('../../src/scripts/planning/requestsBell');
-    const abiertos: string[] = [];
-    iniciarCampanaDeSolicitudes((fecha) => abiertos.push(fecha));
-
-    expect(app.q('#requestsCount').textContent).toBe('1');
-    expect(app.q('#requestsList').textContent).toContain('Coord rechazó editar el 17/11: Hoy no');
-    app.click(app.q('#requestsList [data-solicitud-id]'));
+  it('el almuerzo no pide motivo al dispatch', async () => {
+    const app = await abrirPlanificacion(datosBase(), 'dispatch');
+    const boton = app.celda('ana', '2026-11-09').querySelector<HTMLButtonElement>('.planning-lunch')!;
+    expect(boton.disabled).toBe(false);
+    app.click(boton);
+    app.q<HTMLInputElement>('#lunchStart').value = '13:00';
+    app.q<HTMLInputElement>('#lunchEnd').value = '13:30';
+    app.q<HTMLFormElement>('#formLunch').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await esperar(80);
-    expect(abiertos).toEqual(['2026-11-17']);
-    expect(app.db.solicitudes_planificacion![0]!.respuesta_vista).toBe(true);
-    expect(app.q('#requestsCount').classList.contains('hidden')).toBe(true);
+    expect(app.db.jornadas!.find((j) => j.id === 'j-ana')).toMatchObject({ almuerzo_inicio: '13:00', almuerzo_fin: '13:30' });
+    expect(app.pedirTexto).not.toHaveBeenCalled();
   });
 
-  it('la campana de coordinación suma las solicitudes por responder', async () => {
-    const datos = { ...datosBase(), solicitudes_planificacion: [solicitudFila({})] };
-    const app = await abrirPlanificacion(datos);
+  it('coordinación ve los cambios con su motivo y los marca vistos', async () => {
+    const app = await abrirPlanificacion({ ...datosBase(), avisos_planificacion: [avisoFila({})] });
+    const lista = app.q('#planningNoticeList');
+    expect(lista.textContent).toContain('Dispatch Uno cambió la planificación del 10/11 (1 cambio): Falta Luis');
+    expect(lista.textContent).toContain('Luis Mora: Libre → Turno C1 22:00 - 00:00');
+    expect(app.q('#planningGrid thead').textContent).toContain('Cambiado por dispatch');
+    app.click(lista.querySelector('[data-action="marcar-aviso-visto"]')!);
+    await esperar(80);
+    expect(app.db.avisos_planificacion![0]!.visto).toBe(true);
+    expect(lista.querySelector('[data-action="marcar-aviso-visto"]')).toBeNull();
+  });
+
+  it('la campana de coordinación suma los cambios sin ver; al abrir uno lo marca visto y lleva a ese día', async () => {
+    const app = await abrirPlanificacion({ ...datosBase(), avisos_planificacion: [avisoFila({})] });
     const { iniciarCampanaDeAlertas } = await import('../../src/scripts/coordination/alertsBell');
     const abiertas: string[] = [];
-    iniciarCampanaDeAlertas(() => undefined, (solicitud) => abiertas.push(solicitud.fecha));
+    iniciarCampanaDeAlertas(() => undefined, (aviso) => abiertas.push(aviso.fecha));
     await esperar(80);
     expect(app.q('#alertsCount').textContent).toBe('1');
-    app.click(app.q('#alertsList [data-solicitud-id]'));
+    app.click(app.q('#alertsList [data-aviso-id]'));
+    await esperar(80);
     expect(abiertas).toEqual(['2026-11-10']);
+    expect(app.db.avisos_planificacion![0]!.visto).toBe(true);
+    expect(app.q('#alertsCount').classList.contains('hidden')).toBe(true);
   });
 });

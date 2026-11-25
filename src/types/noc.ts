@@ -273,22 +273,30 @@ export interface TraspasoDelCaso {
   enviadoEn: string | null;
 }
 
-export type EstadoSolicitud = 'pendiente' | 'aprobada' | 'rechazada';
+/** Un cambio de turno que hizo el dispatch (lo anota la base en el aviso del día). */
+export interface CambioDePlanificacion {
+  en: string;
+  /** Quién lo hizo (nombre del perfil). */
+  por: string | null;
+  tecnico: string | null;
+  /** "Turno B", "Comodín 07:00 - 17:00", "Libre"… */
+  antes: string;
+  despues: string;
+}
 
-/** Permiso que el dispatch pide a coordinación para editar la planificación de un día (D14). */
-export interface SolicitudPlanificacion {
+/**
+ * Motivo con el que el dispatch cambió la planificación de un día (D38). Solo informa a coordinación: no se
+ * aprueba. Vale para ese día hasta el fin del día operativo en que se dio.
+ */
+export interface AvisoPlanificacion {
   id: string;
-  /** Día operativo que se quiere editar (YYYY-MM-DD). */
+  /** Día planificado que se cambió (YYYY-MM-DD). */
   fecha: string;
   motivo: string;
-  solicitanteNombre: string | null;
-  estado: EstadoSolicitud;
-  respuesta: string | null;
-  resueltaPorNombre: string | null;
-  resueltaEn: string | null;
-  /** Hasta cuándo el dispatch puede editar ese día (solo las aprobadas). */
-  venceEn: string | null;
-  /** El dispatch ya vio la respuesta. */
-  respuestaVista: boolean;
-  creadaEn: string;
+  autorNombre: string | null;
+  creadoEn: string;
+  venceEn: string;
+  cambios: CambioDePlanificacion[];
+  /** Coordinación ya lo vio. */
+  visto: boolean;
 }

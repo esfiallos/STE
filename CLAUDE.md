@@ -15,18 +15,19 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 
 1. Rama de trabajo: **`desarrollo`** (nunca `main`; `main` publica a producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
-   §8 decisiones D1–D37, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida, §12 v2.3, §13 v2.4 seguridad y casos perdidos, §14 v2.5 traspaso y colores, §15 v2.6 reparto por supervisión). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
+   §8 decisiones D1–D37, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida, §12 v2.3, §13 v2.4 seguridad y casos perdidos, §14 v2.5 traspaso y colores, §15 v2.6 reparto por supervisión, §16 v2.7 planificación con aviso). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
 3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 42 archivos, ~319 pruebas). En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Fases 1–17 hechas (`docs/DISENO_V2.md` §11–§15, reglas D16–D37, todas decididas). Migraciones 04–16
-   aplicadas en DEV y PROD (la 16 el 23/11/2026, según el usuario); **la 17 aún no** (la aplica el usuario, DEV →
-   PROD). Siguiente: aplicar la 17, probar «Repartir…» contra DEV y publicar.
+4. Fases 1–18 hechas (`docs/DISENO_V2.md` §11–§16, reglas D16–D38, todas decididas). Migraciones 04–16
+   aplicadas en DEV y PROD (la 16 el 23/11/2026, según el usuario); **la 17 y la 18 aún no** (las aplica el usuario,
+   DEV → PROD, en orden). Siguiente: aplicar 17 y 18, probar «Repartir…» y la planificación con aviso contra DEV y
+   publicar. Evaluación de Cloudflare (sin aplicar): `docs/CLOUDFLARE.md`.
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
    usuario lo pide; nunca ejecutes migraciones ni escrituras en PROD sin su confirmación explícita.
 
-## Estado (al 23/11/2026)
+## Estado (al 24/11/2026)
 
 | Fase | Estado | Qué quedó |
 |---|---|---|
@@ -46,6 +47,7 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: GitHub
 | 14. Turno C por tramos y pulido | ✅ | §12: C1 22–00 / C2 00–06 (D29, `sql/14`), paletas de la tabla del traspaso (D30), destello al soltar, tarjetas sin superposición, quedarse un caso para mañana (D31, `sql/15`) |
 | 15. Seguridad y casos perdidos | ✅ | §13: lectura solo con perfil (D32), turno terminado sin traspaso → "Por reasignar" + chip + alerta de coordinación (D33), aviso previo al técnico (D34), filtro/orden por tiempo sin actualizar, CSP + SRI (D35) · `sql/16` |
 | 17. Reparto por supervisión | ✅ | §15: «Repartir…» en "Por reasignar" para dispatch y coordinación (D37, `sql/17`, **sin aplicar**), el turno limita "Entregar a", buscadores que vuelven al estado normal |
+| 18. Planificación con aviso | ✅ | §16: el dispatch planifica sin aprobación, da el motivo una vez por día y coordinación recibe el aviso con el detalle; almuerzo libre (D38, `sql/18`, **sin aplicar**) |
 | 16. Traspaso y colores | ✅ | §14: etiquetas "en manos de quién" (D36), estado y área con color, recordatorio opcional, receptor por turno + búsqueda, reparto "todos entran", historial en Buscar casos (también técnico) · sin SQL |
 
 **Bases de datos (revisado con el conector el 22/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
@@ -67,6 +69,19 @@ DEV = `DEV` (`bofqefbxziqxzrdujihd`).
 
 
 ## Lo que falta
+
+### Fase 18 — Planificación con aviso ✅ (qué quedó)
+- `sql/18_v2_planificacion_con_aviso.sql` (**sin aplicar en DEV ni PROD**; requiere la 17): tabla
+  `avisos_planificacion`, `avisar_cambio_planificacion(fecha, motivo)`, `aviso_de_planificacion(fecha)`,
+  `puede_planificar` y `jornadas_validar_permiso` nuevos (D38). Retira las funciones de solicitudes (la tabla queda).
+- Dominio `planningNotices.ts` (`diaEditable`, `pideMotivo`, `avisoVigente`, `avisosSinVer`, `describirAviso`,
+  `describirCambio`, `novedadesDeAvisos`). `avisosPlanificacionRepo.ts`, `planningNoticeActions.ts`,
+  `planningNoticesSync.ts`, `ui/pedirTexto.ts` (panel con campo; en las pruebas de app lo sustituye `app.pedirTexto`).
+- UI: grilla editable para el dispatch, motivo al primer cambio de turno de un día (cancelar = no cambia nada),
+  chip "Motivo indicado"/"Cambiado por dispatch", lista "Cambios del dispatch" (coordinación: "Visto"), campana de
+  coordinación con los avisos sin ver. Sin campana de respuestas para el dispatch.
+- Pruebas: `tests/sql/planificacion-con-aviso-v2.test.ts`, `tests/domain/avisos-planificacion.test.ts`,
+  `tests/app/planificacion.test.ts`. `03_datos_demo_dev.sql` todavía no siembra avisos (sigue sembrando solicitudes).
 
 ### Fase 17 — Reparto por supervisión ✅ (qué quedó)
 - `sql/17_v2_entrega_por_supervision.sql` (**sin aplicar en DEV ni PROD**): `entregar_casos(p_entregas jsonb)` →
@@ -167,7 +182,7 @@ DEV = `DEV` (`bofqefbxziqxzrdujihd`).
 - Modal **Nuevo caso**: botón **Asignar a la ronda** (además de "Asignar al técnico") y "Siguiente en la ronda: X"
   (vista previa; decide la base). Un código ya en el tablero o en el historial se asigna a un técnico concreto.
 
-### Fase 8 — Planificación con solicitudes ✅ (qué quedó)
+### Fase 8 — Planificación con solicitudes ✅ (qué quedó) · reemplazada por la fase 18 (D38)
 - `sql/10_v2_planificacion.sql`: `solicitudes_planificacion` (una pendiente por día; leen dispatch y coordinación; el
   dispatch solo puede marcar `respuesta_vista`; Realtime), `fin_del_dia_operativo()`, `puede_planificar(fecha)`,
   `solicitar_edicion_planificacion(fecha, motivo)` (dispatch) y `resolver_solicitud_planificacion(id, aprobar,
@@ -299,7 +314,7 @@ scripts/               Comportamiento en el navegador
   main.ts              Arranque: sesión → perfil/rol → iniciar módulos → store.subscribe(render) → sync
   auth/                loginPage, resetPage, authUi (mostrar contraseña, Bloq Mayús, carga, sacudida)
   board/               Vistas del tablero (+ franja "por reasignar"), eventos, drag & drop, renderScheduler
-  planning/            Planificación semanal (coordinación edita; dispatch pide permiso por día), solicitudes y su campana
+  planning/            Planificación semanal (coordinación y dispatch editan; el dispatch avisa el motivo por día, D38)
   followUp/            Mi seguimiento del técnico (estado, etiqueta, última actualización, historial)
   notifications/       Campana del técnico: lista, no leídas, tiempo real, alertas de escritorio
   modals/              Un controlador por modal + assignFlow (reglas de asignación compartidas)
@@ -399,6 +414,7 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
 - `16_v2_proteccion_de_casos.sql`: lectura solo con perfil (D32), turno sin traspaso (D33), aviso previo (D34),
   `casos_abiertos.sin_traspaso_desde`. **Con cron** `cierres-de-turno` (bloque final, la prueba lo quita).
 - `17_v2_entrega_por_supervision.sql`: `entregar_casos()` para dispatch y coordinación (D37). Sin cron.
+- `18_v2_planificacion_con_aviso.sql`: el dispatch planifica sin aprobación y avisa el motivo por día (D38). Sin cron.
 - `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`, requiere 04–14); escenario de prueba completo
   y repetible; no toca `perfiles` ni `auth`. Guía: `docs/interno/DATOS_DE_PRUEBA.md` (local, no se versiona).
 - Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`

@@ -33,10 +33,9 @@ import { iniciarSeguimiento, renderizarSeguimiento, resaltarCaso } from './follo
 import { abrirTraspaso, iniciarTraspaso } from './handover/handoverView';
 import { cargarMisTraspasos, iniciarMisTraspasos } from './handover/myHandoversView';
 import { iniciarNotificaciones } from './notifications/notificationsPanel';
-import { cargarSolicitudes } from './actions/planningRequestActions';
+import { cargarAvisos } from './actions/planningNoticeActions';
 import { cargarPlanificacion, iniciarPlanificacion, mostrarSemanaDe } from './planning/planningView';
-import { iniciarAvisoDeSolicitudes } from './planning/planningRequestsSync';
-import { iniciarCampanaDeSolicitudes } from './planning/requestsBell';
+import { iniciarAvisosDePlanificacion } from './planning/planningNoticesSync';
 import { RUTAS } from './routes';
 import { mostrarAviso } from './ui/toast';
 import { iniciarFiltrosDelTablero } from './features/boardFilters';
@@ -97,13 +96,12 @@ async function iniciar(): Promise<void> {
   if (esDispatch || esCoordinador) {
     iniciarModalReparto();
     iniciarPlanificacion();
-    iniciarAvisoDeSolicitudes();
+    iniciarAvisosDePlanificacion();
   }
   const abrirPlanificacionEn = (fecha: string) => {
     window.location.hash = 'planificacion';
     mostrarSemanaDe(fecha);
   };
-  if (esDispatch) iniciarCampanaDeSolicitudes(abrirPlanificacionEn);
   const abrirEnBuscador = (codigo: string) => {
     window.location.hash = 'busqueda';
     void buscarCaso(codigo);
@@ -127,7 +125,7 @@ async function iniciar(): Promise<void> {
     iniciarPanelDeCoordinacion();
     iniciarCampanaDeAlertas(
       (alerta) => abrirEnBuscador(codigoDeAlerta(alerta)),
-      (solicitud) => abrirPlanificacionEn(solicitud.fecha)
+      (aviso) => abrirPlanificacionEn(aviso.fecha)
     );
   }
 
@@ -150,7 +148,7 @@ async function iniciar(): Promise<void> {
         ? {
             planificacion: () => {
               void cargarPlanificacion();
-              void cargarSolicitudes();
+              void cargarAvisos();
             }
           }
         : {}),

@@ -47,6 +47,9 @@ export async function iniciarApp(
     confirmar: async (opciones: { titulo: string; mensaje?: string; resumen?: { etiqueta: string; valor: string }[] }) =>
       confirmar([opciones.titulo, opciones.mensaje ?? '', ...(opciones.resumen ?? []).map((l) => `${l.etiqueta}: ${l.valor}`)].join('\n'))
   }));
+  // El motivo de un cambio de planificación (ui/pedirTexto.ts): por defecto se responde con este texto; null = cancelar.
+  const pedirTexto = vi.fn(async (_opciones?: { titulo: string }): Promise<string | null> => 'Motivo de prueba');
+  vi.doMock('../../src/scripts/ui/pedirTexto', () => ({ pedirTexto }));
   document.execCommand = vi.fn(() => true);
 
   const { appStore } = await import('../../src/state/appStore');
@@ -81,6 +84,7 @@ export async function iniciarApp(
   return {
     ...backend,
     confirmar,
+    pedirTexto,
     appStore,
     cargarDatos,
     solicitarRender,
