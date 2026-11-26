@@ -10,7 +10,8 @@ const VISTAS: readonly Vista[] = [
   'misTraspasos',
   'planificacion',
   'historial',
-  'bitacora'
+  'bitacora',
+  'usuarios'
 ];
 
 /**

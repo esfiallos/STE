@@ -1,4 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
+import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
+import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -25,17 +27,35 @@ export const MIGRACIONES = {
   proteccion: () => sinCron(leerSql('16_v2_proteccion_de_casos.sql'), '-- 4. Vigilar'),
   entregaSupervision: () => leerSql('17_v2_entrega_por_supervision.sql'),
   planificacionConAviso: () => leerSql('18_v2_planificacion_con_aviso.sql'),
+  rendimiento: () => sinCron(leerSql('19_v2_rendimiento.sql'), '-- 4. Limpiar el registro'),
+  usuarios: () => leerSql('20_v2_usuarios.sql'),
   demo: () => leerSql('03_datos_demo_dev.sql')
 };
 
-/** PostgreSQL de prueba con lo que Supabase aporta: roles, auth.users, auth.uid()/jwt(), permisos por defecto y la publicación. */
+/**
+ * PostgreSQL de prueba con lo que Supabase aporta: roles, auth.users (con las columnas que usa la migración 20),
+ * auth.uid()/jwt(), las extensiones en el esquema `extensions`, permisos por defecto y la publicación.
+ */
 export async function crearBaseSupabase(): Promise<PGlite> {
-  const db = new PGlite();
+  const db = new PGlite({ extensions: { pg_trgm, pgcrypto } });
   await db.exec(`
     create role anon; create role authenticated;
+    create schema extensions;
+    create extension pg_trgm with schema extensions;
+    create extension pgcrypto with schema extensions;
     create schema auth;
     grant usage on schema auth to anon, authenticated;
-    create table auth.users (id uuid primary key, email text);
+    create table auth.users (
+      id uuid primary key, email text, instance_id uuid, aud text, role text, encrypted_password text,
+      email_confirmed_at timestamptz, raw_app_meta_data jsonb, raw_user_meta_data jsonb,
+      created_at timestamptz default now(), updated_at timestamptz, last_sign_in_at timestamptz, banned_until timestamptz,
+      confirmation_token text, recovery_token text, email_change_token_new text, email_change text
+    );
+    create table auth.identities (
+      id uuid primary key default gen_random_uuid(), provider_id text, user_id uuid references auth.users (id) on delete cascade,
+      identity_data jsonb, provider text, created_at timestamptz, updated_at timestamptz
+    );
+    create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid references auth.users (id) on delete cascade);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
     create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
     create publication supabase_realtime;

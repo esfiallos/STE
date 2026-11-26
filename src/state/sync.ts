@@ -1,4 +1,5 @@
 import { tecnicosDelDia } from '../domain/assignments';
+import { REVISION_DE_RESPALDO_MS, tocaRelecturaDeRespaldo } from '../domain/refresco';
 import { fechaOperativa } from '../domain/time';
 import { listarCasosAbiertos, listarTableroDelDia } from '../services/casosRepo';
 import { listarJornadas } from '../services/jornadasRepo';
@@ -7,9 +8,10 @@ import { listarTecnicos } from '../services/tecnicosRepo';
 import { appStore } from './appStore';
 
 const RETARDO_AGRUPACION_MS = 150;
-const INTERVALO_RESPALDO_MS = 60_000;
 
 let ultimaCarga = 0;
+/** Cuándo terminó la última lectura correcta (para la relectura de respaldo). */
+let ultimaLecturaEn = 0;
 
 /**
  * Lee el catálogo, las jornadas del día operativo en curso, el tablero del día (lo que asignó el dispatch hoy)
@@ -34,6 +36,7 @@ export async function cargarDatos(): Promise<void> {
     return;
   }
 
+  ultimaLecturaEn = Date.now();
   appStore.set({
     fechaOperativa: fecha,
     catalogo: catalogo.data,
@@ -53,9 +56,14 @@ export function solicitarSincronizacion(): void {
   temporizador = window.setTimeout(() => void cargarDatos(), RETARDO_AGRUPACION_MS);
 }
 
+/** Relectura de respaldo: cada minuto si Realtime está caído; con Realtime conectado, cada 5 minutos. */
+function relecturaDeRespaldo(): void {
+  if (tocaRelecturaDeRespaldo(appStore.get().conexion, Date.now() - ultimaLecturaEn)) solicitarSincronizacion();
+}
+
 /**
- * Mantiene el tablero al día: Realtime como vía principal, y como respaldo
- * una lectura periódica y otra al volver a la pestaña o recuperar la red.
+ * Mantiene el tablero al día: Realtime como vía principal, y como respaldo una lectura periódica (ver
+ * `domain/refresco.ts`) y otra al volver a la pestaña o recuperar la red.
  */
 export function iniciarSincronizacion(): () => void {
   const cancelarRealtime = suscribirCambios(solicitarSincronizacion, (conexion) => {
@@ -67,7 +75,7 @@ export function iniciarSincronizacion(): () => void {
     if (document.visibilityState === 'visible') solicitarSincronizacion();
   };
 
-  const respaldo = window.setInterval(solicitarSincronizacion, INTERVALO_RESPALDO_MS);
+  const respaldo = window.setInterval(relecturaDeRespaldo, REVISION_DE_RESPALDO_MS);
   document.addEventListener('visibilitychange', alVolverALaPestana);
   window.addEventListener('online', solicitarSincronizacion);
 

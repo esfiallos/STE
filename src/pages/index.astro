@@ -14,11 +14,13 @@ import NoProfileNotice from '../components/auth/NoProfileNotice.astro';
 import AuditView from '../components/audit/AuditView.astro';
 import CoordinatorPanel from '../components/coordination/CoordinatorPanel.astro';
 import CaseSearchView from '../components/caseSearch/CaseSearchView.astro';
+import UsersView from '../components/users/UsersView.astro';
 import AssignIncidentModal from '../components/modals/AssignIncidentModal.astro';
 import EditIncidentModal from '../components/modals/EditIncidentModal.astro';
 import LunchModal from '../components/modals/LunchModal.astro';
 import TechniciansModal from '../components/modals/TechniciansModal.astro';
 import DistributeCasesModal from '../components/modals/DistributeCasesModal.astro';
+import UserModal from '../components/modals/UserModal.astro';
 import ToastHost from '../components/ui/ToastHost.astro';
 ---
 
@@ -66,6 +68,10 @@ import ToastHost from '../components/ui/ToastHost.astro';
       <section data-vista="bitacora" class="view hidden">
         <AuditView />
       </section>
+
+      <section data-vista="usuarios" class="view hidden">
+        <UsersView />
+      </section>
     </main>
 
     <AssignIncidentModal />
@@ -73,6 +79,7 @@ import ToastHost from '../components/ui/ToastHost.astro';
     <LunchModal />
     <TechniciansModal />
     <DistributeCasesModal />
+    <UserModal />
   </div>
 
   <NoProfileNotice />

@@ -1,0 +1,206 @@
+@use '../abstracts/variables' as *;
+
+// Pestaña Usuarios de coordinación (D39): scripts/users/usersView.ts
+
+.users__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.users__toolbar {
+  justify-content: space-between;
+}
+
+.users__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.users-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: $radio-pildora;
+  border: 1px solid $color-borde-fuerte;
+  background-color: $color-superficie;
+  color: $color-texto-suave;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  span {
+    min-width: 1.25rem;
+    padding: 0 0.3rem;
+    border-radius: $radio-pildora;
+    background-color: $color-superficie-alta;
+    font-size: 0.72rem;
+    text-align: center;
+  }
+
+  &:hover {
+    border-color: $color-acento;
+    color: $color-acento;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px $color-foco;
+  }
+
+  &[aria-pressed='true'] {
+    border-color: $color-acento;
+    background-color: $color-acento;
+    color: $color-texto-sobre-marca;
+
+    span {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+.users-table {
+  td {
+    vertical-align: middle;
+  }
+
+  tr.is-inactive td:not(:last-child) {
+    color: $color-texto-tenue;
+  }
+}
+
+.users-table__name {
+  display: block;
+  font-weight: 600;
+}
+
+.users-table__mail,
+.users-table__detail {
+  display: block;
+  font-size: 0.76rem;
+  color: $color-texto-suave;
+  overflow-wrap: anywhere;
+}
+
+.users-table__when {
+  white-space: nowrap;
+  color: $color-texto-suave;
+}
+
+.users-table__buttons {
+  text-align: right;
+  white-space: nowrap;
+
+  .btn + .btn {
+    margin-left: 0.35rem;
+  }
+}
+
+.user-role-chip,
+.user-state-chip {
+  display: inline-block;
+  padding: 0.12rem 0.55rem;
+  border-radius: $radio-pildora;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background-color: $color-superficie-alta;
+  color: $color-texto-etiqueta;
+}
+
+.user-role-chip {
+  &[data-rol='tecnico'] {
+    background-color: $navy-100;
+    color: $navy-800;
+  }
+
+  &[data-rol='dispatch'] {
+    background-color: #e0f2fe;
+    color: #075985;
+  }
+
+  &[data-rol='coordinador'] {
+    background-color: #ede9fe;
+    color: #5b21b6;
+  }
+}
+
+.user-state-chip {
+  &[data-estado='activo'] {
+    background-color: $color-exito-suave;
+    color: $color-exito;
+  }
+
+  &[data-estado='inhabilitado'] {
+    background-color: $color-peligro-suave;
+    color: $color-peligro;
+  }
+
+  &[data-estado='sin-rol'] {
+    background-color: $color-almuerzo-fondo;
+    color: $color-almuerzo-texto;
+  }
+}
+
+.users-password {
+  display: flex;
+  gap: 0.5rem;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    letter-spacing: 0.04em;
+  }
+}
+
+.users-access__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  color: $color-exito;
+}
+
+.users-access__data {
+  margin: 0.75rem 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: $radio-sm;
+  border: 1px solid $color-borde;
+  background-color: $color-superficie-alta;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+// En pantallas angostas la tabla pasa a tarjetas
+@media (max-width: 720px) {
+  .users-table {
+    thead {
+      display: none;
+    }
+
+    tr {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.35rem 0.75rem;
+      padding: 0.75rem;
+      border-bottom: 1px solid $color-borde;
+    }
+
+    td {
+      padding: 0;
+      border: 0;
+    }
+
+    .users-table__buttons {
+      grid-column: 1 / -1;
+      text-align: left;
+      white-space: normal;
+    }
+  }
+}

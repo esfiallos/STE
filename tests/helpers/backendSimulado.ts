@@ -22,6 +22,8 @@ export interface Datos {
   traspaso_items?: Fila[];
   alertas_coordinacion?: Fila[];
   avisos_planificacion?: Fila[];
+  /** Filas de usuarios_de_la_app() (sql/20): id, correo, nombre, rol, activo, tecnico_id… */
+  usuarios?: Fila[];
 }
 
 /** Día de las pruebas: lunes 9 de noviembre de 2026 (ver fijarHora). */
@@ -79,7 +81,8 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
     traspaso_items: datos.traspaso_items ?? [],
     alertas_coordinacion: datos.alertas_coordinacion ?? [],
     ronda_estado: [],
-    avisos_planificacion: datos.avisos_planificacion ?? []
+    avisos_planificacion: datos.avisos_planificacion ?? [],
+    usuarios: datos.usuarios ?? []
   };
   const escrituras: string[] = [];
   let secuencia = 100;
@@ -234,6 +237,47 @@ export function crearBackendSimulado(datos: Datos = datosBase()) {
           db.notificaciones!.push({ id: nuevoId(), tecnico_id: caso.tecnico_actual_id, tipo: 'cancelado', caso_id: null, detalle: caso.codigo, leida: false, creado_en: new Date().toISOString() });
         }
         return json(caso.codigo);
+      }
+      if (tabla === 'usuarios_de_la_app') return json(db.usuarios);
+      if (tabla === 'crear_usuario') {
+        // Imita sql/20: correo único (sin mayúsculas), técnico con ficha nueva
+        const correo = String(parametros.p_correo).trim().toLowerCase();
+        if (db.usuarios!.some((u) => String(u.correo).toLowerCase() === correo)) {
+          return json({ code: '23505', message: `Ya existe una cuenta con el correo ${correo}: búscala en la lista y cámbiale el rol.` }, 409);
+        }
+        const id = nuevoId();
+        let tecnico: string | null = null;
+        if (parametros.p_rol === 'tecnico') {
+          tecnico = nuevoId();
+          db.tecnicos!.push({ id: tecnico, nombre: parametros.p_nombre, activo: true });
+        }
+        db.usuarios!.push({ id, correo, nombre: parametros.p_nombre, rol: parametros.p_rol, activo: true, tecnico_id: tecnico,
+          ultimo_ingreso: null, creado_en: new Date().toISOString(), inhabilitado_en: null, inhabilitado_por: null, _clave: parametros.p_contrasena });
+        return json(id);
+      }
+      if (tabla === 'actualizar_usuario') {
+        const u = db.usuarios!.find((f) => f.id === parametros.p_usuario);
+        if (!u) return json({ code: 'P0001', message: 'Ese usuario ya no existe.' }, 400);
+        Object.assign(u, { nombre: parametros.p_nombre, rol: parametros.p_rol });
+        return json(null);
+      }
+      if (tabla === 'inhabilitar_usuario') {
+        const u = db.usuarios!.find((f) => f.id === parametros.p_usuario);
+        if (!u) return json({ code: 'P0001', message: 'Ese usuario ya no existe.' }, 400);
+        Object.assign(u, { activo: false, inhabilitado_en: new Date().toISOString(), inhabilitado_por: 'prueba@noc.test', _motivo: parametros.p_motivo });
+        const tecnico = db.tecnicos!.find((t) => t.id === u.tecnico_id);
+        if (tecnico) tecnico.activo = false;
+        return json(db.casos!.filter((c) => c.tecnico_actual_id === u.tecnico_id && c.estado !== 'cerrado').length);
+      }
+      if (tabla === 'habilitar_usuario') {
+        const u = db.usuarios!.find((f) => f.id === parametros.p_usuario);
+        if (u) Object.assign(u, { activo: true, inhabilitado_en: null, inhabilitado_por: null });
+        return json(null);
+      }
+      if (tabla === 'cambiar_contrasena_de_usuario') {
+        const u = db.usuarios!.find((f) => f.id === parametros.p_usuario);
+        if (u) u._clave = parametros.p_contrasena;
+        return json(null);
       }
       if (tabla === 'estadisticas_del_dia') {
         const totales = new Map<string, number>();
