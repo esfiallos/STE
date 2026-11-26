@@ -1,0 +1,66 @@
+---
+// Nuevo usuario · Editar usuario · Contraseña temporal (D39). Lo controla scripts/users/usersView.ts, que cambia el
+// título y muestra solo los campos de cada modo. Al crear o cambiar la contraseña, muestra los datos de acceso una
+// sola vez para copiarlos.
+import Modal from './Modal.astro';
+---
+
+<Modal id="modalUser" titulo="Nuevo usuario">
+  <form id="formUser" class="noc-form" novalidate>
+    <div class="form-group" data-modo="crear">
+      <label for="userEmailInput">Correo</label>
+      <input type="email" id="userEmailInput" autocomplete="off" placeholder="nombre.apellido@empresa.com" />
+    </div>
+    <p class="modal-subtitle hidden" id="userTarget" data-modo="editar contrasena"></p>
+    <div class="form-row" data-modo="crear editar">
+      <div class="form-group">
+        <label for="userNameInput">Nombre visible</label>
+        <input type="text" id="userNameInput" autocomplete="off" maxlength="80" placeholder="Ej: Ana Pérez" />
+      </div>
+      <div class="form-group">
+        <label for="userRoleInput">Rol</label>
+        <select id="userRoleInput">
+          <option value="tecnico">Técnico</option>
+          <option value="dispatch">Dispatch</option>
+          <option value="coordinador">Coordinación</option>
+        </select>
+      </div>
+    </div>
+    <p class="form-hint" id="userRoleHint" data-modo="crear editar"></p>
+    <div class="form-group" data-modo="crear contrasena">
+      <label for="userPasswordInput">Contraseña temporal</label>
+      <div class="users-password">
+        <input type="text" id="userPasswordInput" autocomplete="off" spellcheck="false" maxlength="72" />
+        <button type="button" class="btn btn-sm" id="btnUserGeneratePassword">
+          <i class="fa-solid fa-dice" aria-hidden="true"></i> Generar otra
+        </button>
+      </div>
+      <p class="form-hint">
+        La persona entra con esta contraseña y la cambia con <strong>¿Olvidaste tu contraseña?</strong> cuando haya
+        correo, o tú le pones otra desde aquí.
+      </p>
+    </div>
+
+    <p id="userError" class="form-error hidden" role="alert"></p>
+
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close-modal>Cancelar</button>
+      <button type="submit" class="btn btn-primary" id="btnUserSave">Guardar</button>
+    </div>
+  </form>
+
+  <div id="userAccess" class="users-access hidden">
+    <p class="users-access__title">
+      <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+      <span id="userAccessTitle"></span>
+    </p>
+    <p class="form-hint">Cópialos y entrégalos a la persona. La contraseña no se vuelve a mostrar.</p>
+    <pre class="users-access__data" id="userAccessData"></pre>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="btnUserCopyAccess">
+        <i class="fa-regular fa-copy" aria-hidden="true"></i> Copiar datos de acceso
+      </button>
+      <button type="button" class="btn btn-primary" data-close-modal>Listo</button>
+    </div>
+  </div>
+</Modal>

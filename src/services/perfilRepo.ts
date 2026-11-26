@@ -7,13 +7,17 @@ interface FilaPerfil {
   nombre: string;
   rol: Perfil['rol'];
   tecnico_id: string | null;
+  activo: boolean | null;
 }
 
+/** Perfil del usuario con sesión; `activo` false = coordinación lo inhabilitó (D39). */
+export type MiPerfil = Perfil & { activo: boolean };
+
 /** Perfil (rol) del usuario con sesión. null si el administrador aún no le asignó uno. */
-export async function obtenerMiPerfil(usuarioId: string): Promise<Resultado<Perfil | null>> {
-  const { data, error } = await supabase.from('perfiles').select('nombre, rol, tecnico_id').eq('id', usuarioId).limit(1);
+export async function obtenerMiPerfil(usuarioId: string): Promise<Resultado<MiPerfil | null>> {
+  const { data, error } = await supabase.from('perfiles').select('nombre, rol, tecnico_id, activo').eq('id', usuarioId).limit(1);
   if (error) return errorDeBaseDeDatos(error, 'No se pudo cargar tu perfil');
 
   const fila = (data as FilaPerfil[])[0];
-  return exito(fila ? { nombre: fila.nombre, rol: fila.rol, tecnicoId: fila.tecnico_id } : null);
+  return exito(fila ? { nombre: fila.nombre, rol: fila.rol, tecnicoId: fila.tecnico_id, activo: fila.activo !== false } : null);
 }

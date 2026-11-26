@@ -39,6 +39,7 @@ import { iniciarAvisosDePlanificacion } from './planning/planningNoticesSync';
 import { RUTAS } from './routes';
 import { mostrarAviso } from './ui/toast';
 import { iniciarFiltrosDelTablero } from './features/boardFilters';
+import { cargarUsuarios, iniciarUsuarios } from './users/usersView';
 
 /** Los estados "en almuerzo" y "disponible" dependen de la hora: se refrescan solos. */
 const REFRESCO_DE_HORA_MS = 30_000;
@@ -65,13 +66,18 @@ async function iniciar(): Promise<void> {
     mostrarAvisoSinPerfil(sesion.user.email);
     return;
   }
+  if (!perfil.data.activo) {
+    mostrarAvisoSinPerfil(sesion.user.email, 'inhabilitado');
+    return;
+  }
 
   const esDispatch = perfil.data.rol === 'dispatch';
   const esCoordinador = perfil.data.rol === 'coordinador';
   const esTecnico = perfil.data.rol === 'tecnico';
   /** Técnico enlazado a su fila de `tecnicos`: tiene Seguimiento, Traspaso y notificaciones. */
   const miTecnicoId = esTecnico ? perfil.data.tecnicoId : null;
-  appStore.set({ perfil: perfil.data, soloLectura: !esDispatch });
+  const { nombre, rol, tecnicoId } = perfil.data;
+  appStore.set({ perfil: { nombre, rol, tecnicoId }, soloLectura: !esDispatch });
   document.body.classList.toggle('solo-lectura', !esDispatch);
   document.body.classList.toggle('rol-tecnico', miTecnicoId !== null);
   document.body.classList.toggle('rol-dispatch', esDispatch);
@@ -123,6 +129,7 @@ async function iniciar(): Promise<void> {
   if (puedeBuscar) iniciarBuscadorDeCasos();
   if (esCoordinador) {
     iniciarPanelDeCoordinacion();
+    iniciarUsuarios(sesion.user.id);
     iniciarCampanaDeAlertas(
       (alerta) => abrirEnBuscador(codigoDeAlerta(alerta)),
       (aviso) => abrirPlanificacionEn(aviso.fecha)
@@ -154,7 +161,9 @@ async function iniciar(): Promise<void> {
         : {}),
       historial: () => void cargarHistorial(),
       // La bitácora es solo de supervisión (D28); la base también se la niega al técnico.
-      ...(esDispatch || esCoordinador ? { bitacora: () => void cargarBitacora() } : {})
+      ...(esDispatch || esCoordinador ? { bitacora: () => void cargarBitacora() } : {}),
+      // Usuarios: solo coordinación (D39); la base también se lo niega a los demás.
+      ...(esCoordinador ? { usuarios: () => void cargarUsuarios() } : {})
     },
     miTecnicoId ? 'seguimiento' : esCoordinador ? 'panel' : 'tablero'
   );

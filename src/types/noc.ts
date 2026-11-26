@@ -20,7 +20,8 @@ export type Vista =
   | 'misTraspasos'
   | 'planificacion'
   | 'historial'
-  | 'bitacora';
+  | 'bitacora'
+  | 'usuarios';
 
 /** Rol del usuario (tabla perfiles). El dispatch edita; el técnico gestiona sus casos; el coordinador supervisa (solo lee). */
 export type Rol = 'dispatch' | 'tecnico' | 'coordinador';
@@ -29,6 +30,20 @@ export interface Perfil {
   nombre: string;
   rol: Rol;
   tecnicoId: string | null;
+}
+
+/** Usuario de la app tal como lo ve coordinación en la pestaña Usuarios (D39). `rol` null = cuenta sin perfil. */
+export interface UsuarioApp {
+  id: string;
+  correo: string;
+  nombre: string;
+  rol: Rol | null;
+  activo: boolean;
+  tecnicoId: string | null;
+  ultimoIngreso: string | null;
+  creadoEn: string | null;
+  inhabilitadoEn: string | null;
+  inhabilitadoPor: string | null;
 }
 
 /** Técnico del catálogo (sin turno: el turno es de cada día, en su jornada). */

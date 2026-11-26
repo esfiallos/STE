@@ -1,15 +1,25 @@
 ---
-// Se muestra cuando el usuario inició sesión pero el administrador aún no le asignó un rol (tabla perfiles).
+// Se muestra cuando el usuario inició sesión pero no tiene un rol (tabla perfiles) o coordinación lo inhabilitó.
+// scripts/features/session.ts elige el mensaje.
 ---
 
 <main id="noProfileNotice" class="login-page hidden">
   <div class="login-card no-profile">
     <i class="fa-solid fa-user-lock no-profile__icon" aria-hidden="true"></i>
-    <h1>Tu usuario aún no tiene un rol</h1>
-    <p>
-      Iniciaste sesión como <strong id="noProfileEmail"></strong>, pero el administrador todavía no te asignó
-      el rol de <em>dispatch</em> o de <em>técnico</em>. Pídeselo y vuelve a entrar.
-    </p>
+    <div data-aviso="sin-perfil">
+      <h1>Tu usuario aún no tiene un rol</h1>
+      <p>
+        Iniciaste sesión como <strong data-ref="correo"></strong>, pero coordinación todavía no te asignó
+        el rol de <em>técnico</em>, <em>dispatch</em> o <em>coordinación</em>. Pídeselo y vuelve a entrar.
+      </p>
+    </div>
+    <div data-aviso="inhabilitado" class="hidden">
+      <h1>Tu usuario está inhabilitado</h1>
+      <p>
+        La cuenta <strong data-ref="correo"></strong> ya no tiene acceso al panel. Si es un error, habla con
+        coordinación.
+      </p>
+    </div>
     <button id="btnNoProfileLogout" type="button" class="btn btn-primary">Cerrar sesión</button>
   </div>
 </main>

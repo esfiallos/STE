@@ -25,10 +25,15 @@ export function iniciarSesionDeUsuario(correo: string | undefined, perfil: Perfi
   alCerrarSesion(irAlLogin);
 }
 
-/** Sesión válida pero sin rol asignado: pantalla de aviso con la opción de salir. */
-export function mostrarAvisoSinPerfil(correo: string | undefined): void {
-  byId('noProfileEmail').textContent = correo ?? '';
-  byId('noProfileNotice').classList.remove('hidden');
+/**
+ * Sesión válida pero sin rol asignado, o con el usuario inhabilitado por coordinación (D39): pantalla de aviso con
+ * la opción de salir.
+ */
+export function mostrarAvisoSinPerfil(correo: string | undefined, motivo: 'sin-perfil' | 'inhabilitado' = 'sin-perfil'): void {
+  const aviso = byId('noProfileNotice');
+  aviso.querySelectorAll<HTMLElement>('[data-aviso]').forEach((bloque) => bloque.classList.toggle('hidden', bloque.dataset.aviso !== motivo));
+  aviso.querySelectorAll<HTMLElement>('[data-ref="correo"]').forEach((campo) => (campo.textContent = correo ?? ''));
+  aviso.classList.remove('hidden');
   byId('btnNoProfileLogout').addEventListener('click', async () => {
     await cerrarSesion();
     irAlLogin();

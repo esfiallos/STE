@@ -16,10 +16,13 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: Cloudf
 
 1. Rama de trabajo: **`desarrollo`** (publica DEV en Cloudflare; `main` publica producción). `git log --oneline -8`.
 2. Lee este archivo completo y luego `docs/DISENO_V2.md` (§2 día operativo, §3 modelo, §5 módulos, §7 fases,
-   §8 decisiones D1–D37, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida, §12 v2.3, §13 v2.4 seguridad y casos perdidos, §14 v2.5 traspaso y colores, §15 v2.6 reparto por supervisión, §16 v2.7 planificación con aviso). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
-3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 42 archivos, ~319 pruebas). En una máquina cargada
+   §8 decisiones D1–D37, §9 despliegue, §10 v2.1, §11 v2.2 calidad de vida, §12 v2.3, §13 v2.4 seguridad y casos perdidos, §14 v2.5 traspaso y colores, §15 v2.6 reparto por supervisión, §16 v2.7 planificación con aviso, §17 v2.8–v2.9 rendimiento y usuarios). Las decisiones de §8 ya las tomó el usuario: no las re-preguntes.
+3. `bun run test` debe dar todo verde antes de tocar nada (hoy: 49 archivos, ~361 pruebas). Una prueba de
+   `tests/sql/proteccion-de-casos-v2.test.ts` ("crea una alerta por caso…") falla según la hora del día desde antes
+   de la fase 19 (comprobado con el helper anterior); revisarla aparte. En una máquina cargada
    vitest puede fallar al arrancar un worker ("Timeout waiting for worker"): repite ese archivo suelto.
-4. Fases 1–18 hechas (`docs/DISENO_V2.md` §11–§16, reglas D16–D38, todas decididas). Migraciones 04–16
+4. Fases 1–20 hechas (`docs/DISENO_V2.md` §11–§17, reglas D16–D39, todas decididas). **19 y 20 aún NO aplicadas**
+   en DEV ni PROD (las aplica el usuario, en orden, en el SQL Editor). Migraciones 04–16
    y 17–18 aplicadas en DEV y PROD (verificado con el conector el 24/11/2026). Publicado en Cloudflare el 24/11/2026
    (`docs/ENTORNOS_Y_DESPLIEGUE.md`, decisión en `docs/CLOUDFLARE.md`): producción
    https://panel-noc.milicom-ste.workers.dev (STE) y DEV https://panel-noc-dev.milicom-ste.workers.dev, verificados
@@ -30,7 +33,7 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: Cloudf
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el
    usuario lo pide; nunca ejecutes migraciones ni escrituras en PROD sin su confirmación explícita.
 
-## Estado (al 24/11/2026)
+## Estado (al 25/11/2026)
 
 | Fase | Estado | Qué quedó |
 |---|---|---|
@@ -51,6 +54,8 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: Cloudf
 | 15. Seguridad y casos perdidos | ✅ | §13: lectura solo con perfil (D32), turno terminado sin traspaso → "Por reasignar" + chip + alerta de coordinación (D33), aviso previo al técnico (D34), filtro/orden por tiempo sin actualizar, CSP + SRI (D35) · `sql/16` |
 | 17. Reparto por supervisión | ✅ | §15: «Repartir…» en "Por reasignar" para dispatch y coordinación (D37, `sql/17`), el turno limita "Entregar a", buscadores que vuelven al estado normal |
 | 18. Planificación con aviso | ✅ | §16: el dispatch planifica sin aprobación, da el motivo una vez por día y coordinación recibe el aviso con el detalle; almuerzo libre (D38, `sql/18`) |
+| 19. Rendimiento | ✅ | §17.1: RLS con `(select …)`, búsqueda con trigramas (`casos_que_coinciden`), índices de FK, cron `limpiar-registro-cron`, relectura de respaldo cada 5 min con Realtime (`domain/refresco.ts`) · `sql/19` (sin aplicar) |
+| 20. Usuarios | ✅ | §17.2: pestaña **Usuarios** de coordinación (crear, rol, contraseña temporal, inhabilitar/habilitar, D39) · `sql/20` (sin aplicar) |
 | 16. Traspaso y colores | ✅ | §14: etiquetas "en manos de quién" (D36), estado y área con color, recordatorio opcional, receptor por turno + búsqueda, reparto "todos entran", historial en Buscar casos (también técnico) · sin SQL |
 
 **Bases de datos (revisado con el conector el 22/11/2026).** Proyectos: PROD = `STE` (`kkslgsgapodpzuifjrwz`),
@@ -72,6 +77,30 @@ DEV = `DEV` (`bofqefbxziqxzrdujihd`).
 
 
 ## Lo que falta
+
+### Fase 20 — Usuarios desde coordinación ✅ (qué quedó) · `sql/20` sin aplicar
+- `sql/20_v2_usuarios.sql` (requiere la 19; crea `pgcrypto` en `extensions` si falta): `perfiles.activo` +
+  `inhabilitado_en/por`; `mi_rol`, `tiene_perfil`, `mi_tecnico_id` solo con perfil activo; funciones SECURITY DEFINER
+  solo coordinación: `usuarios_de_la_app()`, `crear_usuario(correo, nombre, rol, contrasena)`,
+  `actualizar_usuario(id, nombre, rol)`, `inhabilitar_usuario(id, motivo)` (devuelve casos abiertos),
+  `habilitar_usuario(id)`, `cambiar_contrasena_de_usuario(id, contrasena)`. Inhabilitar: perfil inactivo +
+  `auth.users.banned_until` +100 años + borra `auth.sessions` + ficha inactiva y jornadas desde mañana.
+- Dominio `usuarios.ts`, `services/usuariosRepo.ts`, `scripts/users/usersView.ts` (`iniciarUsuarios(miId)`,
+  `cargarUsuarios`), `components/users/UsersView.astro`, `components/modals/UserModal.astro` (modos crear/editar/
+  contraseña; datos de acceso una vez para copiar), `_users.scss`. `perfilRepo` devuelve `activo`; `main.ts` muestra
+  "Tu usuario está inhabilitado" (`NoProfileNotice` con dos avisos); `authService` traduce "banned".
+- Pruebas: `tests/sql/usuarios-v2.test.ts`, `tests/domain/usuarios.test.ts`, `tests/app/usuarios.test.ts`;
+  `helpers/baseSql.ts` crea `extensions` (pg_trgm, pgcrypto) y `auth.users/identities/sessions` con las columnas usadas.
+- Por verificar en Supabase real: crear la cuenta insertando en `auth.users` (igual que el procedimiento manual que
+  ya funcionó) y el bloqueo por `banned_until`. Probar con una cuenta de prueba en DEV antes de PROD.
+
+### Fase 19 — Rendimiento ✅ (qué quedó) · `sql/19` sin aplicar
+- `sql/19_v2_rendimiento.sql`: reescribe todas las políticas de `public` con `(select …)` (`envolver_en_select`),
+  `texto_de_busqueda_caso`, `patron_de_busqueda`, `casos_que_coinciden` (definer, nada sin perfil: con RLS el ILIKE no
+  usa índices), `buscar_casos` igual por fuera, índices GIN de trigramas y de 9 FK, cron `limpiar-registro-cron`
+  (bloque final; la prueba lo quita). Una política nueva debe escribirse con `(select función())`.
+- `domain/refresco.ts` + `state/sync.ts`: relectura de respaldo cada 5 min con Realtime conectado (cada 60 s sin él).
+- Pruebas: `tests/sql/rendimiento-v2.test.ts`, `tests/domain/refresco.test.ts`.
 
 ### Fase 18 — Planificación con aviso ✅ (qué quedó)
 - `sql/18_v2_planificacion_con_aviso.sql` (aplicada en DEV y PROD; requiere la 17): tabla
@@ -310,7 +339,7 @@ bun run test        # build + todas las pruebas (igual que el CI)
 ```
 pages/ + components/   Marcado Astro sin lógica. Lo dinámico son <template> que scripts/ clona.
   index.astro          Panel · Tablero · Buscar casos · Mi seguimiento · Traspaso · Mis traspasos ·
-                       Planificación · Historial · Bitácora (según rol)
+                       Planificación · Historial · Bitácora · Usuarios (según rol)
   login.astro          Entrar + recuperar contraseña   ·   restablecer.astro: contraseña nueva
         │
 scripts/               Comportamiento en el navegador
@@ -418,9 +447,13 @@ styles/                SCSS por parcial; colores/tema SOLO en abstracts/_variabl
   `casos_abiertos.sin_traspaso_desde`. **Con cron** `cierres-de-turno` (bloque final, la prueba lo quita).
 - `17_v2_entrega_por_supervision.sql`: `entregar_casos()` para dispatch y coordinación (D37). Sin cron.
 - `18_v2_planificacion_con_aviso.sql`: el dispatch planifica sin aprobación y avisa el motivo por día (D38). Sin cron.
+- `19_v2_rendimiento.sql`: RLS una vez por consulta, búsqueda con trigramas (`pg_trgm`), índices de FK. **Con cron**
+  `limpiar-registro-cron` (bloque final, la prueba lo quita).
+- `20_v2_usuarios.sql`: usuarios desde coordinación, perfil activo/inhabilitado (D39, `pgcrypto`). Sin cron.
 - `03_datos_demo_dev.sql`: solo DEV (requiere `public.entorno_dev`, requiere 04–14); escenario de prueba completo
   y repetible; no toca `perfiles` ni `auth`. Guía: `docs/interno/DATOS_DE_PRUEBA.md` (local, no se versiona).
-- Roles: solo por SQL (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
+- Roles: desde la pestaña **Usuarios** de coordinación (D39, migración 20); por SQL solo el primer coordinador
+  (`insert into perfiles ...`, ejemplo en la cabecera de la 04). Técnico = `rol 'tecnico'`
   **con** `tecnico_id`; sin él no tiene seguimiento ni notificaciones.
 - Cambios de esquema → nuevo archivo `sql/0N_*.sql` idempotente + prueba en `tests/sql/` + agregarlo a
   `MIGRACIONES` en `tests/helpers/baseSql.ts`. Una vista solo admite columnas nuevas **al final**.

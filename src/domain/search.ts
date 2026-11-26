@@ -24,6 +24,9 @@ export function tecnicoCoincide(tecnico: TecnicoConIncidentes, termino: string):
 
 const plano = (texto: string) => texto.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
 
+/** Texto sin mayúsculas, acentos ni espacios de sobra, para comparar o buscar ("Ríos" → "rios"). */
+export const sinAcentos = plano;
+
 /** Igualdad sin mayúsculas ni acentos ("critico" = "Crítico"). */
 export function mismoTexto(a: string, b: string): boolean {
   return plano(a) === plano(b);

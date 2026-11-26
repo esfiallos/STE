@@ -1,0 +1,90 @@
+---
+// Pestaña "Usuarios" de coordinación (D39): crear cuentas, cambiar nombre y rol, contraseña temporal e
+// inhabilitar/habilitar. La dibuja scripts/users/usersView.ts; el formulario vive en UserModal.astro.
+---
+
+<section class="panel-card users" id="usersView" aria-labelledby="usersTitle">
+  <header class="panel-card__head panel-card__head--row">
+    <div>
+      <h2 id="usersTitle">Usuarios</h2>
+      <p>
+        Crea cuentas, cambia roles e inhabilita a quien deja el equipo. Nada se borra: su historial se conserva y
+        cada cambio queda en la bitácora.
+      </p>
+    </div>
+    <div class="users__actions">
+      <button type="button" id="btnUsersRefresh" class="btn btn-sm">
+        <i class="fa-solid fa-rotate" aria-hidden="true"></i> Actualizar
+      </button>
+      <button type="button" id="btnUserNew" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Nuevo usuario
+      </button>
+    </div>
+  </header>
+
+  <div class="audit-toolbar users__toolbar">
+    <input
+      type="search"
+      id="usersSearch"
+      placeholder="Buscar por nombre, correo o rol..."
+      aria-label="Buscar usuarios"
+      autocomplete="off"
+    />
+    <div class="users__filters" role="group" aria-label="Mostrar">
+      <button type="button" class="users-filter" data-filtro="activos" aria-pressed="true">
+        Activos <span data-conteo="activos"></span>
+      </button>
+      <button type="button" class="users-filter" data-filtro="inhabilitados" aria-pressed="false">
+        Inhabilitados <span data-conteo="inhabilitados"></span>
+      </button>
+      <button type="button" class="users-filter" data-filtro="sin-rol" aria-pressed="false">
+        Sin rol <span data-conteo="sin-rol"></span>
+      </button>
+      <button type="button" class="users-filter" data-filtro="todos" aria-pressed="false">
+        Todos <span data-conteo="todos"></span>
+      </button>
+    </div>
+  </div>
+
+  <p id="usersStatus" class="board-status hidden" role="status"></p>
+
+  <div class="data-table-wrap">
+    <table class="data-table users-table">
+      <thead>
+        <tr>
+          <th scope="col">Usuario</th>
+          <th scope="col">Rol</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Último ingreso</th>
+          <th scope="col"><span class="sr-only">Acciones</span></th>
+        </tr>
+      </thead>
+      <tbody id="usersList"></tbody>
+    </table>
+  </div>
+
+  <!-- Una fila de la lista (la completa scripts/users/usersView.ts) -->
+  <template id="tpl-usuario-fila">
+    <tr data-ref="fila">
+      <td>
+        <span class="users-table__name" data-ref="nombre"></span>
+        <span class="users-table__mail" data-ref="correo"></span>
+      </td>
+      <td><span class="user-role-chip" data-ref="rol"></span></td>
+      <td>
+        <span class="user-state-chip" data-ref="estado"></span>
+        <span class="users-table__detail" data-ref="detalleEstado"></span>
+      </td>
+      <td class="users-table__when" data-ref="ingreso"></td>
+      <td class="users-table__buttons">
+        <button type="button" class="btn btn-sm" data-action="editar-usuario" data-ref="botonEditar">
+          <i class="fa-solid fa-pen" aria-hidden="true"></i> Editar
+        </button>
+        <button type="button" class="btn btn-sm" data-action="contrasena-usuario" data-ref="botonContrasena">
+          <i class="fa-solid fa-key" aria-hidden="true"></i> Contraseña
+        </button>
+        <button type="button" class="btn btn-sm" data-action="alternar-usuario" data-ref="botonEstado"></button>
+      </td>
+    </tr>
+  </template>
+</section>

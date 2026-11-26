@@ -231,6 +231,8 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 | **12. Seguimiento v2** ✅ | Descripción única + "Última actualización" como fecha y botón, filas horizontales, etiquetas locales con combobox, nota del traspaso = descripción, verificación traspaso → seguimiento (§11.3–11.6) · `12` | 10, 11 |
 | **13. Filtros** ✅ | Tipo de caso (FRESH · Tarea · Incidente) y filtros por técnico, área, estado y tipo en todas las vistas de casos (§11.11) | 12 |
 | **14. Turno C por tramos y pulido** ✅ | C1 22–00 / C2 00–06 (D29), color de la tabla del traspaso (D30), destello al soltar un caso, tarjetas sin chips superpuestos, quedarse un caso para mañana (D31) (§12) · `14`, `15` | 13 |
+| **20. Usuarios desde coordinación** ✅ | Pestaña **Usuarios**: crear cuentas con contraseña temporal, cambiar nombre y rol, inhabilitar/habilitar y contraseña temporal; un inhabilitado pierde el acceso al instante (D39, §17.2) · `20` | 19 |
+| **19. Rendimiento a un año** ✅ | RLS una vez por consulta, búsqueda con índices de trigramas, índices de claves foráneas, limpieza del registro de pg_cron, relectura de respaldo cada 5 min con Realtime (§17.1) · `19` | 18 |
 | **18. Planificación con aviso** ✅ | El dispatch cambia la planificación sin esperar aprobación: da el motivo una vez por día y coordinación recibe el aviso con el detalle; el almuerzo, libre (D38, §16) · `18` | 17 |
 | **17. Reparto por supervisión** ✅ | Dispatch y coordinación reparten "Por reasignar" al seguimiento de otros técnicos (D37), el turno limita "Entregar a", buscadores que vuelven al estado normal (§15) · `17` | 16 |
 | **16. Traspaso y colores** ✅ | Etiquetas "en manos de quién" (D36), estado y área con color, recordatorio opcional, receptor por turno con búsqueda y reparto "todos entran", historial en Buscar casos (también para el técnico) (§14) · sin SQL | 15 |
@@ -254,6 +256,7 @@ src/scripts/           + planning/, followUp/, handover/, notifications/, global
 - **D7. Comodín:** horarios fijos 06–16, 07–17, 08–18. Almuerzos a elección del dispatch.
 - **D8–D15** (19/11/2026): ver §10. Cambian D3 (hay un tercer rol, **coordinador**) y D5 (la planificación la
   hace coordinación; el dispatch solo la edita por día con solicitud aprobada).
+- **D39** (25/11/2026): ver §17.2. Reemplaza D3: coordinación administra usuarios y roles desde la app.
 - **D38** (24/11/2026): ver §16. Reemplaza D14: el dispatch ya no pide permiso para planificar; avisa el motivo.
 - **D37** (23/11/2026): ver §15. Cambia D16/D18 en lo que toca a "Por reasignar": coordinación también la ve y reparte.
 - **D36** (23/11/2026): ver §14. Cambia D22 (etiquetas sugeridas) y da Buscar casos al técnico.
@@ -718,3 +721,46 @@ Revisión del usuario sobre DEV con datos de prueba (`docs/interno/DATOS_DE_PRUE
 - App: `domain/planningNotices.ts`, `services/avisosPlanificacionRepo.ts`, `actions/planningNoticeActions.ts`,
   `planning/planningNoticesSync.ts` (insignia de la pestaña solo para coordinación). Se quitaron la campana de
   respuestas del dispatch (`requestsBell.ts`), el formulario de solicitud y la lista "Por responder".
+
+---
+
+## 17. Requerimientos v2.8–v2.9 · rendimiento y usuarios (25/11/2026)
+
+### 17.1 Rendimiento a un año de uso — ✅ `sql/19_v2_rendimiento.sql`
+Validación del 24/11/2026: con 10–15 usuarios y 100–150 casos/día la base crece ~220–290 MB al año (el plan Free
+de Supabase admite 500 MB); el registro de pg_cron sumaba ~60 MB/año; la búsqueda tardaba 2–6 s a un año (datos
+sintéticos, PGlite ajustado a la velocidad de Supabase Free) y podía pasar los 8 s de la API; y la relectura cada
+60 s de cada pestaña abierta pasaba los 5 GB/mes de Egress del plan Free.
+- **RLS una vez por consulta**: todas las políticas de `public` llaman a `es_dispatch()`, `tiene_perfil()`,
+  `mi_tecnico_id()`… y `auth.uid()` envueltas en `(select …)` (la migración las reescribe con
+  `envolver_en_select`; una política nueva debe escribirse así).
+- **Búsqueda con índices**: `texto_de_busqueda_caso(...)` + índice GIN de trigramas (`pg_trgm`, esquema
+  `extensions`) y otro sobre `caso_responsables.tecnico_nombre`. Con RLS, Postgres no usa índices para `ILIKE`
+  (no es *leakproof*): `casos_que_coinciden(termino)` (SECURITY DEFINER, nada sin perfil) junta los ids con índices
+  y `buscar_casos` (invoker, misma firma y resultado) lee esos casos con RLS. Medido a un año: código 28 ms, sin
+  resultados 9 ms (antes 4–6 s en PGlite).
+- Índices de las 9 claves foráneas que señalaba Supabase; cron **`limpiar-registro-cron`** (06:17 Honduras) borra
+  ejecuciones de más de 7 días.
+- App: `domain/refresco.ts` — con Realtime conectado la relectura de respaldo es cada **5 min** (antes cada 60 s);
+  sin Realtime sigue cada minuto. Cualquier relectura por Realtime reinicia la cuenta.
+
+### 17.2 Usuarios desde coordinación — ✅ `sql/20_v2_usuarios.sql`
+- **D39.** Coordinación administra usuarios en la pestaña **Usuarios** (antes, solo por SQL: D3). Puede:
+  crear una cuenta (correo, nombre, rol y **contraseña temporal** generada, que se muestra una vez para copiarla:
+  no hay SMTP propio), cambiar nombre y rol (también a cuentas de Auth sin perfil), poner otra contraseña temporal
+  (cierra las sesiones de esa persona) e **inhabilitar**/habilitar. Nada se borra.
+- **Inhabilitar** (se va o es despedido): pide motivo (bitácora), `perfiles.activo = false`, Auth bloquea la cuenta
+  (`banned_until` +100 años) y se borran sus sesiones. `mi_rol()`, `tiene_perfil()` y `mi_tecnico_id()` solo
+  reconocen perfiles activos: pierde el acceso al instante aunque su sesión siga abierta. Si es técnico: su ficha se
+  desactiva, se borran sus jornadas desde mañana y sus casos abiertos aparecen en "Por reasignar" (la app avisa
+  cuántos). Al entrar ve "Tu usuario está inhabilitado".
+- Reglas: nadie se cambia el rol ni se inhabilita a sí mismo; siempre queda una persona de coordinación activa; un
+  técnico reutiliza la ficha libre con su mismo nombre (si es de otro usuario, error); al dejar de ser técnico su
+  ficha se desactiva. Todo con bitácora (`usuario_creado`, `usuario_actualizado`, `usuario_inhabilitado`,
+  `usuario_habilitado`, `contrasena_temporal`, sin la contraseña).
+- Base: funciones SECURITY DEFINER solo para coordinación (`usuarios_de_la_app`, `crear_usuario`,
+  `actualizar_usuario`, `inhabilitar_usuario`, `habilitar_usuario`, `cambiar_contrasena_de_usuario`); la cuenta se
+  crea igual que en `docs/interno/ALTA_DE_USUARIOS.md` (bcrypt de `pgcrypto`).
+- App: `domain/usuarios.ts`, `services/usuariosRepo.ts`, `scripts/users/usersView.ts`, `components/users/UsersView.astro`,
+  `components/modals/UserModal.astro`, `styles/components/_users.scss`; `perfilRepo` lee `activo`.
+

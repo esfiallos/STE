@@ -5,6 +5,7 @@ import { supabase } from './supabaseClient';
 function traducirErrorDeAutenticacion(mensaje: string): string {
   const texto = mensaje.toLowerCase();
   if (texto.includes('invalid login credentials')) return 'Correo o contraseña incorrectos.';
+  if (texto.includes('banned')) return 'Tu usuario está inhabilitado. Si es un error, habla con coordinación.';
   if (texto.includes('email not confirmed')) return 'La cuenta aún no está confirmada. Pide al administrador que la active.';
   if (texto.includes('rate limit') || texto.includes('too many')) return 'Demasiados intentos. Espera un momento e inténtalo de nuevo.';
   return 'No se pudo iniciar sesión. Revisa tu conexión e inténtalo de nuevo.';
