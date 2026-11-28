@@ -26,8 +26,10 @@ Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: Cloudf
    y 17–18 aplicadas en DEV y PROD (verificado con el conector el 24/11/2026). Publicado en Cloudflare el 24/11/2026
    (`docs/ENTORNOS_Y_DESPLIEGUE.md`, decisión en `docs/CLOUDFLARE.md`): producción
    https://panel-noc.milicom-ste.workers.dev (STE) y DEV https://panel-noc-dev.milicom-ste.workers.dev, verificados
-   en el navegador sin sesión (login, cabeceras, CSP, 404). URL de Supabase configuradas por el usuario. Pendiente:
-   retirar GitHub Pages y la rama `gh-pages`, proteger DEV con Cloudflare Access, probar con sesión en producción.
+   en el navegador sin sesión (login, cabeceras, CSP, 404). URL de Supabase configuradas por el usuario. La red
+   corporativa bloquea `*.workers.dev` (Trend Micro, "Sharing Services"): GitHub Pages se **conserva** como respaldo
+   a mano (`deploy-pages.yml`, `docs/ENTORNOS_Y_DESPLIEGUE.md` §8); no borrar `gh-pages`. Pendiente: proteger DEV
+   con Cloudflare Access, probar con sesión en producción.
 5. Al terminar cada fase: pruebas (dominio + app + SQL si hay migración), `bun run check`, `bun run test`,
    actualizar **este archivo** (sección Estado) y `docs/DISENO_V2.md` (tabla §7). El usuario hace el commit.
 6. Hay un conector de Supabase disponible con los proyectos del usuario: úsalo solo para **leer** y solo si el

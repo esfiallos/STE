@@ -70,9 +70,10 @@ Subdominio de la cuenta de Cloudflare: `milicom-ste` (Workers & Pages → *Subdo
 10. **Proteger DEV en línea** (recomendado): Workers & Pages → `panel-noc-dev` → Settings → Domains & Routes →
     en `workers.dev`, activa **Cloudflare Access** y deja solo los correos del equipo (gratis hasta 50 usuarios).
     Así la dirección de DEV no queda abierta a cualquiera (igual pide iniciar sesión en la app).
-11. **Retirar GitHub Pages** cuando producción ya funcione en Cloudflare: Settings → Pages → *Unpublish* y borra la
-    rama `gh-pages`. Cambiar de dirección cierra la sesión de todos una vez, pide de nuevo el permiso de
-    notificaciones y pierde lo guardado en el navegador (etiquetas propias, filtros): ver `docs/CLOUDFLARE.md` §6.
+11. **GitHub Pages se conserva como respaldo** (prueba de concepto: la red corporativa bloquea `*.workers.dev` por
+    categoría "Sharing Services"). No borres la rama `gh-pages`; ver §8. Cambiar de dirección cierra la sesión de
+    todos una vez, pide de nuevo el permiso de notificaciones y pierde lo guardado en el navegador (etiquetas propias,
+    filtros): ver `docs/CLOUDFLARE.md` §6.
 
 ## 4. Flujo de trabajo
 
@@ -98,6 +99,7 @@ rama de trabajo ──► merge a desarrollo ──► Desplegar desarrollo ─�
 | `publicar.yml` | Lo llaman los dos de abajo | Comprueba secretos, clave publicable y proyecto de Supabase → compila → revisa `dist/` (páginas, 404, `_headers` con la CSP, insignia según entorno) → `wrangler deploy` |
 | `deploy-dev.yml` | Push a `desarrollo` o a mano | Verifica → publica DEV (`--env dev`) |
 | `deploy.yml` | Push a `main` o a mano | Verifica → publica producción |
+| `deploy-pages.yml` | **Solo a mano** | Verifica → compila contra PROD con `BASE_PATH=/<repositorio>` → empuja a `gh-pages` (§8) |
 
 La compilación escribe `dist/_headers` (integración de `astro.config.ts`, política en `src/config/seguridad.ts`):
 CSP con `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `noindex`
@@ -132,3 +134,25 @@ Ninguna prueba toca una base real.
 | El deploy falla en "Comprobar la configuración" | Falta un secreto (del entorno o `CLOUDFLARE_*` del repositorio), la clave no es la publicable o la URL no es del proyecto de Supabase de ese entorno |
 | El deploy falla en "Publicar en Cloudflare" con error de autenticación | Token vencido, sin permiso *Workers Scripts: Edit* o `CLOUDFLARE_ACCOUNT_ID` de otra cuenta |
 | La app publicada no conecta con Supabase (consola: "Content Security Policy") | La CSP se arma con `PUBLIC_SUPABASE_URL` al compilar: revisa el secreto del entorno |
+
+## 8. Respaldo en GitHub Pages (a mano)
+
+Para probar desde la red corporativa sin pasar por `*.workers.dev`. Publica la **misma base PROD** que Cloudflare;
+los dos sitios conviven. Dirección: `https://<usuario>.github.io/<repositorio>/` (hoy
+`https://esfiallos.github.io/STE/`).
+
+1. **Antes de nada**, desde la red corporativa abre `https://esfiallos.github.io/`: si sale el 404 de GitHub, el
+   filtro deja pasar `github.io`; si sale la página de bloqueo, no sigas.
+2. **Repositorio:** Pages en el plan gratis exige repositorio **público** (o GitHub Pro/Team si se queda privado).
+3. **Publicar:** Actions → *Publicar en GitHub Pages* → *Run workflow* → rama `main`. Usa los secretos del entorno
+   `production` (si limitaste sus *Deployment branches* a `main`, lánzalo desde `main`).
+4. **Activar Pages:** Settings → Pages → *Build and deployment* → *Deploy from a branch* → `gh-pages` / `(root)`.
+5. **Supabase PROD** (Authentication → URL Configuration): *Redirect URLs* +=
+   `https://esfiallos.github.io/STE/restablecer/`. La *Site URL* puede quedarse en Cloudflare: la app pide volver
+   a la `/restablecer/` de la dirección desde la que se abrió, y basta con que esté en la lista.
+6. **Ojo:** `*.supabase.co` también tiene que pasar el filtro corporativo; si el login se queda cargando, mira la
+   consola del navegador.
+
+Diferencias con Cloudflare: Pages no lee `dist/_headers` (el workflow lo quita), así que quedan solo las protecciones
+de la `<meta>` (CSP, sin `frame-ancestors`); no hay `noindex` por cabecera. Para apagarlo: Settings → Pages →
+*Unpublish* (la rama puede quedarse).
