@@ -2,9 +2,9 @@
 # (worker "panel-noc"). Detalle en docs/ENTORNOS_Y_DESPLIEGUE.md.
 name: Desplegar a producción
 
+# APAGADO (27/11/2026): sin publicación automática al hacer push a "main"; solo a mano (Run workflow).
+# Con wrangler.jsonc en "workers_dev": false, lanzarlo a mano retira la dirección *.workers.dev.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Un despliegue a la vez; si llega otro mientras corre, espera en lugar de cancelarlo.

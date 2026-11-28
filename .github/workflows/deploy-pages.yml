@@ -1,10 +1,17 @@
 # Respaldo en GitHub Pages (prueba de concepto): SOLO se lanza a mano desde Actions → "Publicar en GitHub Pages" →
-# Run workflow (elige la rama; normalmente main). Compila contra la base PROD y empuja el sitio a la rama "gh-pages".
-# No toca Cloudflare: los dos sitios conviven. Pasos de una sola vez en docs/ENTORNOS_Y_DESPLIEGUE.md §5.
+# Run workflow. Se elige la rama y el entorno: "development" (base DEV, insignia DESARROLLO) o "production" (base
+# PROD). Empuja el sitio a la rama "gh-pages": GitHub Pages tiene UN solo sitio por repositorio, así que cada
+# publicación reemplaza a la anterior. No toca Cloudflare. Pasos de una sola vez en docs/ENTORNOS_Y_DESPLIEGUE.md §8.
 name: Publicar en GitHub Pages
 
 on:
   workflow_dispatch:
+    inputs:
+      entorno:
+        description: Base de datos que usará el sitio
+        type: choice
+        options: [development, production]
+        default: development
 
 concurrency:
   group: deploy-github-pages
@@ -23,22 +30,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    # Mismos secretos que la publicación de producción (PUBLIC_SUPABASE_URL y PUBLIC_SUPABASE_PUBLISHABLE_KEY)
+    # Secretos del entorno de GitHub elegido (PUBLIC_SUPABASE_URL y PUBLIC_SUPABASE_PUBLISHABLE_KEY)
     environment:
-      name: production
+      name: ${{ inputs.entorno }}
       url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
 
     permissions:
       contents: write # para empujar la rama gh-pages
 
     env:
-      PUBLIC_APP_ENV: production
+      PUBLIC_APP_ENV: ${{ inputs.entorno }}
       PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
       PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       SITE_URL: https://${{ github.repository_owner }}.github.io
       # Repositorio de proyecto → el sitio cuelga de /<repositorio>/
       BASE_PATH: /${{ github.event.repository.name }}
-      PROYECTO: kkslgsgapodpzuifjrwz # STE (PROD)
+      # STE (PROD) o DEV: evita publicar contra la base equivocada
+      PROYECTO: ${{ inputs.entorno == 'production' && 'kkslgsgapodpzuifjrwz' || 'bofqefbxziqxzrdujihd' }}
 
     steps:
       - uses: actions/checkout@v6
@@ -54,14 +62,14 @@ jobs:
 
       - name: Comprobar la configuración
         run: |
-          test -n "$PUBLIC_SUPABASE_URL" || { echo "::error::Falta el secreto PUBLIC_SUPABASE_URL en el entorno 'production'"; exit 1; }
-          test -n "$PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Falta el secreto PUBLIC_SUPABASE_PUBLISHABLE_KEY en el entorno 'production'"; exit 1; }
+          test -n "$PUBLIC_SUPABASE_URL" || { echo "::error::Falta el secreto PUBLIC_SUPABASE_URL en el entorno '$PUBLIC_APP_ENV'"; exit 1; }
+          test -n "$PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Falta el secreto PUBLIC_SUPABASE_PUBLISHABLE_KEY en el entorno '$PUBLIC_APP_ENV'"; exit 1; }
           case "$PUBLIC_SUPABASE_PUBLISHABLE_KEY" in
             sb_secret_*|eyJ*service_role*) echo "::error::Esa clave NO es la publicable. Usa la clave publishable."; exit 1 ;;
           esac
           case "$PUBLIC_SUPABASE_URL" in
             "https://$PROYECTO.supabase.co"|"https://$PROYECTO.supabase.co/") ;;
-            *) echo "::error::GitHub Pages debe usar el proyecto de Supabase $PROYECTO (revisa PUBLIC_SUPABASE_URL)"; exit 1 ;;
+            *) echo "::error::El entorno '$PUBLIC_APP_ENV' debe usar el proyecto de Supabase $PROYECTO (revisa PUBLIC_SUPABASE_URL)"; exit 1 ;;
           esac
 
       - name: Compilar
@@ -73,8 +81,12 @@ jobs:
             test -f "dist/$f" || { echo "::error::Falta dist/$f"; exit 1; }
           done
           grep -q "$BASE_PATH/_astro" dist/index.html || { echo "::error::Las rutas del sitio no respetan BASE_PATH ($BASE_PATH)"; exit 1; }
-          if grep -rqE 'class="env-badge"|<title>\[DEV\]' --include='*.html' dist; then
-            echo "::error::La compilación contiene la marca de desarrollo: revisa PUBLIC_APP_ENV"; exit 1
+          marca=$(grep -rlE 'class="env-badge"|<title>\[DEV\]' --include='*.html' dist || true)
+          if [ "$PUBLIC_APP_ENV" = "production" ] && [ -n "$marca" ]; then
+            echo "::error::La compilación de producción lleva la marca de desarrollo: revisa PUBLIC_APP_ENV"; exit 1
+          fi
+          if [ "$PUBLIC_APP_ENV" = "development" ] && [ -z "$marca" ]; then
+            echo "::error::La compilación de DEV debe llevar la insignia DESARROLLO"; exit 1
           fi
 
       - name: Publicar en la rama gh-pages
@@ -90,6 +102,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Compilado de ${GITHUB_SHA::7}"
+          git commit -m "Compilado de ${GITHUB_SHA::7} ($PUBLIC_APP_ENV)"
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin gh-pages

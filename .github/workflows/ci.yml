@@ -5,8 +5,8 @@ on:
   pull_request:
     branches: [main]
   push:
-    # main y desarrollo se verifican en su propio despliegue (deploy.yml, deploy-dev.yml)
-    branches-ignore: [main, desarrollo, gh-pages]
+    # Con la publicación apagada (deploy*.yml solo a mano), main y desarrollo también se verifican aquí
+    branches-ignore: [gh-pages]
 
 concurrency:
   group: ci-${{ github.ref }}

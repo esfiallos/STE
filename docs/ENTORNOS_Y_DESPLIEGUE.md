@@ -1,5 +1,12 @@
 # Entornos y despliegue
 
+> **APAGADO desde el 27/11/2026** (prueba de concepto en pausa hasta tener el visto bueno de la empresa).
+> `wrangler.jsonc` tiene `"workers_dev": false` en ambos entornos y `deploy.yml` / `deploy-dev.yml` ya no corren al
+> hacer push (solo *Run workflow*). Los sitios se apagan en Cloudflare: Workers & Pages → `panel-noc` y
+> `panel-noc-dev` → Settings → Domains & Routes → `workers.dev` → *Disable*.
+> **Para volver a encender:** `"workers_dev": true` en ambos, restaurar el `push` en los dos workflows (y quitar
+> `main`/`desarrollo` de `ci.yml` de nuevo con `branches-ignore`) y lanzarlos.
+
 Hay dos entornos completos (app **y** base de datos). Los dos se publican en **Cloudflare** (Workers con archivos
 estáticos, `wrangler.jsonc`) desde GitHub Actions, cada uno desde su rama y contra su base.
 
@@ -99,7 +106,7 @@ rama de trabajo ──► merge a desarrollo ──► Desplegar desarrollo ─�
 | `publicar.yml` | Lo llaman los dos de abajo | Comprueba secretos, clave publicable y proyecto de Supabase → compila → revisa `dist/` (páginas, 404, `_headers` con la CSP, insignia según entorno) → `wrangler deploy` |
 | `deploy-dev.yml` | Push a `desarrollo` o a mano | Verifica → publica DEV (`--env dev`) |
 | `deploy.yml` | Push a `main` o a mano | Verifica → publica producción |
-| `deploy-pages.yml` | **Solo a mano** | Verifica → compila contra PROD con `BASE_PATH=/<repositorio>` → empuja a `gh-pages` (§8) |
+| `deploy-pages.yml` | **Solo a mano** | Elige entorno (DEV por defecto o PROD) → verifica → compila con `BASE_PATH=/<repositorio>` → empuja a `gh-pages` (§8) |
 
 La compilación escribe `dist/_headers` (integración de `astro.config.ts`, política en `src/config/seguridad.ts`):
 CSP con `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `noindex`
@@ -137,17 +144,19 @@ Ninguna prueba toca una base real.
 
 ## 8. Respaldo en GitHub Pages (a mano)
 
-Para probar desde la red corporativa sin pasar por `*.workers.dev`. Publica la **misma base PROD** que Cloudflare;
-los dos sitios conviven. Dirección: `https://<usuario>.github.io/<repositorio>/` (hoy
-`https://esfiallos.github.io/STE/`).
+Para probar desde la red corporativa sin pasar por `*.workers.dev`. Al lanzarlo se elige el entorno:
+**development** (base DEV, con insignia DESARROLLO; es el valor por defecto) o **production** (base PROD). Pages tiene
+un solo sitio por repositorio: cada publicación reemplaza a la anterior. Dirección:
+`https://<usuario>.github.io/<repositorio>/` (hoy `https://esfiallos.github.io/STE/`).
 
 1. **Antes de nada**, desde la red corporativa abre `https://esfiallos.github.io/`: si sale el 404 de GitHub, el
    filtro deja pasar `github.io`; si sale la página de bloqueo, no sigas.
 2. **Repositorio:** Pages en el plan gratis exige repositorio **público** (o GitHub Pro/Team si se queda privado).
-3. **Publicar:** Actions → *Publicar en GitHub Pages* → *Run workflow* → rama `main`. Usa los secretos del entorno
-   `production` (si limitaste sus *Deployment branches* a `main`, lánzalo desde `main`).
+3. **Publicar:** Actions → *Publicar en GitHub Pages* → *Run workflow* → rama y entorno. Usa los secretos del
+   entorno de GitHub elegido (`development` o `production`); si limitaste sus *Deployment branches*, lánzalo desde la
+   rama permitida (`desarrollo` o `main`).
 4. **Activar Pages:** Settings → Pages → *Build and deployment* → *Deploy from a branch* → `gh-pages` / `(root)`.
-5. **Supabase PROD** (Authentication → URL Configuration): *Redirect URLs* +=
+5. **Supabase del entorno elegido** (Authentication → URL Configuration): *Redirect URLs* +=
    `https://esfiallos.github.io/STE/restablecer/`. La *Site URL* puede quedarse en Cloudflare: la app pide volver
    a la `/restablecer/` de la dirección desde la que se abrió, y basta con que esté en la lista.
 6. **Ojo:** `*.supabase.co` también tiene que pasar el filtro corporativo; si el login se queda cargando, mira la

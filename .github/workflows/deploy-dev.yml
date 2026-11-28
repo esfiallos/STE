@@ -2,9 +2,9 @@
 # Cloudflare (worker "panel-noc-dev", con insignia DESARROLLO y título [DEV]). Nunca toca la base PROD.
 name: Desplegar desarrollo
 
+# APAGADO (27/11/2026): sin publicación automática al hacer push a "desarrollo"; solo a mano (Run workflow).
+# Con wrangler.jsonc en "workers_dev": false, lanzarlo a mano retira la dirección *.workers.dev.
 on:
-  push:
-    branches: [desarrollo]
   workflow_dispatch:
 
 concurrency:

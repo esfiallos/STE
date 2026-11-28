@@ -9,6 +9,8 @@ Todo el código, nombres y mensajes están **en español**; mantén ese idioma.
 **Stack:** Astro 7 (sitio estático, sin SSR) · TypeScript estricto · SCSS · Supabase (Auth, Postgres, RLS,
 Realtime, pg_cron) · Bun · Vitest (+ jsdom, + PGlite para SQL). Deploy: Cloudflare Workers (archivos estáticos,
 `wrangler.jsonc`) desde GitHub Actions: `main` → `panel-noc` (base PROD), `desarrollo` → `panel-noc-dev` (base DEV).
+**Publicación APAGADA desde el 27/11/2026** (en pausa hasta el visto bueno de la empresa): `workers_dev: false` y
+deploys solo a mano; ver el aviso al inicio de `docs/ENTORNOS_Y_DESPLIEGUE.md`. No volver a encender sin que lo pida.
 
 ---
 
@@ -75,7 +77,14 @@ DEV = `DEV` (`bofqefbxziqxzrdujihd`).
   cuentas reales (12 técnicos con su ficha en `tecnicos`, 3 dispatch, 1 coordinador; DEV además un coordinador de
   prueba). Sin casos ni jornadas. Las cuentas se crearon **sin contraseña** (la pone el usuario). Procedimiento para
   altas, cambios de rol y bajas
-- DEV tiene el escenario de datos de prueba
+- 27/11/2026, a pedido del usuario: los dos proyectos están en la organización `L1B2B` (cuenta aparte). Se vació
+  **todo** `public` (salvo `entorno_dev` en DEV), `auth.users` y `auth.audit_log_entries` en DEV y PROD: no quedan
+  cuentas ni datos reales. DEV se vuelve a sembrar solo con `03_datos_demo_dev.sql` (nombres ficticios) y cuentas
+  ficticias; no volver a cargar cuentas ni datos reales mientras sea prueba de concepto.
+- Cuentas ficticias de DEV (27/11/2026, sin contraseña: la pone el usuario con el paso 2 de
+  `docs/interno/ALTA_DE_USUARIOS.md`): `coordinacion@prueba.test`, `dispatch@prueba.test` y los técnicos
+  `ana.perez`, `luis.mora`, `tomas.leon`, `hugo.rios` `@prueba.test`, enlazados a las fichas con los mismos nombres
+  que usa `03_datos_demo_dev.sql` (el script las reutiliza). Correos `.test`: no reciben correo de recuperación.
 
 
 ## Lo que falta
